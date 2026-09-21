@@ -5001,6 +5001,7 @@ PROVA = [False]         # F3: fa vedere dove il gioco crede che sia il tavolo
 # In alto a sinistra si legge per un attimo cosa c'e' adesso.
 TAV_PROVA = [None]
 BORDO_PROVA = [None]    # R: le cornici sul panno di adesso
+PANNO_PROVA = [None]    # P: i panni sotto la cornice di adesso
 BORDO_ORA = [0]         # la cornice che si sta disegnando
 PANNO_ORA = [0]         # e il panno
 SCRITTA_PROVA = ["", 0]
@@ -5009,9 +5010,15 @@ SCRITTA_PROVA = ["", 0]
 def prova_tasto(key):
     """T e B in partita. Ritorna True se il tasto era suo."""
     if not DENTRO_PARTITA[0] or key not in (pygame.K_t, pygame.K_b,
-                                            pygame.K_r):
+                                            pygame.K_r, pygame.K_p):
         return False
-    if key == pygame.K_r:
+    if key == pygame.K_p:
+        if not PANNI:
+            return True
+        k = (PANNO_ORA[0] + 1) % len(PANNI)
+        PANNO_PROVA[0] = k
+        testo = "Cloth: %s" % os.path.basename(PANNI[k][1]).rsplit(".", 1)[0]
+    elif key == pygame.K_r:
         if not BORDI:
             return True
         k = (BORDO_ORA[0] + 1) % len(BORDI)
@@ -5020,7 +5027,7 @@ def prova_tasto(key):
     elif key == pygame.K_t:
         k = 0 if TAV_PROVA[0] is None else (TAV_PROVA[0] + 1) % 6
         TAV_PROVA[0] = k
-        BORDO_PROVA[0] = None
+        BORDO_PROVA[0] = PANNO_PROVA[0] = None
         pa, le = TORNEO_TAVOLI.get(GIOCO[0], TORNEO_SEI)[k]
         testo = "Table %d: %s + %s" % (k + 1, pa.rsplit(".", 1)[0],
                                        le.rsplit(".", 1)[0])
@@ -10712,7 +10719,7 @@ def gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     """Una partita, e uscendo silenzio: qualunque strada si prenda per
     lasciare il tavolo, il pubblico e l'arbitro si fermano."""
     DENTRO_PARTITA[0] = True
-    TAV_PROVA[0] = BORDO_PROVA[0] = None    # le prove valgono una partita
+    TAV_PROVA[0] = BORDO_PROVA[0] = PANNO_PROVA[0] = None  # una partita
     SCRITTA_PROVA[0] = ""
     PALLE_VISTA[0] = None
     misura_palle(GIOCO[0])
@@ -11261,6 +11268,8 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                 (i_panno, i_bordo)
         if BORDO_PROVA[0] is not None:
             i_bordo = BORDO_PROVA[0]
+        if PANNO_PROVA[0] is not None:
+            i_panno = PANNO_PROVA[0]
         BORDO_ORA[0] = i_bordo
         PANNO_ORA[0] = i_panno
         disegna_tavolo(sc, i_panno, i_bordo, gioco=partita.gioco)
