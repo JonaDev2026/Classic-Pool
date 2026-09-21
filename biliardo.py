@@ -10309,6 +10309,10 @@ def scelta_torneo(sc, clock, logo, disc):
 
 
 QUADRANTE = {}
+# la lancetta com'e' disegnata: frazione di giro, se sta tornando a
+# mezzogiorno di corsa, e l'ultimo fotogramma
+LANCETTA = {"vista": 0.0, "torna": False, "t": 0}
+GIRO_RITORNO = 2.5      # giri al secondo quando torna a zero
 
 
 def quadrante(lato):
@@ -10339,7 +10343,21 @@ def disegna_orologio(sc, resta, totale):
         # fine, con la punta a lancia e il contrappeso dietro
         sc.blit(img, img.get_rect(center=(cx, cy)))
         passati = int(totale) - max(0, int(math.ceil(resta)))
-        a = 2 * math.pi * passati / 60.0 - math.pi / 2
+        meta = passati / 60.0
+        ora = pygame.time.get_ticks()
+        dt = min(0.1, max(0.0, (ora - LANCETTA["t"]) / 1000.0))
+        LANCETTA["t"] = ora
+        if LANCETTA["torna"]:
+            # come i cronografi: finisce il giro di corsa e si ferma sulle 12
+            LANCETTA["vista"] += GIRO_RITORNO * dt
+            if LANCETTA["vista"] >= 1.0:
+                LANCETTA["vista"], LANCETTA["torna"] = meta, False
+        elif meta < LANCETTA["vista"] - 1e-6:
+            LANCETTA["torna"] = True        # il tempo e' ripartito
+        else:
+            LANCETTA["vista"] = meta
+        # gira al contrario, come un conto alla rovescia
+        a = -math.pi / 2 - 2 * math.pi * LANCETTA["vista"]
         ux, uy = math.cos(a), math.sin(a)
         px, py = -uy, ux
         r = lato / 2.0
