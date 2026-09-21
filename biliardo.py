@@ -749,8 +749,8 @@ SET_PALLE = (
      (0, 200, 255), (20, 20, 24), (250, 250, 250), CAR_MODERNO, "classico"),
     ("set_doppia", _VIVI8, (0, 96, 230), (255, 255, 255), (20, 20, 24),
      CAR_MODERNO, "doppia"),
-    ("set_stelle", _VIVI8, (255, 214, 0), (255, 255, 255), (20, 20, 24),
-     CAR_MODERNO, "stelle"),
+    ("set_zigzag", _BASE8, (30, 30, 34), (250, 250, 246), (26, 26, 30),
+     CAR_CLASSICO, "zigzag"),
     ("set_bersaglio", _VIVI8, (236, 28, 44), (255, 255, 255), (20, 20, 24),
      CAR_MODERNO, "bersaglio"),
     ("set_scacchi", _VIVI8, (20, 20, 24), (255, 255, 255), (20, 20, 24),
@@ -796,15 +796,34 @@ def dipingi_stile(s, num, base, stile):
             s.fill(base)
             pygame.draw.rect(s, bianco, pygame.Rect(0, 122, W, 12))
         return
-    if stile == "stelle":
-        if mezza:           # la fascia piena di stelle bianche
-            s.fill(bianco)
-            pygame.draw.rect(s, base, pygame.Rect(0, 64, W, H - 128))
-            # una stella grande per parte, fra un numero e l'altro
-            for u in (0, W // 2, W):
-                stella(s, bianco, u, 128, 58)
-        else:               # le piene restano lisce
-            s.fill(base)
+    if stile == "zigzag":
+        # lo stile d'epoca: le piene con una fascetta bianca a zig-zag in
+        # alto, le mezze con due calotte bianche dal bordo a denti
+        s.fill(base)
+        if mezza:
+            passo, dente = W / 12.0, 20
+            for polo, y0 in ((0, 76), (H, H - 76)):
+                verso = 1 if polo == 0 else -1
+                pt = [(0, polo)]
+                k = 0
+                while k * passo / 2.0 <= W:
+                    x = k * passo / 2.0
+                    y = y0 + (dente if k % 2 == 0 else -dente) * verso * 0.5
+                    pt.append((x, y))
+                    k += 1
+                pt += [(W, polo)]
+                pygame.draw.polygon(s, bianco, pt)
+        else:
+            passo, dente, spess = W / 20.0, 9, 11
+            su, giu = [], []
+            k = 0
+            while k * passo / 2.0 <= W:
+                x = k * passo / 2.0
+                d = dente if k % 2 == 0 else -dente
+                su.append((x, 64 + d - spess / 2.0))
+                giu.append((x, 64 + d + spess / 2.0))
+                k += 1
+            pygame.draw.polygon(s, bianco, su + giu[::-1])
         return
     if stile == "bersaglio":
         if mezza:           # fascia sottile e due anelli
@@ -1226,7 +1245,10 @@ def _tessitura(num, font, asset=None):
         # i puntini della bianca: senza, una palla bianca che gira non si
         # vede girare
         for u, v in ((80, 84), (304, 172), (412, 72), (184, 208), (496, 140)):
-            pygame.draw.circle(s, puntini, (u, v), 10)
+            if stile == "zigzag" and tipo_palle() == "pool":
+                stella(s, puntini, u, v, 14)    # le stelline d'epoca
+            else:
+                pygame.draw.circle(s, puntini, (u, v), 10)
     else:
         base = colore_palla(num)
         dipingi_stile(s, num, base, stile)
@@ -7309,7 +7331,7 @@ for _l, _d in (("en", {"t_saved": "Tournament in progress",
 for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_pastello": "Pastel", "set_neon": "Neon",
                        "set_retro": "Vintage", "set_doppia": "Twin Line",
-                       "set_stelle": "Stars", "set_bersaglio": "Target",
+                       "set_zigzag": "Zigzag", "set_bersaglio": "Target",
                        "set_scacchi": "Checkered", "set_pro": "Pro",
                        "set_perla": "Pearl", "set_notte": "Night",
                        "set_club": "Club", "bb_visit": "%s - second visit",
@@ -7318,7 +7340,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                ("it", {"balls": "Palle", "set_classico": "Classico",
                        "set_pastello": "Pastello", "set_neon": "Neon",
                        "set_retro": "Vintage", "set_doppia": "Doppia riga",
-                       "set_stelle": "Stelle", "set_bersaglio": "Bersaglio",
+                       "set_zigzag": "Zig-zag", "set_bersaglio": "Bersaglio",
                        "set_scacchi": "Scacchi", "set_pro": "Pro",
                        "set_perla": "Perla", "set_notte": "Notte",
                        "set_club": "Club",
@@ -8119,7 +8141,7 @@ _FR = {
     "crests": "Blasons", "cr_classici": "classiques", "cr_moderni": "modernes",
     "balls": "Billes", "set_classico": "Classique", "set_pastello": "Pastel",
     "set_neon": "Neon", "set_retro": "Vintage", "set_doppia": "Double ligne",
-    "set_stelle": "Etoiles", "set_bersaglio": "Cible",
+    "set_zigzag": "Zigzag", "set_bersaglio": "Cible",
     "set_scacchi": "Damier", "set_pro": "Pro", "set_perla": "Perle",
     "set_notte": "Nuit", "set_club": "Club", "set_bianco": "Blanc",
     "set_ambra": "Ambre", "bb_visit": "%s - deuxieme visite",
@@ -8167,7 +8189,7 @@ _ES = {
     "crests": "Escudos", "cr_classici": "clasicos", "cr_moderni": "modernos",
     "balls": "Bolas", "set_classico": "Clasico", "set_pastello": "Pastel",
     "set_neon": "Neon", "set_retro": "Vintage", "set_doppia": "Doble linea",
-    "set_stelle": "Estrellas", "set_bersaglio": "Diana",
+    "set_zigzag": "Zigzag", "set_bersaglio": "Diana",
     "set_scacchi": "Ajedrez", "set_pro": "Pro", "set_perla": "Perla",
     "set_notte": "Noche", "set_club": "Club", "set_bianco": "Blanco",
     "set_ambra": "Ambar", "bb_visit": "%s - segunda visita",
