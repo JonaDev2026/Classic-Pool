@@ -3832,14 +3832,34 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
         if st is not None:
             # a meta', sulla riga dei nomi dei turni (ottavi, quarti...)
             sc.blit(st, st.get_rect(center=(WIN_W // 2, s(96) - s(14))))
-            riga = ("%s  -  %s" % (titolo, sotto)) if sotto else titolo
+            riga = titolo
         else:
             t = FONTS["classico"].render(titolo, True, (236, 216, 164))
             sc.blit(t, t.get_rect(center=(WIN_W // 2, s(40))))
 
-        if riga:
-            t = font.render(riga, True, (232, 146, 52))
-            sc.blit(t, t.get_rect(center=(WIN_W // 2, s(704))))
+        # il premio ("+$50") va a parte, in verde; il resto come sempre
+        premio_r = bool(sotto) and sotto.startswith("+")
+        soldi_r = sotto if (st is not None and premio_r) else ""
+        if st is not None and sotto and not premio_r:
+            riga = "%s  -  %s" % (titolo, sotto)
+        if st is None and sotto:
+            riga = sotto
+            if premio_r:
+                riga, soldi_r = "", sotto
+        if riga or soldi_r:
+            for f_r in (font, small, FONTS["mini"]):
+                pezzi = [f_r.render(riga, True, (232, 146, 52))] if riga \
+                    else []
+                if soldi_r:
+                    pezzi.append(f_r.render("   " + soldi_r, True,
+                                            VERDE_SOLDI))
+                tot = sum(p.get_width() for p in pezzi)
+                if tot <= WIN_W - s(40):
+                    break
+            x_r = WIN_W // 2 - tot // 2
+            for p in pezzi:
+                sc.blit(p, p.get_rect(midleft=(x_r, s(704))))
+                x_r += p.get_width()
 
         rett = []
         stac = s(20)
@@ -3874,6 +3894,8 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
             else:
                 tv = FONTS.get("elegante_voce", font).render(tit_el(v), True,
                                                              col)
+                if tv.get_width() > r.w - s(16):
+                    tv = small.render(v, True, col)
                 sc.blit(tv, tv.get_rect(center=r.center))
             rett.append(r)
         presenta()
@@ -7443,7 +7465,7 @@ FONTS = {}
 CPU_TESTI = {
     "en": {"avanti": "press a key for the next frame", "match": "Match", "m_uno": "single frame", "m_best": "best of %d", "sn_miss": "Foul and a miss, %d away - %s plays again", "sn_free": "free ball", "sn_foul": "Foul, %d away - %s to play", "sn_pari": "frame tied", "sn_break": "break %d", "sn_on": "on: %s", "sn_red": "red", "sn_colour": "a colour", "f_low": "wrong ball first", "r_64": "Round of 64", "r_32": "Round of 32", "r_16": "Round of 16", "r_8": "Quarter-finals", "r_4": "Semi-finals", "r_2": "Final", "t_champ": "TOURNAMENT WON", "t_bracket": "the draw", "t_slot": "Tournament level", "t_set": "set", "t_empty": "empty", "soon": "soon", "sub_disc": "pick the game", "sub_mode": "pick how you want to play", "shotclock": "Shot clock", "f_time": "time up", "flag": "Flag", "tournament": "Tournament", "t_level": "LEVEL %d",
            "t_vs": "against %s", "t_go": "Play", "t_won": "YOU BEAT %s",
-           "t_lost": "%s BEAT YOU", "t_next": "Next level",
+           "t_lost": "%s BEAT YOU", "t_next": "Continue",
            "t_reach": "you got to level %d", "t_record": "best: level %d",
            "t_again": "Start over", "t_sub": "win and you go up a level",
            "cpu": "Vs Computer", "computer": "Computer", "level": "Level",
@@ -7482,20 +7504,20 @@ TORNEO_TESTI = {
     "it": {"flag": "Bandiera", "tournament": "Torneo", "t_level": "LIVELLO %d",
            "t_vs": "contro %s", "t_go": "Gioca",
            "t_won": "HAI BATTUTO %s", "t_lost": "%s TI HA BATTUTO",
-           "t_next": "Livello successivo", "t_reach": "sei arrivato al livello %d",
+           "t_next": "Continua", "t_reach": "sei arrivato al livello %d",
            "t_record": "record: livello %d", "t_again": "Ricomincia",
            "t_sub": "chi vince sale di livello"},
     "fr": {"avanti": "une touche pour la manche suivante", "match": "Match", "m_uno": "une manche", "m_best": "au meilleur de %d", "sn_miss": "Faute et miss, %d points - %s rejoue", "sn_free": "bille libre", "sn_foul": "Faute, %d points - a %s de jouer", "sn_pari": "frame a egalite", "sn_break": "serie %d", "sn_on": "a jouer : %s", "sn_red": "une rouge", "sn_colour": "une couleur", "f_low": "mauvaise bille", "r_64": "32es de finale", "r_32": "16es de finale", "r_16": "8es de finale", "r_8": "Quarts", "r_4": "Demi-finales", "r_2": "Finale", "t_champ": "TOURNOI GAGNE", "t_bracket": "le tableau", "t_slot": "Niveau du tournoi", "t_set": "attribue", "t_empty": "vide", "soon": "bientot", "sub_disc": "choisis le jeu", "sub_mode": "choisis le type de partie", "shotclock": "Chrono", "f_time": "temps ecoule", "flag": "Drapeau", "tournament": "Tournoi", "t_level": "NIVEAU %d",
            "t_vs": "contre %s", "t_go": "Jouer",
            "t_won": "TU AS BATTU %s", "t_lost": "%s T'A BATTU",
-           "t_next": "Niveau suivant", "t_reach": "tu es arrive au niveau %d",
+           "t_next": "Continuer", "t_reach": "tu es arrive au niveau %d",
            "t_record": "record : niveau %d", "t_again": "Recommencer",
            "t_sub": "qui gagne monte d'un niveau"},
     "es": {"avanti": "pulsa una tecla para el siguiente frame", "match": "Match", "m_uno": "un frame", "m_best": "al mejor de %d", "sn_miss": "Falta y miss, %d puntos - repite %s", "sn_free": "bola libre", "sn_foul": "Falta, %d puntos - juega %s", "sn_pari": "frame empatado", "sn_break": "serie %d", "sn_on": "juega: %s", "sn_red": "una roja", "sn_colour": "un color", "f_low": "bola equivocada", "r_64": "Treintaidosavos", "r_32": "Dieciseisavos", "r_16": "Octavos", "r_8": "Cuartos", "r_4": "Semifinales", "r_2": "Final", "t_champ": "TORNEO GANADO", "t_bracket": "el cuadro", "t_slot": "Nivel del torneo", "t_set": "asignado", "t_empty": "vacio", "soon": "pronto", "sub_disc": "elige el juego", "sub_mode": "elige el tipo de partida", "shotclock": "Tiempo", "f_time": "tiempo agotado", "flag": "Bandera", "tournament": "Torneo", "t_level": "NIVEL %d",
            "t_vs": "contra %s", "t_go": "Jugar",
            "t_won": "HAS GANADO A %s", "t_lost": "%s TE HA GANADO",
-           "t_next": "Nivel siguiente", "t_reach": "llegaste al nivel %d",
-           "t_record": "record: nivel %d", "t_again": "Empezar de nuevo",
+           "t_next": "Continuar", "t_reach": "llegaste al nivel %d",
+           "t_record": "record: nivel %d", "t_again": "Reiniciar",
            "t_sub": "quien gana sube de nivel"},
     "ja": {"avanti": "\u6b21\u306e\u30d5\u30ec\u30fc\u30e0\u3078", "match": "\u30de\u30c3\u30c1", "m_uno": "1\u30d5\u30ec\u30fc\u30e0", "m_best": "%d\u30d5\u30ec\u30fc\u30e0\u5148\u53d6", "sn_miss": "\u30d5\u30a1\u30a6\u30eb\u30df\u30b9 %d \u70b9 - %s", "sn_free": "\u30d5\u30ea\u30fc\u30dc\u30fc\u30eb", "sn_foul": "\u30d5\u30a1\u30a6\u30eb %d \u70b9 - %s", "sn_pari": "\u540c\u70b9", "sn_break": "\u30d6\u30ec\u30a4\u30af %d", "sn_on": "\u6b21: %s", "sn_red": "\u30ec\u30c3\u30c9", "sn_colour": "\u30ab\u30e9\u30fc", "f_low": "\u6700\u5c0f\u756a\u53f7\u3067\u306a\u3044", "r_64": "64\u5f37", "r_32": "32\u5f37", "r_16": "16\u5f37", "r_8": "\u6e96\u3005\u6c7a\u52dd", "r_4": "\u6e96\u6c7a\u52dd", "r_2": "\u6c7a\u52dd", "t_champ": "\u512a\u52dd", "t_bracket": "\u30c8\u30fc\u30ca\u30e1\u30f3\u30c8\u8868", "t_slot": "\u30c8\u30fc\u30ca\u30e1\u30f3\u30c8\u306e\u30ec\u30d9\u30eb", "t_set": "\u8a2d\u5b9a\u6e08", "t_empty": "\u672a\u8a2d\u5b9a", "soon": "\u8fd1\u65e5\u516c\u958b", "sub_disc": "\u7a2e\u76ee\u3092\u9078\u3076", "sub_mode": "\u5bfe\u5c40\u3092\u9078\u3076", "shotclock": "\u6301\u3061\u6642\u9593", "f_time": "\u6642\u9593\u5207\u308c", "flag": "\u56fd\u65d7", "tournament": "\u30c8\u30fc\u30ca\u30e1\u30f3\u30c8",
            "t_level": "\u30ec\u30d9\u30eb %d",
@@ -10611,6 +10633,7 @@ def schermata_vetrina(sc, clock, logo, negozio=True):
 
 PREMI_TORNEO = (50, 75, 100, 150, 200, 300)     # incontro vinto, per turno
 PREMIO_CAMPIONE = 150
+VERDE_SOLDI = (118, 196, 84)    # i dollari, verde come quelli di GTA
 
 
 def _torneo(sc, clock, logo, disc_vera, k_t):
@@ -10700,9 +10723,7 @@ def _torneo(sc, clock, logo, disc_vera, k_t):
             CFG["torneo_record"] = tab["vinte"]
             salva_config()
         record = CFG.get("torneo_record", 0)
-        sotto_t = T("t_record") % record
-        if premio:
-            sotto_t += "     " + T("premio") % dollari(premio)
+        sotto_t = T("premio") % dollari(premio) if premio else ""
         # fuori o campione il torneo e' chiuso; se no si salva il turno
         if tab["fuori"] or len(tab_oggi(tab)) == 1:
             cancella_torneo(disc)
@@ -10721,8 +10742,7 @@ def _torneo(sc, clock, logo, disc_vera, k_t):
                 [T("t_next"), T("back")], ["avanti", "menu"])
         else:
             dopo = schermata_tabellone(
-                sc, clock, logo, tab, T("t_lost") % avv,
-                T("t_record") % record,
+                sc, clock, logo, tab, T("t_lost") % avv, "",
                 [T("t_again"), T("back")], ["ancora", "menu"])
         if dopo in ("menu", "quit"):
             return dopo
@@ -11377,7 +11397,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
             sc.blit(t, t.get_rect(center=(WIN_W // 2, WIN_H // 2 + s(20))))
             if premio_ora and max(vinti) >= serve:
                 t = font.render(T("premio") % dollari(premio_ora), True,
-                                ORO_SCELTA)
+                                VERDE_SOLDI)
                 sc.blit(t, t.get_rect(center=(WIN_W // 2,
                                               WIN_H // 2 + s(80))))
 
@@ -11473,7 +11493,7 @@ def portafoglio(sc):
     if f is None:
         return
     try:
-        t = f.render(T("wallet") % dollari(soldi()), True, ORO_SCELTA)
+        t = f.render(T("wallet") % dollari(soldi()), True, VERDE_SOLDI)
     except (KeyError, TypeError, ValueError):
         return
     sc.blit(t, t.get_rect(topright=(WIN_W - s(24), s(12))))
