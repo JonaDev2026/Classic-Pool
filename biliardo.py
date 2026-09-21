@@ -5750,6 +5750,9 @@ def prepara_gessi(due):
         resto = int(avanzi.pop(t, 0))
         CFG[k_cubo] = resto
         CFG[k_tipo] = t
+    for chi in ((0, 1) if due else (0,)):
+        if int(CFG.get(CUBO_K[chi][0], 0)) <= 0:
+            apri_cubetto(chi)       # si parte col cubetto intero, al 100%
     salva_config()
 
 
@@ -6074,7 +6077,7 @@ def fascia_palle(sc, partita, resta=None):
             cx = int(x + verso * i * (ICONA_PICCOLA + s(4)))
             ic = ICONE.get(n)
             if ic is not None:
-                q = icona_ridotta(n, suo)
+                q = icona_ridotta(n, True)
                 sc.blit(q, q.get_rect(center=(cx, r.centery)))
                 continue
             rr = ICONA_PICCOLA // 2
@@ -6203,7 +6206,7 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
 
 def fianco(sc, partita, gi, x_lato, potenza, mini):
     attivo = (partita.turno == gi and not partita.finita)
-    col_et = TESTO_OPACO if attivo else (96, 104, 112)
+    col_et = TESTO_OPACO
     alto_barra = s(190)
     y_barra = (ALTO + BASSO) // 2 - alto_barra // 2
     lab = mini.render(T("power"), True, col_et)
@@ -6246,15 +6249,15 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
             im.set_alpha(70)
         elif g <= 1.0 - (1.0 - GESSO_MIN) / 2.0 + 1e-6:
             im.set_alpha(int(110 + 145 * (0.5 + 0.5 * math.sin(ora / 250.0))))
-        elif not attivo:
-            im.set_alpha(150)
         sc.blit(im, im.get_rect(center=(x_lato, y_spin + s(66))))
     lab = mini.render(T("chalk"), True, col_et)
     sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(96))))
-    q = mini.render("%d%%" % int(round(cubo * 100))
-                    + ("  +%d" % scorta if scorta else ""), True,
+    q = mini.render("%d%%" % int(round(cubo * 100)), True,
                     ORO_SCELTA if pronto else (232, 96, 72))
     sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(112))))
+    if gi == 0 or CPU_ORA[0] is None:
+        q = mini.render(T("ch_spare") % scorta, True, TESTO_OPACO)
+        sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(128))))
 
 
 # ------------------------------------------------------- musica ed effetti
@@ -8405,6 +8408,10 @@ def aiuto_comandi():
     """La riga d'aiuto: alla piramide prima di tutto come si sceglie la
     palla con cui tirare."""
     riga = _aiuto_comandi()
+    if modo_comandi() == "pad":
+        riga = riga.replace("START", "RB %s     START" % T("pa_chalk"), 1)
+    else:
+        riga += "     %s %s" % (nome_tasto(tasto("gesso")), T("pa_chalk"))
     if GIOCO[0] == 8:
         riga = T("pir_aiuto") % nome_tasto(tasto("cambia")) + "     " + riga
     return riga
@@ -8615,7 +8622,8 @@ def ICONE_TASTI_OK():
 
 RIGA_GIOCO = ((("l",), "pa_aim"), (("lb",), "pa_fine"),
               (("a", "rt"), "pa_shoot"), (("r",), "pa_spin"),
-              (("y",), "pa_clear"), ((), "pa_pause"))
+              (("y",), "pa_clear"), (("rb",), "pa_chalk"),
+              ((), "pa_pause"))
 RIGA_MENU = ((("a",), "pa_select"), (("b",), "pa_back"))
 
 
@@ -8724,7 +8732,8 @@ for _l, _d in (
                 "inventory": "Your chalk", "bag": "Bag",
                 "all_owned": "You own every cue", "bought": "Purchased",
                 "ch_uses": "%d uses per cube", "ch_have": "you have %d",
-                "ch_open": "open cube: %d uses left"}),
+                "ch_open": "open cube: %d uses left",
+                "ch_spare": "spare: %d", "pa_chalk": "chalk"}),
         ("it", {"unl_title": "Nuova stecca sbloccata", "st_aim": "Mira",
                 "st_power": "Potenza", "st_spin": "Effetto",
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
@@ -8745,7 +8754,8 @@ for _l, _d in (
                 "inventory": "I tuoi gessetti", "bag": "Borsa",
                 "all_owned": "Hai tutte le stecche", "bought": "Acquistato",
                 "ch_uses": "%d usi a cubetto", "ch_have": "ne hai %d",
-                "ch_open": "cubetto aperto: restano %d usi"}),
+                "ch_open": "cubetto aperto: restano %d usi",
+                "ch_spare": "scorta: %d", "pa_chalk": "gesso"}),
         ("fr", {"unl_title": "Nouvelle queue debloquee", "st_aim": "Visee",
                 "st_power": "Puissance", "st_spin": "Effet",
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
@@ -8767,7 +8777,8 @@ for _l, _d in (
                 "all_owned": "Tu as toutes les queues", "bought": "Achete",
                 "ch_uses": "%d utilisations par cube",
                 "ch_have": "tu en as %d",
-                "ch_open": "cube ouvert : %d utilisations"}),
+                "ch_open": "cube ouvert : %d utilisations",
+                "ch_spare": "reserve : %d", "pa_chalk": "craie"}),
         ("es", {"unl_title": "Nuevo taco desbloqueado",
                 "st_aim": "Punteria", "st_power": "Potencia",
                 "st_spin": "Efecto", "st_count": "%d de %d tacos",
@@ -8788,7 +8799,8 @@ for _l, _d in (
                 "inventory": "Tus tizas", "bag": "Bolsa",
                 "all_owned": "Tienes todos los tacos", "bought": "Comprado",
                 "ch_uses": "%d usos por cubo", "ch_have": "tienes %d",
-                "ch_open": "cubo abierto: quedan %d usos"})):
+                "ch_open": "cubo abierto: quedan %d usos",
+                "ch_spare": "reserva: %d", "pa_chalk": "tiza"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _k, _en, _it, _fr, _es in NOMI_STECCHE_55:
     for _l, _v in (("en", _en), ("it", _it), ("fr", _fr), ("es", _es)):
