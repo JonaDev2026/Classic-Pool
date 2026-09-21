@@ -5003,6 +5003,7 @@ PROVA = [False]         # F3: fa vedere dove il gioco crede che sia il tavolo
 TAV_PROVA = [None]
 BORDO_PROVA = [None]    # R: le cornici sul panno di adesso
 BORDO_ORA = [0]         # la cornice che si sta disegnando
+PANNO_ORA = [0]         # e il panno
 SCRITTA_PROVA = ["", 0]
 
 
@@ -5039,15 +5040,29 @@ def prova_tasto(key):
 
 
 def scritta_prova(sc):
-    if not SCRITTA_PROVA[0] or \
-            pygame.time.get_ticks() - SCRITTA_PROVA[1] > 2500:
+    """Toccato T, B o R, in alto a destra restano i nomi di palle, panno
+    e cornice di adesso, per tutta la partita."""
+    if not SCRITTA_PROVA[0]:
         return
-    t = FONTS["small"].render(SCRITTA_PROVA[0], True, (255, 255, 255))
-    q = pygame.Surface((t.get_width() + s(16), t.get_height() + s(8)),
-                       pygame.SRCALPHA)
+    tp = tipo_palle()
+    nome = lambda el, i: (os.path.basename(el[i][1]).rsplit(".", 1)[0]
+                          if 0 <= i < len(el) else "-")
+    righe = ["Balls: %s" % T(elenco_set(tp)[scelta_palle(tp)][0]),
+             "Cloth: %s" % nome(PANNI, PANNO_ORA[0]),
+             "Frame: %s" % nome(BORDI, BORDO_ORA[0])]
+    if TAV_PROVA[0] is not None:
+        righe.insert(0, "Table %d" % (TAV_PROVA[0] + 1))
+    tt = [FONTS["mini"].render(r, True, (255, 255, 255)) for r in righe]
+    w = max(t.get_width() for t in tt) + s(16)
+    h = sum(t.get_height() for t in tt) + s(10)
+    q = pygame.Surface((w, h), pygame.SRCALPHA)
     q.fill((0, 0, 0, 170))
-    q.blit(t, (s(8), s(4)))
-    sc.blit(q, (s(16), s(16)))
+    y = s(5)
+    for t in tt:
+        q.blit(t, (w - s(8) - t.get_width(), y))
+        y += t.get_height()
+    y_su = (ALTO + BASSO) // 2 - s(95) - h - s(40)
+    sc.blit(q, (WIN_W - w - s(12), max(s(60), y_su)))
 
 
 def disegna_prova(sc):
@@ -10698,6 +10713,7 @@ def gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     lasciare il tavolo, il pubblico e l'arbitro si fermano."""
     DENTRO_PARTITA[0] = True
     TAV_PROVA[0] = BORDO_PROVA[0] = None    # le prove valgono una partita
+    SCRITTA_PROVA[0] = ""
     PALLE_VISTA[0] = None
     misura_palle(GIOCO[0])
     try:
@@ -11245,6 +11261,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
         if BORDO_PROVA[0] is not None:
             i_bordo = BORDO_PROVA[0]
         BORDO_ORA[0] = i_bordo
+        PANNO_ORA[0] = i_panno
         disegna_tavolo(sc, i_panno, i_bordo, gioco=partita.gioco)
 
         for bir in BIRILLI:
