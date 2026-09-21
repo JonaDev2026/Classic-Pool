@@ -1240,10 +1240,10 @@ SET_BLACKBALL = (
      (204, 46, 46)),
     # il Pro dei tornei: rosse bordeaux con le calotte color crema, gialle
     # piene, tutte col numero nero su un tondino bianco
-    ("set_pro", (122, 18, 30), (250, 196, 24), (12, 12, 14), (196, 30, 40),
+    ("set_pro", (122, 18, 30), (253, 130, 0), (12, 12, 14), (196, 30, 40),
      "numeri"),
     # Club: come il Pro, ma blu al posto delle rosse
-    ("set_club", (26, 70, 190), (250, 196, 24), (12, 12, 14),
+    ("set_club", (26, 70, 190), (253, 130, 0), (12, 12, 14),
      (26, 70, 190), "numeri"),
     # Club 2: blu e corallo, il numero dentro un anello del colore
     # dell'altra squadra, senza tondino; la bianca crema col trifoglio nero
