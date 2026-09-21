@@ -3208,8 +3208,20 @@ def nome_corto(nome):
     return "%s. %s" % (pezzi[0][0], pezzi[1])
 
 
+NOMI_PIENI = set(PAESI) | set(AVVERSARI)    # per i tornei salvati prima
 PAESI = dict((nome_corto(k), v) for k, v in PAESI.items())
 AVVERSARI = [nome_corto(n) for n in AVVERSARI]
+
+
+def accorcia_nomi(x):
+    """Un torneo salvato col nome intero: i nomi si accorciano come adesso."""
+    if isinstance(x, str):
+        return nome_corto(x) if x in NOMI_PIENI else x
+    if isinstance(x, list):
+        return [accorcia_nomi(v) for v in x]
+    if isinstance(x, dict):
+        return dict((k, accorcia_nomi(v)) for k, v in x.items())
+    return x
 
 
 # Il tavolo di casa: quello che si trova in multiplayer e contro il
@@ -3740,7 +3752,7 @@ def disegna_tabellone(sc, tab, battito):
             pygame.draw.rect(sc, CASELLA_VERDE, vinci)
             pygame.draw.rect(sc, ORO_LUCE, vinci, max(1, s(2)))
             ban = bandiera(BANDIERA[0] if io_sono
-                           else PAESI.get(chi, ""), s(12))
+                           else PAESI.get(nome_corto(chi) if chi in NOMI_PIENI else chi, ""), s(12))
             testo = NOMI[0] if io_sono else chi
             nome_r = FONTS["font"].render(testo, True, AVORIO)
             largo_tot = nome_r.get_width() + (
@@ -3777,7 +3789,7 @@ def disegna_tabellone(sc, tab, battito):
                     pygame.draw.rect(sc, CASELLA_VERDE, riga)
                     pygame.draw.rect(sc, CASELLA_FILO, riga, max(1, s(1)))
                 ban = bandiera(BANDIERA[0] if io_sono
-                               else PAESI.get(chi, ""), s(9))
+                               else PAESI.get(nome_corto(chi) if chi in NOMI_PIENI else chi, ""), s(9))
                 # a destra si legge da destra: la bandiera sul bordo
                 # esterno e il nome che va verso il centro
                 if lato == 0:
@@ -10081,7 +10093,7 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                 et = T("computer")
                 val = chi if chi in AVVERSARI else T("random")
                 if chi in AVVERSARI:
-                    ante = bandiera(PAESI.get(chi, ""), s(20))
+                    ante = bandiera(PAESI.get(nome_corto(chi) if chi in NOMI_PIENI else chi, ""), s(20))
             elif tipo == "stavv":
                 chi = CFG.get("avversario", "")
                 et = T("cue")
@@ -10334,6 +10346,7 @@ def carica_torneo(disc):
     t = _tornei_salvati().get(str(disc))
     if not isinstance(t, dict) or "tab" not in t:
         return None
+    t["tab"] = accorcia_nomi(t["tab"])
     return t
 
 
