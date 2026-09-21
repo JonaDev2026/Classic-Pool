@@ -5529,12 +5529,18 @@ def prezzo_stecca(i):
     return _PREZZI_PUNTI[-1][1]
 
 
-# I gessetti: nome, quanti usi dura un cubetto, prezzo, colore.
-GESSI = (("grigio", 10, 20, (176, 180, 186)),
-         ("blu", 12, 35, (70, 120, 214)),
-         ("rosso", 14, 50, (206, 56, 56)),
-         ("verde", 16, 70, (46, 156, 86)),
-         ("nero", 20, 100, (44, 44, 48)))
+# I gessetti: nome, quanti usi dura un cubetto, prezzo, colore. Il primo,
+# il blu col cartoncino verde, e' quello di sempre.
+GESSI = (("blu", 10, 20, (52, 108, 206)),
+         ("grigio", 11, 28, (168, 172, 178)),
+         ("rosso", 12, 36, (200, 44, 48)),
+         ("verde", 13, 45, (36, 150, 84)),
+         ("nero", 14, 55, (46, 46, 52)),
+         ("bianco", 15, 65, (236, 234, 228)),
+         ("giallo", 16, 75, (236, 196, 40)),
+         ("viola", 17, 85, (132, 64, 190)),
+         ("arancio", 18, 95, (236, 124, 32)),
+         ("oro", 20, 110, (214, 172, 70)))
 
 
 def gesso_dati(tipo):
@@ -5595,7 +5601,9 @@ CPU_CUBO = [0]
 
 
 def gesso_cpu_tipo(livello):
-    return GESSI[min(len(GESSI) - 1, max(0, int(livello) - 1))][0]
+    scala = (0, 1, 3, 5, 7, 9)
+    k = scala[max(0, min(len(scala) - 1, int(livello)))]
+    return GESSI[min(len(GESSI) - 1, k)][0]
 
 
 def gesso_pronto(chi=0):
@@ -5607,7 +5615,7 @@ def gesso_pronto(chi=0):
 
 def apri_cubetto(chi=0):
     gessi = CFG.setdefault("gessi", {})
-    ordine = [CFG.get("gesso_tipo", "grigio")] + [g[0] for g in GESSI]
+    ordine = [CFG.get("gesso_tipo", "blu")] + [g[0] for g in GESSI]
     for t in ordine:
         if int(gessi.get(t, 0)) > 0:
             gessi[t] = int(gessi[t]) - 1
@@ -5649,7 +5657,7 @@ def metti_gesso(chi):
     return True
 
 
-def icona_gesso(lato, tipo="grigio"):
+def icona_gesso(lato, tipo="blu"):
     """Il PNG del gessetto, alla misura che serve: pool_chalk_<tipo>.png
     se c'e', se no quello di sempre."""
     chiave = (lato, tipo)
@@ -6090,12 +6098,12 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
         pronto = CPU_CUBO[0] > 0
     else:
         k_cubo, k_tipo = CUBO_K[gi]
-        tipo_c = CFG.get(k_tipo, "grigio")
+        tipo_c = CFG.get(k_tipo, "blu")
         if int(CFG.get(k_cubo, 0)) > 0:
             cubo = int(CFG[k_cubo]) / float(gesso_dati(tipo_c)[1])
         else:
             cubo = 0.0
-            tipo_c = CFG.get("gesso_tipo", "grigio")
+            tipo_c = CFG.get("gesso_tipo", "blu")
         scorta = int((CFG.get("gessi") or {}).get(tipo_c, 0))
         pronto = gesso_pronto(gi)
     ora = pygame.time.get_ticks()
@@ -7143,12 +7151,12 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "stecca2": -1,                    # quella del giocatore 2
        "soldi": 0,                       # il portafoglio
        "stecche_mie": [0],               # le stecche comprate
-       "gessi": {"grigio": 3},           # i cubetti ancora da aprire
-       "gesso_tipo": "grigio",           # il gessetto che si usa
+       "gessi": {"blu": 3},              # i cubetti ancora da aprire
+       "gesso_tipo": "blu",              # il gessetto che si usa
        "cubo": 0,                        # gli usi rimasti nel cubetto aperto
-       "cubo_tipo": "grigio",
+       "cubo_tipo": "blu",
        "cubo2": 0,                       # il cubetto aperto del giocatore 2
-       "cubo2_tipo": "grigio",               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
+       "cubo2_tipo": "blu",               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
        "risoluzione": [1280, 820],       # si applica alla riapertura
        "tempo": 0,                       # secondi per tirare, 0 = niente
        "match": 1,                       # frame per partita: 1, 3, 5, 7
@@ -8560,7 +8568,9 @@ for _l, _d in (
                 "ch_info": "%s: %d uses - you have %d",
                 "ch_uso": "in use: %s", "ch_grigio": "Grey",
                 "ch_blu": "Blue", "ch_rosso": "Red", "ch_verde": "Green",
-                "ch_nero": "Black"}),
+                "ch_nero": "Black", "ch_bianco": "White",
+                "ch_giallo": "Yellow", "ch_viola": "Purple",
+                "ch_arancio": "Orange", "ch_oro": "Gold"}),
         ("it", {"unl_title": "Nuova stecca sbloccata", "st_aim": "Mira",
                 "st_power": "Potenza", "st_spin": "Effetto",
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
@@ -8573,7 +8583,9 @@ for _l, _d in (
                 "ch_info": "%s: %d usi - ne hai %d",
                 "ch_uso": "in uso: %s", "ch_grigio": "Grigio",
                 "ch_blu": "Blu", "ch_rosso": "Rosso", "ch_verde": "Verde",
-                "ch_nero": "Nero"}),
+                "ch_nero": "Nero", "ch_bianco": "Bianco",
+                "ch_giallo": "Giallo", "ch_viola": "Viola",
+                "ch_arancio": "Arancio", "ch_oro": "Oro"}),
         ("fr", {"unl_title": "Nouvelle queue debloquee", "st_aim": "Visee",
                 "st_power": "Puissance", "st_spin": "Effet",
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
@@ -8586,7 +8598,9 @@ for _l, _d in (
                 "ch_info": "%s : %d utilisations - tu en as %d",
                 "ch_uso": "utilisee : %s", "ch_grigio": "Grise",
                 "ch_blu": "Bleue", "ch_rosso": "Rouge", "ch_verde": "Verte",
-                "ch_nero": "Noire"}),
+                "ch_nero": "Noire", "ch_bianco": "Blanche",
+                "ch_giallo": "Jaune", "ch_viola": "Violette",
+                "ch_arancio": "Orange", "ch_oro": "Doree"}),
         ("es", {"unl_title": "Nuevo taco desbloqueado",
                 "st_aim": "Punteria", "st_power": "Potencia",
                 "st_spin": "Efecto", "st_count": "%d de %d tacos",
@@ -8599,7 +8613,9 @@ for _l, _d in (
                 "ch_info": "%s: %d usos - tienes %d",
                 "ch_uso": "en uso: %s", "ch_grigio": "Gris",
                 "ch_blu": "Azul", "ch_rosso": "Roja", "ch_verde": "Verde",
-                "ch_nero": "Negra"})):
+                "ch_nero": "Negra", "ch_bianco": "Blanca",
+                "ch_giallo": "Amarilla", "ch_viola": "Morada",
+                "ch_arancio": "Naranja", "ch_oro": "Dorada"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _k, _en, _it, _fr, _es in NOMI_STECCHE_55:
     for _l, _v in (("en", _en), ("it", _it), ("fr", _fr), ("es", _es)):
@@ -9482,7 +9498,7 @@ def schermata_negozio(sc, clock, logo):
     if not 0 <= i_st < len(STECCHE):
         i_st = 0
     tipi = [g[0] for g in GESSI]
-    i_g = tipi.index(CFG.get("gesso_tipo", "grigio")) \
+    i_g = tipi.index(CFG.get("gesso_tipo", "blu")) \
         if CFG.get("gesso_tipo") in tipi else 0
     sel = 0
     rett = []
@@ -9618,7 +9634,7 @@ def schermata_negozio(sc, clock, logo):
         im = icona_gesso(s(30), nome_g)
         riga_g = "%s     -     %s" % (
             T("ch_info") % (T("ch_" + nome_g), usi_g, ho_g),
-            T("ch_uso") % T("ch_" + CFG.get("gesso_tipo", "grigio")))
+            T("ch_uso") % T("ch_" + CFG.get("gesso_tipo", "blu")))
         c = FONTS["mini"].render(riga_g, True, ORO_SOTTO)
         cr = c.get_rect(center=(WIN_W // 2 + s(20), y + s(66)))
         sc.blit(c, cr)
