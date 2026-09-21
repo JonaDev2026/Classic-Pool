@@ -6331,7 +6331,7 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
         scorta = int((CFG.get("gessi") or {}).get(tipo_c, 0))
         pronto = gesso_pronto(gi)
     ora = pygame.time.get_ticks()
-    lato = s(34)
+    lato = s(48)      # il cubetto grande quanto la pallina dell'effetto
     passati = (ora - GESSO_QUANDO[gi]) / 1000.0
     if 0.0 <= passati < 0.5:
         lato = int(lato * (1.0 + 0.35 * (1.0 - passati / 0.5)))
@@ -6342,15 +6342,15 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
             im.set_alpha(70)
         elif g <= 1.0 - (1.0 - GESSO_MIN) / 2.0 + 1e-6:
             im.set_alpha(int(110 + 145 * (0.5 + 0.5 * math.sin(ora / 250.0))))
-        sc.blit(im, im.get_rect(center=(x_lato, y_spin + s(66))))
+        sc.blit(im, im.get_rect(center=(x_lato, y_spin + s(72))))
     lab = mini.render(T("chalk"), True, col_et)
-    sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(96))))
+    sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(108))))
     if GESSO_INF[0]:
-        infinito(sc, x_lato, y_spin + s(112), s(9), ORO_SCELTA)
+        infinito(sc, x_lato, y_spin + s(124), s(9), ORO_SCELTA)
     else:
         q = mini.render("%d%%" % int(round(cubo * 100)), True,
                         ORO_SCELTA if pronto else (232, 96, 72))
-        sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(112))))
+        sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(124))))
 
 
 # ------------------------------------------------------- musica ed effetti
