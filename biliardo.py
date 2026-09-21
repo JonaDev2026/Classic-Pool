@@ -4807,7 +4807,17 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
         # sulla sponda: l'angolo del rimbalzo, dalla meta' della riga corta
         # fino al doppio
         rimb = Vector2(-d.x, d.y) if asse_sponda == 0 else Vector2(d.x, -d.y)
-        fascio(sc, fine + rimb * BALL_R, rimb, corta * (0.5 + 1.5 * f), col,
+        fino = 4000.0           # non oltre la sponda di fronte
+        for bordo, asse in ((PLAY.left + BALL_R, 0), (PLAY.right - BALL_R, 0),
+                            (PLAY.top + BALL_R, 1), (PLAY.bottom - BALL_R, 1)):
+            dd = rimb.x if asse == 0 else rimb.y
+            pp = fine.x if asse == 0 else fine.y
+            if abs(dd) > 1e-6:
+                t = (bordo - pp) / dd
+                if 1e-3 < t < fino:
+                    fino = t
+        fascio(sc, fine + rimb * BALL_R, rimb,
+               min(fino - BALL_R, corta * (0.5 + 1.5 * f)), col,
                BALL_R * 0.30, 0.8)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
@@ -5455,6 +5465,7 @@ def fascio(sc, da, verso, lung, colore, largo, sfuma=0.8):
     sfuma fino a sparire."""
     if lung < 2:
         return
+    largo *= 0.7                # delicato: stretto e leggero
     fine = da + verso * lung
     n = Vector2(-verso.y, verso.x)
     x0 = int(min(da.x, fine.x) - largo - 2)
@@ -5469,7 +5480,7 @@ def fascio(sc, da, verso, lung, colore, largo, sfuma=0.8):
                                              (largo * 0.45, 0.85))):
         for k in range(pezzi):
             f0, f1 = k / float(pezzi), (k + 1) / float(pezzi)
-            a = int(230 * forza * (1.0 - sfuma * f0) ** 1.3)
+            a = int(135 * forza * (1.0 - sfuma * f0) ** 1.3)
             if a <= 0:
                 continue
             # si stringe un poco andando avanti
