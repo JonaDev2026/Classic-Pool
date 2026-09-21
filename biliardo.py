@@ -1271,6 +1271,13 @@ SET_BIRILLI = (
      (30, 76, 196), (30, 76, 196)),
     ("set_verde", (246, 246, 242), BI_TINTA[BI_GIALLA], (22, 138, 68),
      (22, 138, 68), (22, 138, 68)),
+    # le versioni black: i birilli bianchi diventano neri
+    ("set_classico_nero", (246, 246, 242), BI_TINTA[BI_GIALLA],
+     BI_TINTA[BI_PALLINO], (204, 46, 46), (188, 40, 34), (22, 22, 26)),
+    ("set_blu_nero", (246, 246, 242), BI_TINTA[BI_GIALLA], (30, 76, 196),
+     (30, 76, 196), (30, 76, 196), (22, 22, 26)),
+    ("set_verde_nero", (246, 246, 242), BI_TINTA[BI_GIALLA], (22, 138, 68),
+     (22, 138, 68), (22, 138, 68), (22, 22, 26)),
 )
 
 
@@ -4932,8 +4939,8 @@ def disegna_birillo(sc, bir):
     pygame.draw.circle(sc, (10, 46, 30), (x + 1, y + 2), r)
     st = set_birilli()
     centrale = st[5] if len(st) > 5 else (188, 40, 34)
-    pygame.draw.circle(sc, centrale if bir.rosso else (238, 234, 222),
-                       (x, y), r)
+    altri = st[6] if len(st) > 6 else (238, 234, 222)
+    pygame.draw.circle(sc, centrale if bir.rosso else altri, (x, y), r)
     pygame.draw.circle(sc, (52, 44, 36), (x, y), r, 1)
 
 
@@ -7540,7 +7547,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_zigzag": "Zigzag", "set_bersaglio": "Target",
                        "set_scacchi": "Checkered", "set_pro": "Pro",
                        "set_perla": "Pearl", "set_notte": "Night",
-                       "set_club": "Club", "set_blu": "Blue", "set_verde": "Green", "bb_visit": "%s - second visit",
+                       "set_club": "Club", "set_blu": "Blue", "set_verde": "Green", "set_classico_nero": "Classic Black", "set_blu_nero": "Blue Black", "set_verde_nero": "Green Black", "bb_visit": "%s - second visit",
                        "set_bianco": "White", "set_ambra": "Amber",
                        "pir_aiuto": "RIGHT CLICK / %s / RB: choose ball"}),
                ("it", {"balls": "Palle", "set_classico": "Classico",
@@ -7549,7 +7556,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_zigzag": "Zig-zag", "set_bersaglio": "Bersaglio",
                        "set_scacchi": "Scacchi", "set_pro": "Pro",
                        "set_perla": "Perla", "set_notte": "Notte",
-                       "set_club": "Club", "set_blu": "Blu", "set_verde": "Verde",
+                       "set_club": "Club", "set_blu": "Blu", "set_verde": "Verde", "set_classico_nero": "Classico Black", "set_blu_nero": "Blu Black", "set_verde_nero": "Verde Black",
                        "bb_visit": "%s - seconda visita",
                        "set_bianco": "Bianco", "set_ambra": "Ambra",
                        "pir_aiuto": "TASTO DESTRO / %s / RB: scegli la palla"})):
@@ -8350,7 +8357,7 @@ _FR = {
     "set_doppia": "Double ligne",
     "set_zigzag": "Zigzag", "set_bersaglio": "Cible",
     "set_scacchi": "Damier", "set_pro": "Pro", "set_perla": "Perle",
-    "set_notte": "Nuit", "set_club": "Club", "set_blu": "Bleu", "set_verde": "Vert", "set_bianco": "Blanc",
+    "set_notte": "Nuit", "set_club": "Club", "set_blu": "Bleu", "set_verde": "Vert", "set_classico_nero": "Classique Noir", "set_blu_nero": "Bleu Noir", "set_verde_nero": "Vert Noir", "set_bianco": "Blanc",
     "set_ambra": "Ambre", "bb_visit": "%s - deuxieme visite",
     "pir_aiuto": "CLIC DROIT / %s / RB : choisir la bille",
     "cue_zaffiro": "Saphir", "cue_rubino": "Rubis", "cue_smeraldo": "Emeraude",
@@ -8399,7 +8406,7 @@ _ES = {
     "set_doppia": "Doble linea",
     "set_zigzag": "Zigzag", "set_bersaglio": "Diana",
     "set_scacchi": "Ajedrez", "set_pro": "Pro", "set_perla": "Perla",
-    "set_notte": "Noche", "set_club": "Club", "set_blu": "Azul", "set_verde": "Verde", "set_bianco": "Blanco",
+    "set_notte": "Noche", "set_club": "Club", "set_blu": "Azul", "set_verde": "Verde", "set_classico_nero": "Clasico Negro", "set_blu_nero": "Azul Negro", "set_verde_nero": "Verde Negro", "set_bianco": "Blanco",
     "set_ambra": "Ambar", "bb_visit": "%s - segunda visita",
     "pir_aiuto": "CLIC DERECHO / %s / RB: elegir la bola",
     "cue_zaffiro": "Zafiro", "cue_rubino": "Rubi", "cue_smeraldo": "Esmeralda",
