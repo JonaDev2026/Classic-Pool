@@ -10345,18 +10345,19 @@ def disegna_orologio(sc, resta, totale):
         r = lato / 2.0
         col = (58, 34, 18)
         P = lambda t, w: (cx + ux * r * t + px * w, cy + uy * r * t + py * w)
-        w = max(0.7, r * 0.02)
-        forma = [P(-0.22, w * 0.8), P(0.50, w * 0.6), P(0.58, w * 2.6),
-                 P(0.72, 0), P(0.58, -w * 2.6), P(0.50, -w * 0.6),
-                 P(-0.22, -w * 0.8)]
-        pygame.draw.polygon(sc, col, forma)
-        pygame.draw.aalines(sc, col, True, forma)
-        coda = P(-0.22, 0)
-        pygame.draw.circle(sc, col, (int(coda[0]), int(coda[1])),
-                           max(2, int(r * 0.045)))
-        pygame.draw.circle(sc, col, (int(cx), int(cy)), max(2, int(r * 0.05)))
-        pygame.draw.circle(sc, (150, 110, 60), (int(cx), int(cy)),
-                           max(1, int(r * 0.025)))
+        # fusto sottile come un capello, una piccola lancia in punta,
+        # il contrappeso dietro e il perno: niente di piu'
+        pygame.draw.aaline(sc, col, P(-0.18, 0), P(0.62, 0))
+        pygame.draw.aaline(sc, col, P(-0.18, 0.5), P(0.62, 0.5))
+        wl = max(1.2, r * 0.035)
+        lancia = [P(0.60, 0), P(0.66, wl), P(0.74, 0), P(0.66, -wl)]
+        pygame.draw.polygon(sc, col, lancia)
+        pygame.draw.aalines(sc, col, True, lancia)
+        coda = P(-0.18, 0)
+        pygame.draw.circle(sc, col, (int(round(coda[0])), int(round(coda[1]))),
+                           max(1, int(round(r * 0.035))))
+        pygame.draw.circle(sc, col, (int(round(cx)), int(round(cy))),
+                           max(2, int(round(r * 0.04))))
         return
     r = lato // 2 - s(2)
     oro, oro_s = ORO_SCELTA, (150, 118, 52)
