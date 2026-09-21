@@ -739,10 +739,10 @@ SET_PALLE = (
                    (70, 18, 112), (190, 78, 18), (8, 90, 50),
                    (92, 28, 24), (12, 12, 14)],
      (160, 70, 50), (244, 234, 206), (40, 30, 16), CAR_GRAZIE, "classico"),
-    ("set_pastello", [(255, 212, 86), (88, 168, 255), (255, 108, 120),
-                      (178, 128, 255), (255, 158, 86), (106, 218, 148),
-                      (228, 116, 198), (44, 44, 54)],
-     (255, 120, 180), (255, 255, 255), (50, 50, 60), CAR_TONDO, "classico"),
+    ("set_marmo", [(236, 170, 30), (40, 70, 190), (200, 30, 40),
+                   (110, 50, 170), (236, 100, 30), (20, 130, 70),
+                   (140, 30, 50), (230, 228, 222)],
+     (190, 170, 130), (244, 240, 230), (22, 22, 26), CAR_CLASSICO, "marmo"),
     ("set_nere", [(255, 196, 0), (0, 96, 226), (236, 20, 36),
                   (140, 60, 200), (255, 120, 0), (0, 176, 120),
                   (190, 30, 60), (18, 18, 22)],
@@ -779,6 +779,36 @@ def stella(s, colore, cx, cy, r, punte=5):
         rr = r if k % 2 == 0 else r * 0.45
         pt.append((cx + math.cos(a) * rr, cy + math.sin(a) * rr))
     pygame.draw.polygon(s, colore, pt)
+
+
+def marmo(num, base, W, H):
+    """Una texture di marmo, sempre la stessa per quel numero: onde
+    storte da un rumore morbido che si richiude attorno alla palla."""
+    rnd = random.Random(1000 + num)
+    x = np.arange(W, dtype=np.float32)[:, None] / W * 2.0 * math.pi
+    y = np.arange(H, dtype=np.float32)[None, :] / H * math.pi
+    turb = np.zeros((W, H), np.float32)
+    for k in range(6):
+        fx = rnd.randint(1, 4 + k)
+        fy = rnd.uniform(0.5, 3.0 + k)
+        turb += (np.sin(fx * x + fy * y + rnd.uniform(0, 6.28))
+                 / (1.0 + k * 0.7))
+    onda = np.sin(rnd.randint(2, 4) * x + 2.2 * y + 2.6 * turb)
+    chiaro = num == 8
+    b = np.array(base, np.float32)
+    scuro = np.array((12, 12, 14), np.float32) if not chiaro \
+        else np.array((20, 20, 22), np.float32)
+    luce = np.minimum(255.0, b * 0.35 + 190.0) if not chiaro \
+        else np.array((250, 248, 244), np.float32)
+    t = (onda[..., None] + 1.0) / 2.0
+    col = b * (0.55 + 0.45 * t) if not chiaro else \
+        b * (0.75 + 0.25 * t)
+    # le venature scure, larghe, e quelle chiare, sottili
+    vena_s = np.clip(1.0 - np.abs(onda + 0.30) * 2.3, 0, 1)[..., None]
+    vena_c = np.clip(1.0 - np.abs(onda - 0.55) * 9.0, 0, 1)[..., None]
+    col = col * (1 - vena_s * 0.9) + scuro * vena_s * 0.9
+    col = col * (1 - vena_c * 0.7) + luce * vena_c * 0.7
+    return np.clip(col, 0, 255).astype(np.uint8)
 
 
 def dipingi_stile(s, num, base, stile):
@@ -851,6 +881,16 @@ def dipingi_stile(s, num, base, stile):
                 for k, y in enumerate((116, 128)):
                     if ((x // q) + k) % 2 == 0:
                         pygame.draw.rect(s, bianco, pygame.Rect(x, y, q, q))
+        return
+    if stile == "marmo":
+        # marmo scuro: il colore venato di nero e di chiaro; le mezze con
+        # le calotte nere, la 8 marmo chiaro venato di nero
+        px = pygame.surfarray.pixels3d(s)
+        px[:] = marmo(num, base, W, H)
+        del px
+        if mezza:
+            pygame.draw.rect(s, (14, 14, 16), pygame.Rect(0, 0, W, 60))
+            pygame.draw.rect(s, (14, 14, 16), pygame.Rect(0, H - 60, W, 60))
         return
     if stile == "nere":
         # le mezze con le calotte nere invece che bianche
@@ -1249,7 +1289,8 @@ def _tessitura(num, font, asset=None):
     elif tipo_palle() == "birilli":
         bianca, puntini = set_birilli()[1], set_birilli()[4]
     if num == 0:
-        s.fill(bianca)
+        s.fill((236, 226, 198) if stile == "marmo" and tipo_palle() == "pool"
+               else bianca)
         if puntini is None:
             return pygame.surfarray.array3d(s).astype(np.float32)
         # i puntini della bianca: senza, una palla bianca che gira non si
@@ -1264,9 +1305,10 @@ def _tessitura(num, font, asset=None):
         dipingi_stile(s, num, base, stile)
         for u in (TEX_W // 4, TEX_W * 3 // 4):
             pygame.draw.circle(s, tondo, (u, TEX_H // 2), 46)
-            if stile == "nere":     # l'anello scuro attorno al numero
+            if stile in ("nere", "marmo"):  # l'anello attorno al numero
                 pygame.draw.circle(s, cifra, (u, TEX_H // 2), 43, 3)
-            scrivi(s, num, font, u, cifra, stretto=(stile == "nere"))
+            scrivi(s, num, font, u, cifra,
+                   stretto=(stile in ("nere", "marmo")))
     return pygame.surfarray.array3d(s).astype(np.float32)
 
 
@@ -7375,7 +7417,7 @@ for _l, _d in (("en", {"t_saved": "Tournament in progress",
                        "cr_moderni": "moderni"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
-                       "set_pastello": "Pastel", "set_neon": "Neon", "set_nere": "Black",
+                       "set_pastello": "Pastel", "set_neon": "Neon", "set_nere": "Black", "set_marmo": "Marble Dark",
                        "set_retro": "Vintage", "set_doppia": "Twin Line",
                        "set_zigzag": "Zigzag", "set_bersaglio": "Target",
                        "set_scacchi": "Checkered", "set_pro": "Pro",
@@ -7384,7 +7426,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_bianco": "White", "set_ambra": "Amber",
                        "pir_aiuto": "RIGHT CLICK / %s / RB: choose ball"}),
                ("it", {"balls": "Palle", "set_classico": "Classico",
-                       "set_pastello": "Pastello", "set_neon": "Neon", "set_nere": "Nere",
+                       "set_pastello": "Pastello", "set_neon": "Neon", "set_nere": "Nere", "set_marmo": "Marmo scuro",
                        "set_retro": "Vintage", "set_doppia": "Doppia riga",
                        "set_zigzag": "Zig-zag", "set_bersaglio": "Bersaglio",
                        "set_scacchi": "Scacchi", "set_pro": "Pro",
@@ -8186,7 +8228,7 @@ _FR = {
     "t_new": "Nouveau tournoi", "t_choose": "Choisis ton tournoi",
     "crests": "Blasons", "cr_classici": "classiques", "cr_moderni": "modernes",
     "balls": "Billes", "set_classico": "Classique", "set_pastello": "Pastel",
-    "set_neon": "Neon", "set_nere": "Noires", "set_retro": "Vintage",
+    "set_neon": "Neon", "set_nere": "Noires", "set_marmo": "Marbre sombre", "set_retro": "Vintage",
     "set_doppia": "Double ligne",
     "set_zigzag": "Zigzag", "set_bersaglio": "Cible",
     "set_scacchi": "Damier", "set_pro": "Pro", "set_perla": "Perle",
@@ -8235,7 +8277,7 @@ _ES = {
     "t_new": "Nuevo torneo", "t_choose": "Elige tu torneo",
     "crests": "Escudos", "cr_classici": "clasicos", "cr_moderni": "modernos",
     "balls": "Bolas", "set_classico": "Clasico", "set_pastello": "Pastel",
-    "set_neon": "Neon", "set_nere": "Negras", "set_retro": "Vintage",
+    "set_neon": "Neon", "set_nere": "Negras", "set_marmo": "Marmol oscuro", "set_retro": "Vintage",
     "set_doppia": "Doble linea",
     "set_zigzag": "Zigzag", "set_bersaglio": "Diana",
     "set_scacchi": "Ajedrez", "set_pro": "Pro", "set_perla": "Perla",
