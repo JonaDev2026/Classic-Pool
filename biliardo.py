@@ -6016,8 +6016,8 @@ def nome_gesso_scelto():
     if t not in miei:
         t = miei[0]
         CFG["gesso_tipo"] = t
-    n = int((CFG.get("gessi") or {}).get(t, 0))
-    return "%s (%d)" % (T("ch_" + t), n)
+    # niente numero: il cubetto aperto conta, e "(0)" sembrava "finito"
+    return T("ch_" + t)
 
 
 def gira_gesso(passo):
