@@ -6161,9 +6161,25 @@ def fascia_palle(sc, partita, resta=None):
     # la fanno bianca, ma con le palle colorate sopra il trasparente
     # tiene meglio.
 
+    def palla_icona(n, cx):
+        q = icona_ridotta(n, True)
+        sc.blit(q, q.get_rect(center=(cx, r.centery)))
+
     def fila(gi, x, verso):
-        prese = partita.prese(partita.gruppo[gi], gi)
-        suo = (partita.turno == gi)
+        if partita.gioco in (0, 4):
+            # alla palla 8 e al blackball, al contrario: sotto il nome le
+            # palle che ti tocca ancora imbucare, col disegno del set; una
+            # alla volta spariscono. Finite le tue, resta la nera.
+            g = partita.gruppo[gi]
+            if g is None:
+                return
+            prese = sorted(b.num for b in partita.palle
+                           if not b.dentro and b.gruppo() == g)
+            if not prese and any(b.num == 8 and not b.dentro
+                                 for b in partita.palle):
+                prese = [8]
+        else:
+            prese = partita.prese(partita.gruppo[gi], gi)
         for i, n in enumerate(prese):
             cx = int(x + verso * i * (ICONA_PICCOLA + s(4)))
             ic = ICONE.get(n)
@@ -6181,12 +6197,30 @@ def fascia_palle(sc, partita, resta=None):
                                                 rr * 2, rr))
             pygame.draw.circle(sc, (30, 30, 34), (cx, r.centery), rr, 1)
 
-    if partita.gioco not in (2, 3, 6, 7):
+    if partita.gioco not in (1, 2, 3, 5, 6, 7):
         fila(0, r.left + s(16) + ICONA_PICCOLA // 2, 1)
         fila(1, r.right - s(16) - ICONA_PICCOLA // 2, -1)
 
     # in mezzo: l'orologio del tiro
     x = r.centerx
+    if partita.gioco in (1, 5):
+        # 9-ball e 10-ball: niente gruppi, in mezzo le palle ancora sul
+        # tavolo, in fila; imbucate spariscono
+        restano = sorted(b.num for b in partita.palle
+                         if not b.dentro and b.num != 0)
+        passo = ICONA_PICCOLA + s(4)
+        largo = len(restano) * passo
+        x0 = r.centerx - largo // 2 + passo // 2
+        if resta is not None:
+            x0 += s(24)
+            x = x0 - passo // 2 - s(24)
+        for i, n in enumerate(restano):
+            palla_icona(n, int(x0 + i * passo))
+        if resta is not None:
+            t = FONTS.get("orologio", font).render(
+                "%d" % max(0, int(math.ceil(resta))), True, ORO_SCELTA)
+            sc.blit(t, t.get_rect(center=(x, r.centery)))
+        resta = None
     if resta is not None:
         # l'orologio del tiro: carattere con le grazie, normale, in oro
         t = FONTS.get("orologio", font).render(
