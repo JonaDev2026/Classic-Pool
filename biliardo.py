@@ -10368,7 +10368,7 @@ def disegna_orologio(sc, resta, totale):
         sc.blit(img, img.get_rect(center=(cx, cy)))
         scr = scritta_quadrante(int(lato * 0.5))
         if scr is not None:
-            sc.blit(scr, scr.get_rect(center=(cx, cy - int(lato * 0.17))))
+            sc.blit(scr, scr.get_rect(center=(cx, cy + int(lato * 0.19))))
         passati = int(totale) - max(0, int(math.ceil(resta)))
         meta = passati / 60.0
         ora = pygame.time.get_ticks()
