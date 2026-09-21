@@ -743,10 +743,10 @@ SET_PALLE = (
                       (178, 128, 255), (255, 158, 86), (106, 218, 148),
                       (228, 116, 198), (44, 44, 54)],
      (255, 120, 180), (255, 255, 255), (50, 50, 60), CAR_TONDO, "classico"),
-    ("set_neon", [(255, 228, 0), (0, 118, 255), (255, 36, 60),
-                  (186, 56, 255), (255, 128, 0), (0, 214, 104),
-                  (255, 56, 160), (18, 18, 22)],
-     (0, 200, 255), (20, 20, 24), (250, 250, 250), CAR_MODERNO, "classico"),
+    ("set_nere", [(255, 196, 0), (0, 96, 226), (236, 20, 36),
+                  (140, 60, 200), (255, 120, 0), (0, 176, 120),
+                  (190, 30, 60), (18, 18, 22)],
+     (30, 30, 34), (240, 234, 214), (30, 30, 34), CAR_CLASSICO, "nere"),
     ("set_doppia", _VIVI8, (0, 96, 230), (255, 255, 255), (20, 20, 24),
      CAR_MODERNO, "doppia"),
     ("set_zigzag", _BASE8, (30, 30, 34), (250, 250, 246), (26, 26, 30),
@@ -851,6 +851,14 @@ def dipingi_stile(s, num, base, stile):
                 for k, y in enumerate((116, 128)):
                     if ((x // q) + k) % 2 == 0:
                         pygame.draw.rect(s, bianco, pygame.Rect(x, y, q, q))
+        return
+    if stile == "nere":
+        # le mezze con le calotte nere invece che bianche
+        if mezza:
+            s.fill((16, 16, 18))
+            pygame.draw.rect(s, base, pygame.Rect(0, 64, W, H - 128))
+        else:
+            s.fill(base)
         return
     # classico
     if mezza:
@@ -1254,6 +1262,8 @@ def _tessitura(num, font, asset=None):
         dipingi_stile(s, num, base, stile)
         for u in (TEX_W // 4, TEX_W * 3 // 4):
             pygame.draw.circle(s, tondo, (u, TEX_H // 2), 46)
+            if stile == "nere":     # l'anello scuro attorno al numero
+                pygame.draw.circle(s, cifra, (u, TEX_H // 2), 43, 3)
             scrivi(s, num, font, u, cifra)
     return pygame.surfarray.array3d(s).astype(np.float32)
 
@@ -7363,7 +7373,7 @@ for _l, _d in (("en", {"t_saved": "Tournament in progress",
                        "cr_moderni": "moderni"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
-                       "set_pastello": "Pastel", "set_neon": "Neon",
+                       "set_pastello": "Pastel", "set_neon": "Neon", "set_nere": "Black",
                        "set_retro": "Vintage", "set_doppia": "Twin Line",
                        "set_zigzag": "Zigzag", "set_bersaglio": "Target",
                        "set_scacchi": "Checkered", "set_pro": "Pro",
@@ -7372,7 +7382,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_bianco": "White", "set_ambra": "Amber",
                        "pir_aiuto": "RIGHT CLICK / %s / RB: choose ball"}),
                ("it", {"balls": "Palle", "set_classico": "Classico",
-                       "set_pastello": "Pastello", "set_neon": "Neon",
+                       "set_pastello": "Pastello", "set_neon": "Neon", "set_nere": "Nere",
                        "set_retro": "Vintage", "set_doppia": "Doppia riga",
                        "set_zigzag": "Zig-zag", "set_bersaglio": "Bersaglio",
                        "set_scacchi": "Scacchi", "set_pro": "Pro",
@@ -8174,7 +8184,8 @@ _FR = {
     "t_new": "Nouveau tournoi", "t_choose": "Choisis ton tournoi",
     "crests": "Blasons", "cr_classici": "classiques", "cr_moderni": "modernes",
     "balls": "Billes", "set_classico": "Classique", "set_pastello": "Pastel",
-    "set_neon": "Neon", "set_retro": "Vintage", "set_doppia": "Double ligne",
+    "set_neon": "Neon", "set_nere": "Noires", "set_retro": "Vintage",
+    "set_doppia": "Double ligne",
     "set_zigzag": "Zigzag", "set_bersaglio": "Cible",
     "set_scacchi": "Damier", "set_pro": "Pro", "set_perla": "Perle",
     "set_notte": "Nuit", "set_club": "Club", "set_bianco": "Blanc",
@@ -8222,7 +8233,8 @@ _ES = {
     "t_new": "Nuevo torneo", "t_choose": "Elige tu torneo",
     "crests": "Escudos", "cr_classici": "clasicos", "cr_moderni": "modernos",
     "balls": "Bolas", "set_classico": "Clasico", "set_pastello": "Pastel",
-    "set_neon": "Neon", "set_retro": "Vintage", "set_doppia": "Doble linea",
+    "set_neon": "Neon", "set_nere": "Negras", "set_retro": "Vintage",
+    "set_doppia": "Doble linea",
     "set_zigzag": "Zigzag", "set_bersaglio": "Diana",
     "set_scacchi": "Ajedrez", "set_pro": "Pro", "set_perla": "Perla",
     "set_notte": "Noche", "set_club": "Club", "set_bianco": "Blanco",
