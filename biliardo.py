@@ -916,8 +916,8 @@ def dipingi_stile(s, num, base, stile):
         px[:] = marmo(num, base, W, H)
         del px
         if mezza:
-            pygame.draw.rect(s, (14, 14, 16), pygame.Rect(0, 0, W, 60))
-            pygame.draw.rect(s, (14, 14, 16), pygame.Rect(0, H - 60, W, 60))
+            pygame.draw.rect(s, (14, 14, 16), pygame.Rect(0, 0, W, 84))
+            pygame.draw.rect(s, (14, 14, 16), pygame.Rect(0, H - 84, W, 84))
         return
     if stile == "nere":
         # le mezze con le calotte nere invece che bianche
