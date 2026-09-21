@@ -10743,13 +10743,16 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                 if giro:
                     mira_ang += giro * (GIRO_FINE if piano else veloce) * dt
 
-        # l'effetto col joystick: la levetta destra lo mette dove punta
+        # l'effetto col joystick: la levetta destra sposta il punto come un
+        # cursore, e lasciandola il punto resta dov'e'. Prima lo metteva
+        # dove puntava la levetta, e quando tornava al centro da sola se lo
+        # riportava dietro.
         if c_pad is not None and not in_moto and not suo \
                 and not partita.finita:
             rx = pad_asse(c_pad, pygame.CONTROLLER_AXIS_RIGHTX)
             ry = pad_asse(c_pad, pygame.CONTROLLER_AXIS_RIGHTY)
             if rx or ry:
-                e = Vector2(rx, -ry)
+                e = partita.spin + Vector2(rx, -ry) * (1.6 * dt)
                 if e.length() > 1.0:
                     e.scale_to_length(1.0)
                 partita.spin.update(e)
