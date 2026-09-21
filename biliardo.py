@@ -8465,6 +8465,7 @@ MORTA = 0.18            # la levetta sotto questo non conta
 # e gesso vanno bene anche col mouse), il controller appena lo si usa.
 INPUT_ORA = ["mouse"]
 FOOTER_VIS = [0.0, 0]   # quanto si vede la fascia dei comandi, e da quando
+FOOTER_ORA = [None]     # la fascia di questo giro: alta quanto, di che colore
 
 
 def modo_comandi():
@@ -8771,7 +8772,8 @@ def aiuto_menu(sc):
     # dello stesso colore del fondo della schermata, appena piu' scuro
     t = TINTA_ORA[0]
     bordo = FONDI_TINTE[t][1] if t in FONDI_TINTE else SFONDO_BORDO
-    fascia.fill(tuple(int(v * 0.6) for v in bordo) + (235,))
+    col_f = tuple(int(v * 0.6) for v in bordo) + (235,)
+    fascia.fill(col_f)
     fascia.blit(r, r.get_rect(center=(WIN_W // 2, alto // 2)))
     fascia.set_alpha(int(255 * FOOTER_VIS[0]))
     sc.blit(fascia, (0, WIN_H - alto))
@@ -11015,28 +11017,52 @@ BORDI_VISTA = None
 
 
 def presenta():
-    """Porta la scena sullo schermo, ingrandita quanto ci sta. Le bande
-    che avanzano ai lati non restano nere: ci va lo stesso fondo, stirato
-    a tutto schermo, cosi' la finestra e' piena comunque la allarghi."""
-    global BORDI_VISTA
-    portafoglio(SCENA)
+    """Porta la scena sullo schermo, ingrandita quanto ci sta senza
+    deformarla. Dove la scena non arriva, ai lati o sopra e sotto, si
+    allungano i suoi bordi fino al margine della finestra: il fondo, la
+    fascia dei comandi e tutto il resto riempiono la finestra intera,
+    senza giunture. Il portafoglio sta nell'angolo della finestra."""
     k, ox, oy = VISTA
+    misura = SCHERMO.get_size()
     if abs(k - 1.0) < 0.001 and ox == 0 and oy == 0:
         SCHERMO.blit(SCENA, (0, 0))
     else:
-        misura = SCHERMO.get_size()
-        tinta = TINTA_ORA[0]
-        if BORDI_VISTA is None or BORDI_VISTA[0] != (misura, tinta):
-            BORDI_VISTA = ((misura, tinta), pygame.transform.smoothscale(
-                fondo(tinta), misura))
-        SCHERMO.blit(BORDI_VISTA[1], (0, 0))
-        SCHERMO.blit(pygame.transform.smoothscale(
-            SCENA, (int(WIN_W * k), int(WIN_H * k))), (ox, oy))
+        sw, sh = int(WIN_W * k), int(WIN_H * k)
+        grande = pygame.transform.smoothscale(SCENA, (sw, sh))
+        SCHERMO.blit(grande, (ox, oy))
+        dx = misura[0] - ox - sw
+
+        def allunga(pezzo, verso_x, misura_b):
+            """Il bordo della scena, ammorbidito (la grana del fondo
+            allungata farebbe delle righe) e steso sulla banda."""
+            w, h = pezzo.get_size()
+            if verso_x:
+                q = pygame.transform.smoothscale(pezzo, (1, max(1, h // 6)))
+            else:
+                q = pygame.transform.smoothscale(pezzo, (max(1, w // 6), 1))
+            return pygame.transform.smoothscale(q, misura_b)
+
+        if ox > 0:
+            SCHERMO.blit(allunga(grande.subsurface((0, 0, 4, sh)), True,
+                                 (ox, sh)), (0, oy))
+        if dx > 0:
+            SCHERMO.blit(allunga(grande.subsurface((sw - 4, 0, 4, sh)), True,
+                                 (dx, sh)), (ox + sw, oy))
+        sotto = misura[1] - oy - sh
+        if oy > 0:
+            riga = SCHERMO.subsurface((0, oy, misura[0], 4)).copy()
+            SCHERMO.blit(allunga(riga, False, (misura[0], oy)), (0, 0))
+        if sotto > 0:
+            riga = SCHERMO.subsurface((0, oy + sh - 4, misura[0], 4)).copy()
+            SCHERMO.blit(allunga(riga, False, (misura[0], sotto)),
+                         (0, oy + sh))
+    portafoglio(SCHERMO, k)
     pygame.display.flip()
 
 
-def portafoglio(sc):
-    """Il portafoglio, sempre in alto a destra: nei menu e in partita."""
+def portafoglio(sc, k=1.0):
+    """Il portafoglio, sempre nell'angolo in alto a destra della finestra:
+    nei menu e in partita."""
     f = FONTS.get("small")
     if f is None:
         return
@@ -11044,7 +11070,12 @@ def portafoglio(sc):
         t = f.render(T("wallet") % dollari(soldi()), True, ORO_SCELTA)
     except (KeyError, TypeError, ValueError):
         return
-    sc.blit(t, t.get_rect(topright=(WIN_W - s(24), s(12))))
+    if abs(k - 1.0) > 0.001:
+        t = pygame.transform.smoothscale(
+            t, (max(1, int(t.get_width() * k)), max(1, int(t.get_height()
+                                                             * k))))
+    w = sc.get_width()
+    sc.blit(t, t.get_rect(topright=(w - int(s(24) * k), int(s(12) * k))))
 
 
 def mouse_gioco():
