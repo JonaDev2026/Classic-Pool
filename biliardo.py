@@ -10667,6 +10667,12 @@ def schermata_vetrina(sc, clock, logo, negozio=True):
 
 PREMI_TORNEO = (50, 75, 100, 150, 200, 300)     # incontro vinto, per turno
 PREMIO_CAMPIONE = 150
+# il premio a chi vince il torneo, oltre ai turni: piu' e' difficile il
+# gioco, piu' si prende. Pool e blackball 3.000, snooker e piramide
+# 7.000, birilli 10.000.
+PREMIO_TORNEO = {0: 3000, 1: 3000, 5: 3000, 4: 3000,
+                 2: 7000, 6: 7000, 8: 7000,
+                 3: 10000, 7: 10000}
 VERDE_SOLDI = (107, 195, 159)    # i dollari, verde come quelli di GTA
 
 
@@ -10750,7 +10756,7 @@ def _torneo(sc, clock, logo, disc_vera, k_t):
             k = max(0, min(len(PREMI_TORNEO) - 1, tab["vinte"] - 1))
             premio = PREMI_TORNEO[k]
             if len(tab_oggi(tab)) == 1:
-                premio += PREMIO_CAMPIONE
+                premio += PREMIO_TORNEO.get(disc_vera, PREMIO_CAMPIONE)
             soldi(premio)
             salva_config()
         if tab["vinte"] > CFG.get("torneo_record", 0):
