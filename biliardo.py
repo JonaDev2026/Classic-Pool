@@ -5036,6 +5036,7 @@ PROVA = [False]         # F3: fa vedere dove il gioco crede che sia il tavolo
 # Prove in partita: T gira i sei tavoli del torneo, B i set di palle.
 # In alto a sinistra si legge per un attimo cosa c'e' adesso.
 TAV_PROVA = [None]
+TASTI_PROVA = False     # True per riaccendere T, B, R e P in partita
 BORDO_PROVA = [None]    # R: le cornici sul panno di adesso
 PANNO_PROVA = [None]    # P: i panni sotto la cornice di adesso
 BORDO_ORA = [0]         # la cornice che si sta disegnando
@@ -5045,7 +5046,8 @@ SCRITTA_PROVA = ["", 0]
 
 def prova_tasto(key):
     """T e B in partita. Ritorna True se il tasto era suo."""
-    if not DENTRO_PARTITA[0] or key not in (pygame.K_t, pygame.K_b,
+    if not TASTI_PROVA or not DENTRO_PARTITA[0] or \
+            key not in (pygame.K_t, pygame.K_b,
                                             pygame.K_r, pygame.K_p):
         return False
     if key == pygame.K_p:
