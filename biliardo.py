@@ -3199,6 +3199,19 @@ PAESI = {
 }
 
 
+def nome_corto(nome):
+    """Nome e cognome diventano iniziale del nome, punto, e il resto:
+    "Allison Fisher" -> "A. Fisher"."""
+    pezzi = nome.split(" ", 1)
+    if len(pezzi) < 2 or not pezzi[0]:
+        return nome
+    return "%s. %s" % (pezzi[0][0], pezzi[1])
+
+
+PAESI = dict((nome_corto(k), v) for k, v in PAESI.items())
+AVVERSARI = [nome_corto(n) for n in AVVERSARI]
+
+
 # Il tavolo di casa: quello che si trova in multiplayer e contro il
 # computer quando nelle impostazioni il panno e il legno sono su "a
 # caso". Nei tornei invece si cambia a ogni livello.
