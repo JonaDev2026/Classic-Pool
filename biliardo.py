@@ -7653,29 +7653,46 @@ CATEGORIE = (("Pool", (0, 1, 5, 4, 8)),
 def schermata_menu(sc, clock, logo):
     """Il primo menu: prima la famiglia, poi la disciplina. Ritorna
     "gioca" quando se n'e' scelta una, se no "settings" o "quit"."""
-    categoria = None            # None: si sceglie la famiglia
+    # tre piani: il menu principale (None), le famiglie ("fam") e i
+    # giochi di una famiglia (il suo numero)
+    categoria = None
     sel = 0
     rett = []
 
     def voci_ora():
         if categoria is None:
+            return [T("games"), T("rules"), T("shop"), T("bag"),
+                    T("settings"), T("quit")]
+        if categoria == "fam":
             return [nome_categoria(i) for i in range(len(CATEGORIE))] + [
-                T("rules"), T("shop"), T("bag"), T("settings"), T("quit")]
+                T("back")]
         return [nome_gioco(g) for g in CATEGORIE[categoria][1]] + [T("back")]
+
+    def indietro():
+        nonlocal categoria, sel
+        if categoria == "fam":
+            categoria, sel = None, 0
+        elif categoria is not None:
+            sel, categoria = categoria, "fam"
 
     def scelta(i):
         nonlocal categoria, sel
         if categoria is None:
+            if i == 0:
+                categoria, sel = "fam", 0
+                return None
+            return ("regole", "negozio", "borsa", "settings", "quit")[i - 1]
+        if categoria == "fam":
             if i < len(CATEGORIE):
                 categoria, sel = i, 0
-                return None
-            return ("regole", "negozio", "borsa", "settings",
-                    "quit")[i - len(CATEGORIE)]
+            else:
+                indietro()
+            return None
         giochi = CATEGORIE[categoria][1]
         if i < len(giochi):
             GIOCO[0] = giochi[i]
             return "gioca"
-        sel, categoria = categoria, None        # indietro
+        indietro()
         return None
 
     while True:
@@ -7700,7 +7717,7 @@ def schermata_menu(sc, clock, logo):
                 if ev.key == pygame.K_ESCAPE:
                     if categoria is None:
                         return "quit"
-                    sel, categoria = categoria, None
+                    indietro()
                     break
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 for i, r in enumerate(rett):
@@ -7715,8 +7732,8 @@ def schermata_menu(sc, clock, logo):
         font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
         sfondo_menu(sc, logo)
         scritta_logo(sc, WIN_W // 2, s(340))
-        sotto = (T("sub_disc") if categoria is None
-                 else nome_categoria(categoria))
+        sotto = ("" if categoria is None else T("sub_disc")
+                 if categoria == "fam" else nome_categoria(categoria))
         t = small.render(sotto, True, ORO_SOTTO)
         sc.blit(t, t.get_rect(center=(WIN_W // 2, s(396))))
 
@@ -8692,7 +8709,7 @@ for _l, _d in (
         ("en", {"unl_title": "New cue unlocked", "st_aim": "Aim",
                 "st_power": "Power", "st_spin": "Spin",
                 "st_count": "%d of %d cues", "chalk": "CHALK",
-                "k_chalk": "Chalk the cue", "shop": "Shop",
+                "k_chalk": "Chalk the cue", "shop": "Shop", "games": "Games",
                 "wallet": "Wallet: %s", "buy": "Buy", "use": "Use",
                 "in_use": "In use", "chalk_row": "Chalk",
                 "buy_chalk": "Buy chalk", "no_money": "Not enough money",
@@ -8712,6 +8729,7 @@ for _l, _d in (
                 "st_power": "Potenza", "st_spin": "Effetto",
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
                 "k_chalk": "Gesso sulla stecca", "shop": "Negozio",
+                "games": "Giochi",
                 "wallet": "Portafoglio: %s", "buy": "Compra", "use": "Usa",
                 "in_use": "In uso", "chalk_row": "Gessetto",
                 "buy_chalk": "Compra gessetto",
@@ -8732,6 +8750,7 @@ for _l, _d in (
                 "st_power": "Puissance", "st_spin": "Effet",
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
                 "k_chalk": "Craie sur la queue", "shop": "Boutique",
+                "games": "Jeux",
                 "wallet": "Porte-monnaie : %s", "buy": "Acheter",
                 "use": "Utiliser", "in_use": "Utilisee",
                 "chalk_row": "Craie", "buy_chalk": "Acheter une craie",
@@ -8754,6 +8773,7 @@ for _l, _d in (
                 "st_spin": "Efecto", "st_count": "%d de %d tacos",
                 "chalk": "TIZA", "k_chalk": "Tiza en el taco",
                 "shop": "Tienda", "wallet": "Cartera: %s", "buy": "Comprar",
+                "games": "Juegos",
                 "use": "Usar", "in_use": "En uso", "chalk_row": "Tiza",
                 "buy_chalk": "Comprar tiza",
                 "no_money": "Dinero insuficiente",
