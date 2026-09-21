@@ -5705,6 +5705,9 @@ CUBO_K = (("cubo", "cubo_tipo"), ("cubo2", "cubo2_tipo"))
 # Il computer il gesso lo fa per finta: un cubetto a partita, del colore
 # del suo livello, e lo da' tanto piu' spesso quanto piu' e' bravo.
 CPU_ORA = [None]        # il livello del computer in questa partita
+# In due sullo stesso computer si gioca alla buona: gessetto blu per
+# tutti e due e non finisce mai.
+GESSO_INF = [False]
 CPU_CUBO = [0]
 
 
@@ -5775,6 +5778,13 @@ def metti_gesso(chi):
     riga e' gia' piena non si spreca niente."""
     if GESSO[chi] >= 0.999:
         return False
+    if GESSO_INF[0]:
+        GESSO[chi] = 1.0
+        GESSO_TIRI[chi] = 0
+        GESSO_QUANDO[chi] = pygame.time.get_ticks()
+        if SUONI.get("gesso"):
+            suona_fx("gesso")
+        return True
     k = CUBO_K[chi][0]
     if int(CFG.get(k, 0)) <= 0 and not apri_cubetto(chi):
         return False
@@ -6204,6 +6214,18 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
         fianco(sc, partita, gi, x, potenza, mini)
 
 
+def infinito(sc, cx, cy, a, col):
+    """Il segno dell'infinito, disegnato: non tutti i caratteri ce l'hanno."""
+    pts = []
+    for k in range(49):
+        t = k / 48.0 * 2.0 * math.pi
+        d = 1.0 + math.sin(t) ** 2
+        pts.append((cx + a * math.cos(t) / d,
+                    cy + a * math.sin(t) * math.cos(t) / d))
+    pygame.draw.aalines(sc, col, True, pts)
+    pygame.draw.lines(sc, col, True, pts, max(1, s(2)))
+
+
 def fianco(sc, partita, gi, x_lato, potenza, mini):
     attivo = (partita.turno == gi and not partita.finita)
     col_et = TESTO_OPACO
@@ -6222,7 +6244,9 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
     # perso meta' di quello che puo' perdere, pulsa piano; finito il
     # cubetto resta spento.
     g = GESSO[gi]
-    if gi == 1 and CPU_ORA[0] is not None:
+    if GESSO_INF[0]:
+        tipo_c, cubo, scorta, pronto = "blu", 1.0, 0, True
+    elif gi == 1 and CPU_ORA[0] is not None:
         tipo_c = gesso_cpu_tipo(CPU_ORA[0])
         cubo = CPU_CUBO[0] / float(gesso_dati(tipo_c)[1])
         scorta = 0
@@ -6252,9 +6276,12 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
         sc.blit(im, im.get_rect(center=(x_lato, y_spin + s(66))))
     lab = mini.render(T("chalk"), True, col_et)
     sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(96))))
-    q = mini.render("%d%%" % int(round(cubo * 100)), True,
-                    ORO_SCELTA if pronto else (232, 96, 72))
-    sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(112))))
+    if GESSO_INF[0]:
+        infinito(sc, x_lato, y_spin + s(112), s(9), ORO_SCELTA)
+    else:
+        q = mini.render("%d%%" % int(round(cubo * 100)), True,
+                        ORO_SCELTA if pronto else (232, 96, 72))
+        sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(112))))
 
 
 # ------------------------------------------------------- musica ed effetti
@@ -9236,8 +9263,10 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
             righe.append(("stecca", gi, gi))
     if contro_cpu and libera:
         righe.append(("liv", 1, 1))
+    if libera and contro_cpu:
+        righe.append(("gesso", 0, "c"))
     if libera:
-        righe += [("gesso", 0, "c"), ("match", 0, "c")]
+        righe.append(("match", 0, "c"))
     righe += [("via", 0, "b"), ("indietro", 0, "b")]
     n_voci = len(righe)
     sel = 0
@@ -9279,27 +9308,45 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
 
     # dove stanno le cose
     passo = s(52)
-    y_col = s(424)
+    y_col = s(236)
     larga = s(540)
     x_col = (WIN_W // 2 - s(300), WIN_W // 2 + s(300))
+
+    def posti(dove):
+        """Quanti posti occupa una colonna: la stecca ne prende due, uno
+        per il disegno sopra la sua riga."""
+        n = 0
+        for r in righe:
+            if r[2] == dove:
+                n += 2 if r[0] == "stecca" else 1
+        return n
 
     def cella(i):
         tipo, gi, dove = righe[i]
         if dove in (0, 1):
-            k = [j for j, r in enumerate(righe) if r[2] == dove].index(i)
+            k = 0
+            for j, r in enumerate(righe):
+                if r[2] != dove:
+                    continue
+                if r[0] == "stecca":
+                    k += 1          # il posto del disegno
+                if j == i:
+                    break
+                k += 1
             return pygame.Rect(x_col[dove] - larga // 2,
                                y_col + k * passo - passo // 2 + s(3),
                                larga, passo - s(6))
+        n_col = max(posti(0), posti(1))
+        y_c = y_col + n_col * passo + s(20)
         if dove == "c":
             k = [j for j, r in enumerate(righe) if r[2] == "c"].index(i)
-            n_col = max(len([r for r in righe if r[2] == 0]),
-                        len([r for r in righe if r[2] == 1]))
-            y = y_col + n_col * passo + s(24) + k * passo
+            y = y_c + k * passo
             return pygame.Rect(WIN_W // 2 - s(320), y - passo // 2 + s(3),
                                s(640), passo - s(6))
+        n_c = len([r for r in righe if r[2] == "c"])
         k = 0 if tipo == "via" else 1
-        return pygame.Rect(WIN_W // 2 - s(210) + k * s(220), s(744),
-                           s(200), s(42))
+        return pygame.Rect(WIN_W // 2 - s(210) + k * s(220),
+                           y_c + n_c * passo + s(24), s(200), s(42))
 
     while True:
         clock.tick(60)
@@ -9349,12 +9396,12 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                         return "menu"
                     gira(righe[i], -1 if mouse[0] < r.right - s(140) else 1)
 
-        sfondo_menu(sc, logo)
+        sfondo_menu(sc, None)
         t = FONTS["elegante"].render(tit_el(T("names")), True, (240, 240, 244))
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(318))))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(96))))
         t = small.render(T("sub_cpu") if contro_cpu and libera
                          else T("sub_names"), True, ORO_SOTTO)
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(364))))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(142))))
 
         tic_menu(tuple(r[0] + str(r[1]) for r in righe), sel)
         rett = []
@@ -9400,6 +9447,15 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                 ante = bandiera(paesi[gi], s(20))
             elif tipo == "stecca":
                 et, val = T("cue"), nome_stecca(gi)
+                # la stecca scelta, disegnata sopra la sua riga
+                i_s = CFG.get(CHIAVE_ST[gi], -1)
+                if i_s in stecche_mie():
+                    lung = s(480)
+                    k_s = 1.5 * lung / 145.0 / 2.0
+                    disegna_stecca_su(
+                        sc, Vector2(r.centerx + lung // 2, r.centery - passo),
+                        Vector2(1, 0), lung, (1.3 * k_s, 2.0 * k_s,
+                                              3.0 * k_s), STECCHE[i_s])
             elif tipo == "liv":
                 et, val = T("level"), T(LIVELLI[livello][0])
             elif tipo == "gesso":
@@ -10164,7 +10220,9 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     sorteggia_stecca_avv(cpu is not None)
     GESSO[:] = [1.0, 1.0]
     GESSO_TIRI[:] = [0, 0]
-    prepara_gessi(cpu is None)
+    GESSO_INF[0] = (cpu is None and not torneo)
+    if not GESSO_INF[0]:
+        prepara_gessi(False)
     CPU_ORA[0] = cpu
     if cpu is not None:
         CPU_CUBO[0] = gesso_dati(gesso_cpu_tipo(cpu))[1]
