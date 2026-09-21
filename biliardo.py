@@ -10416,8 +10416,8 @@ def disegna_orologio(sc, resta, totale):
             LANCETTA["torna"] = True        # il tempo e' ripartito
         else:
             LANCETTA["vista"] = meta
-        # gira al contrario, come un conto alla rovescia
-        a = -math.pi / 2 - 2 * math.pi * LANCETTA["vista"]
+        # gira in senso orario, come un orologio vero
+        a = -math.pi / 2 + 2 * math.pi * LANCETTA["vista"]
         ux, uy = math.cos(a), math.sin(a)
         px, py = -uy, ux
         r = lato / 2.0
