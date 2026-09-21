@@ -8877,9 +8877,7 @@ def righe_setting(pagina, blocca_tavolo):
     if pagina == "grafica":
         return [("risoluzione", T("resolution"), _ris_scritta()),
                 ("pieno", T("screen"),
-                 T("s_pieno") if PIENO else T("s_finestra")),
-                ("stemmi", T("crests"),
-                 T("cr_" + CFG.get("stemmi", "classici")))]
+                 T("s_pieno") if PIENO else T("s_finestra"))]
     nomi_l = dict(LINGUE)
     return [("lingua", T("language"),
              nomi_l.get(CFG["lingua"], CFG["lingua"])),
@@ -9444,7 +9442,7 @@ STEMMI = {}
 def stemma(chiave, alto):
     """Lo stemma del torneo, alto quanto si chiede. Si prende dal set
     scelto nelle impostazioni; se li' manca, dall'altro."""
-    set_ = CFG.get("stemmi", "classici")
+    set_ = "classici"           # gli stemmi sono quelli: niente scelta
     k = (chiave, alto, set_)
     if k not in STEMMI:
         img = None
