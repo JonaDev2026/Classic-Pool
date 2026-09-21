@@ -3557,7 +3557,12 @@ TROFEO_GIOCO = {0: "trofeo_8ball", 1: "trofeo_9ball", 5: "trofeo_10ball",
                 8: "trofeo_piramide", 4: "trofeo_blackball"}
 
 
+TROFEO_VISTA = [None]   # T sul tabellone: si girano tutti i trofei
+
+
 def trofeo_del_gioco(riserva=0):
+    if TROFEO_VISTA[0] is not None and TROFEI:
+        return TROFEO_VISTA[0] % len(TROFEI)
     nome = TROFEO_GIOCO.get(GIOCO[0])
     for i, (n, _) in enumerate(TROFEI):
         if n == nome:
@@ -3791,6 +3796,7 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
     sinistra del bottone."""
     base_v, base_k = list(voci), list(chiavi)
     n_sc = 2 if scelte else 0
+    TROFEO_VISTA[0] = None
     sel = n_sc
     rett = []
 
@@ -3814,7 +3820,13 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
                 return "quit"
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
+                    TROFEO_VISTA[0] = None
                     return chiavi[-1]
+                if ev.key == pygame.K_t and TROFEI:
+                    # T: si guardano tutti i trofei, uno alla volta
+                    ora = TROFEO_VISTA[0]
+                    TROFEO_VISTA[0] = (trofeo_del_gioco() + 1 if ora is None
+                                       else ora + 1) % len(TROFEI)
                 if ev.key in (pygame.K_RIGHT, pygame.K_TAB):
                     sel = (sel + 1) % len(voci)
                 if ev.key == pygame.K_LEFT:
@@ -3826,6 +3838,7 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
                     if sel < n_sc:
                         cambia(sel, 1)
                     else:
+                        TROFEO_VISTA[0] = None
                         return chiavi[sel]
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 for i, r in enumerate(rett):
@@ -3834,6 +3847,7 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
                             sel = i
                             cambia(i, -1 if mouse[0] < r.centerx else 1)
                         else:
+                            TROFEO_VISTA[0] = None
                             return chiavi[i]
 
         font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
