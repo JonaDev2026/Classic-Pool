@@ -4929,7 +4929,14 @@ def disegna_stecca(sc, p, d, potenza, chi=0):
     # i 13 mm della ghiera, i 20 della giunzione e i 30 del fondello
     raggi = (PLAY.w * 1.30 / 254.0 / 2.0, PLAY.w * 2.00 / 254.0 / 2.0,
              PLAY.w * 3.00 / 254.0 / 2.0)
+    # la stecca si vede solo sopra il tavolo: fuori ci sono le scritte
+    vista = pygame.Rect(int(TAV_POS[0] + LEGNO_SU.x * SCALA),
+                        int(TAV_POS[1] + LEGNO_SU.y * SCALA),
+                        int(LEGNO_SU.w * SCALA), int(LEGNO_SU.h * SCALA))
+    prima = sc.get_clip()
+    sc.set_clip(vista.clip(prima))
     disegna_stecca_su(sc, p0, d, lung, raggi, stecca_di(chi))
+    sc.set_clip(prima)
 
 
 def _tinta(c, k):
@@ -5683,15 +5690,15 @@ def doti_di(chi):
 # del gesso torna piena.
 GESSO = [1.0, 1.0]
 GESSO_TIRI = [0, 0]
-GESSO_OGNI = 3
-GESSO_CALO = 0.02
+GESSO_OGNI = 1          # a ogni tiro...
+GESSO_CALO = 0.0067     # ...un filo: dopo 15 tiri si e' perso il 10%
 GESSO_MIN = 0.90
 
 
 def consuma_gesso(chi):
     GESSO_TIRI[chi] += 1
     if GESSO_TIRI[chi] % GESSO_OGNI == 0:
-        GESSO[chi] = max(GESSO_MIN, round(GESSO[chi] - GESSO_CALO, 3))
+        GESSO[chi] = max(GESSO_MIN, round(GESSO[chi] - GESSO_CALO, 4))
 
 
 # Il cubetto: ogni volta che dai il gesso ne consumi un uso. Finito il
@@ -5911,20 +5918,34 @@ def disegna_spin(sc, spin, x, y, r=19):
     sc.blit(s, s.get_rect(center=(x, y)))
 
 
-def barra_precisione(sc, x, y, w, h, val):
-    """La barra della precisione: piena col gesso fresco, cala tiro dopo
-    tiro finche' non lo ridai. Viola, come la mira nel negozio."""
+def _sfuma(a, b, t):
+    return tuple(int(a[k] + (b[k] - a[k]) * t) for k in range(3))
+
+
+def colore_precisione(t):
+    """Piena e' viola; calando va verso l'arancione e in fondo il rosso."""
+    t = max(0.0, min(1.0, t))
+    if t >= 0.5:
+        return _sfuma((242, 144, 52), COL_DOTI[0], (t - 0.5) / 0.5)
+    return _sfuma((222, 52, 52), (242, 144, 52), t / 0.5)
+
+
+def barra_sottile(sc, x, y, w, h, val, col):
+    """Una barra in piedi, sottile e pulita: il fondo scuro e sopra il
+    pieno, arrotondati, senza cornice."""
     q = pygame.Surface((w * INGR, h * INGR), pygame.SRCALPHA)
     r = q.get_rect()
-    pygame.draw.rect(q, (42, 44, 50), r, border_radius=4 * INGR)
+    tondo = (w * INGR) // 2
+    pygame.draw.rect(q, (255, 255, 255, 26), r, border_radius=tondo)
     if val > 0:
-        alta = int((h - 4) * val) * INGR
-        pygame.draw.rect(q, COL_DOTI[0], (2 * INGR, r.h - 2 * INGR - alta,
-                                          (w - 4) * INGR, alta),
-                         border_radius=3 * INGR)
-    pygame.draw.rect(q, (110, 112, 120), r, width=INGR,
-                     border_radius=4 * INGR)
+        alta = max(w * INGR, int(h * val) * INGR)
+        pygame.draw.rect(q, col, (0, r.h - alta, r.w, alta),
+                         border_radius=tondo)
     sc.blit(pygame.transform.smoothscale(q, (w, h)), (x, y))
+
+
+def barra_precisione(sc, x, y, w, h, val, t=1.0):
+    barra_sottile(sc, x, y, w, h, val, colore_precisione(t))
 
 
 def scritta_in_piedi(sc, testo, font, col, cx, cy):
@@ -6271,16 +6292,18 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
     y_barra = (ALTO + BASSO) // 2 - alto_barra // 2
     # due barre una accanto all'altra, ognuna con la sua scritta in piedi
     # sulla sinistra: la potenza e la precisione (il gesso sulla stecca)
-    x_pot, x_pre = x_lato - s(22), x_lato + s(16)
-    scritta_in_piedi(sc, T("power"), mini, col_et, x_pot - s(9),
+    x_pot, x_pre = x_lato - s(18), x_lato + s(18)
+    scritta_in_piedi(sc, T("power"), mini, col_et, x_pot - s(10),
                      y_barra + alto_barra // 2)
-    barra_potenza(sc, x_pot, y_barra, s(12), alto_barra,
-                  potenza if attivo else 0.0, su=True)
-    scritta_in_piedi(sc, T("precision"), mini, col_et, x_pre - s(9),
+    pot = potenza if attivo else 0.0
+    barra_sottile(sc, x_pot, y_barra, s(6), alto_barra, pot,
+                  (int(90 + 165 * pot), int(200 - 150 * pot), 60))
+    scritta_in_piedi(sc, T("precision"), mini, col_et, x_pre - s(10),
                      y_barra + alto_barra // 2)
-    prec = 0.4 + 0.6 * (GESSO[gi] - GESSO_MIN) / (1.0 - GESSO_MIN)
-    barra_precisione(sc, x_pre, y_barra, s(12), alto_barra,
-                     max(0.0, min(1.0, prec)))
+    t_g = (GESSO[gi] - GESSO_MIN) / (1.0 - GESSO_MIN)
+    prec = 0.4 + 0.6 * t_g
+    barra_precisione(sc, x_pre, y_barra, s(6), alto_barra,
+                     max(0.0, min(1.0, prec)), t_g)
     y_spin = y_barra + alto_barra + s(50)
     disegna_spin(sc, partita.spin if attivo else Vector2(0, 0), x_lato,
                  y_spin, s(19))
