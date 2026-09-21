@@ -8390,9 +8390,39 @@ MANO_V = 300.0          # la bianca in mano, pixel al secondo a misura uno
 MORTA = 0.18            # la levetta sotto questo non conta
 
 
+# Niente scelta: comanda l'ultima cosa toccata. Il mouse quando si muove o
+# si clicca, la tastiera quando si tira con il suo tasto (frecce, effetto
+# e gesso vanno bene anche col mouse), il controller appena lo si usa.
+INPUT_ORA = ["mouse"]
+FOOTER_VIS = [0.0, 0]   # quanto si vede la fascia dei comandi, e da quando
+
+
 def modo_comandi():
-    m = CFG.get("comandi", "mouse")
+    m = INPUT_ORA[0]
     return m if m in COMANDI else "mouse"
+
+
+def segna_input(ev):
+    """Guarda un evento vero (non uno fatto dal joystick) e decide chi
+    comanda adesso."""
+    if ev.type == pygame.MOUSEBUTTONDOWN:
+        INPUT_ORA[0] = "mouse"
+    elif ev.type == pygame.MOUSEMOTION:
+        dx, dy = ev.rel
+        if dx * dx + dy * dy >= 9:
+            INPUT_ORA[0] = "mouse"
+    elif ev.type == pygame.KEYDOWN and not getattr(ev, "dal_pad", False):
+        if ev.key == tasto("tiro"):
+            INPUT_ORA[0] = "tastiera"
+        elif INPUT_ORA[0] == "pad":
+            INPUT_ORA[0] = "tastiera"
+
+
+def segna_pad(ev):
+    if ev.type == pygame.CONTROLLERBUTTONDOWN:
+        INPUT_ORA[0] = "pad"
+    elif ev.type == pygame.CONTROLLERAXISMOTION and abs(ev.value) > 12000:
+        INPUT_ORA[0] = "pad"
 
 
 def tasto(azione):
@@ -8652,16 +8682,26 @@ RIGA_MENU = ((("a",), "pa_select"), (("b",), "pa_back"))
 
 
 def aiuto_menu(sc):
-    """Nei menu, col joystick: A per scegliere, B per tornare."""
-    if modo_comandi() != "pad" or not ICONE_TASTI_OK():
+    """Nei menu, col joystick: A per scegliere, B per tornare. La fascia
+    compare piano appena tocchi il controller e sparisce piano appena
+    torni a mouse o tastiera."""
+    if not ICONE_TASTI_OK():
+        return
+    ora = pygame.time.get_ticks()
+    dt = min(0.1, max(0.0, (ora - FOOTER_VIS[1]) / 1000.0))
+    FOOTER_VIS[1] = ora
+    verso = 1.0 if modo_comandi() == "pad" else -1.0
+    FOOTER_VIS[0] = max(0.0, min(1.0, FOOTER_VIS[0] + verso * dt * 4.0))
+    if FOOTER_VIS[0] <= 0.0:
         return
     r = riga_pad(FONTS["small"], RIGA_MENU)
     # una fascia scura per tutta la larghezza, alta quanto la riga
     alto = r.get_height() + s(12)
     fascia = pygame.Surface((WIN_W, alto), pygame.SRCALPHA)
     fascia.fill((0, 0, 0, 150))
+    fascia.blit(r, r.get_rect(center=(WIN_W // 2, alto // 2)))
+    fascia.set_alpha(int(255 * FOOTER_VIS[0]))
     sc.blit(fascia, (0, WIN_H - alto))
-    sc.blit(r, r.get_rect(center=(WIN_W // 2, WIN_H - alto // 2)))
 
 
 def riga_pad(small, voci=RIGA_GIOCO):
@@ -8742,6 +8782,7 @@ for _l, _d in (
                 "st_power": "Power", "st_spin": "Spin",
                 "st_count": "%d of %d cues", "chalk": "CHALK",
                 "k_chalk": "Chalk the cue", "shop": "Shop", "games": "Games",
+                "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Keyboard",
                 "wallet": "Wallet: %s", "buy": "Buy", "use": "Use",
                 "in_use": "In use", "chalk_row": "Chalk",
                 "buy_chalk": "Buy chalk", "no_money": "Not enough money",
@@ -8762,6 +8803,7 @@ for _l, _d in (
                 "st_power": "Potenza", "st_spin": "Effetto",
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
                 "k_chalk": "Gesso sulla stecca", "shop": "Negozio",
+                "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Tastiera",
                 "games": "Giochi",
                 "wallet": "Portafoglio: %s", "buy": "Compra", "use": "Usa",
                 "in_use": "In uso", "chalk_row": "Gessetto",
@@ -8784,6 +8826,7 @@ for _l, _d in (
                 "st_power": "Puissance", "st_spin": "Effet",
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
                 "k_chalk": "Craie sur la queue", "shop": "Boutique",
+                "p_mouse": "Souris", "p_pad": "Manette", "p_tastiera": "Clavier",
                 "games": "Jeux",
                 "wallet": "Porte-monnaie : %s", "buy": "Acheter",
                 "use": "Utiliser", "in_use": "Utilisee",
@@ -8808,6 +8851,7 @@ for _l, _d in (
                 "st_spin": "Efecto", "st_count": "%d de %d tacos",
                 "chalk": "TIZA", "k_chalk": "Tiza en el taco",
                 "shop": "Tienda", "wallet": "Cartera: %s", "buy": "Comprar",
+                "p_mouse": "Raton", "p_pad": "Mando", "p_tastiera": "Teclado",
                 "games": "Juegos",
                 "use": "Usar", "in_use": "En uso", "chalk_row": "Tiza",
                 "buy_chalk": "Comprar tiza",
@@ -8868,10 +8912,13 @@ def righe_setting(pagina, blocca_tavolo):
             righe.append(("panno", T("cloth"), _nome_tex(PANNI, "panno")))
             righe.append(("bordo", T("rails"), _nome_tex(BORDI, "bordo")))
         return righe
-    if pagina == "comandi":
-        modo = modo_comandi()
-        righe = [("comandi", T("input"), T("in_" + modo))]
-        if modo == "pad":
+    if pagina == "mouse":
+        return [("v_mira", T("c_aim"), T("c_mouse")),
+                ("v_tiro", T("k_shoot"), T("c_drag")),
+                ("v_cambia", T("k_switch"), T("c_right"))]
+    if pagina == "pad":
+        righe = []
+        if True:
             # col joystick i tasti sono fissi: la legenda e basta
             for chiave, testo, val in (
                     ("v_mira", "c_aim", "L STICK / D-PAD"),
@@ -8887,14 +8934,15 @@ def righe_setting(pagina, blocca_tavolo):
                     ("v_torna", "c_back", "B")):
                 righe.append((chiave, T(testo), val))
             return righe
-        if modo == "mouse":
-            righe.append(("v_mira", T("c_aim"), T("c_mouse")))
-            righe.append(("v_tiro", T("k_shoot"), T("c_drag")))
-            righe.append(("v_cambia", T("k_switch"), T("c_right")))
+    if pagina == "comandi":
+        # mouse, tastiera e controller vanno sempre tutti e tre: qui si
+        # vede solo cosa fa ogni tasto, e quelli della tastiera si cambiano
+        return [("p_mouse", T("p_mouse"), None),
+                ("p_tastiera", T("p_tastiera"), None),
+                ("p_pad", T("p_pad"), None)]
+    if pagina == "tastiera":
+        righe = []
         for a, testo, _ in AZIONI:
-            if modo == "mouse" and a in ("tiro", "cambia", "palla_su",
-                                         "palla_giu"):
-                continue        # col mouse queste le fa il mouse
             righe.append(("t_" + a, T(testo), nome_tasto(tasto(a))))
         righe.append(("t_base", T("k_reset"), ""))
         return righe
@@ -9112,7 +9160,7 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                 else T("p_" + pagina)
             t = FONTS["elegante"].render(tit_el(titolo), True, (240, 240, 244))
             # i comandi hanno tante righe: il titolo sale per fargli posto
-            alto_t = (s(84) if pagina == "comandi" else
+            alto_t = (s(84) if pagina in ("tastiera", "pad") else
                       s(326) if pagina == "radice" else s(244))
             sc.blit(t, t.get_rect(center=(WIN_W // 2, alto_t)))
             sotto_y = alto_t + (s(50) if pagina == "radice" else s(56))
@@ -9128,7 +9176,7 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                 ante[i] = texture(BORDI[CFG["bordo"]][1], (s(34), s(34)))
         porte = set(i for i, (n, _, _) in enumerate(righe)
                     if n.startswith(("p_", "t_", "v_")))
-        if pagina == "comandi":
+        if pagina in ("tastiera", "pad"):
             rett = disegna_voci(sc, voci, sel, font, small, s(200), s(38),
                                 frecce=True, ante=ante, porte=porte)
         else:
@@ -10898,8 +10946,10 @@ def eventi():
             MOUSE_VIVO[0] = True
         if PAD_SDL is not None and pygame.CONTROLLERAXISMOTION <= ev.type \
                 <= pygame.CONTROLLERDEVICEREMAPPED:
+            segna_pad(ev)
             pad_evento(ev, fuori)
             continue
+        segna_input(ev)
         if ev.type == pygame.VIDEORESIZE and not PIENO:
             pygame.display.set_mode(ev.size, pygame.RESIZABLE)
             misura_vista()
