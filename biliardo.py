@@ -743,6 +743,8 @@ SET_PALLE = (
                    (110, 50, 170), (236, 100, 30), (20, 130, 70),
                    (140, 30, 50), (230, 228, 222)],
      (190, 170, 130), (244, 240, 230), (22, 22, 26), CAR_CLASSICO, "marmo"),
+    ("set_continental", _BASE8, (200, 40, 40), (244, 236, 214),
+     (246, 240, 226), CAR_CLASSICO, "continental"),
     ("set_marmo_chiaro", [(244, 190, 50), (70, 110, 220), (226, 60, 64),
                           (146, 90, 210), (246, 132, 56), (46, 166, 100),
                           (176, 60, 80), (30, 30, 34)],
@@ -899,6 +901,14 @@ def dipingi_stile(s, num, base, stile):
                 for k, y in enumerate((116, 128)):
                     if ((x // q) + k) % 2 == 0:
                         pygame.draw.rect(s, bianco, pygame.Rect(x, y, q, q))
+        return
+    if stile == "continental":
+        # come il classico, ma le calotte color avorio
+        if mezza:
+            s.fill((240, 232, 210))
+            pygame.draw.rect(s, base, pygame.Rect(0, 64, W, H - 128))
+        else:
+            s.fill(base)
         return
     if stile == "marmo_chiaro":
         # marmo chiaro: calotte bianche larghe e la fascia di marmo stretta
@@ -1234,6 +1244,10 @@ SET_BLACKBALL = (
     # dell'altra squadra, senza tondino; la bianca crema col trifoglio nero
     ("set_club2", (28, 64, 196), (246, 110, 84), (14, 14, 16),
      (20, 20, 22), "anello"),
+    # The Legend: blu e nere lisce col piccolo marchio bianco, la 8
+    # d'argento col tondino nero, la bianca crema liscia
+    ("set_legend", (24, 70, 190), (14, 14, 18), (176, 178, 184), None,
+     "legend"),
 )
 # I set della piramide russa: le quindici chiare, la rossa, la cifra.
 SET_PIRAMIDE = (
@@ -1307,6 +1321,31 @@ def _tessitura(num, font, asset=None):
             st = set_blackball()
             base = st[1] if num <= 7 else st[3] if num == 8 else st[2]
             s.fill(base)
+            if len(st) > 5 and st[5] == "legend":
+                if num == 8:
+                    # l'argento: un grigio con la brillantina
+                    rnd = random.Random(88)
+                    for _ in range(900):
+                        x, y = rnd.randrange(TEX_W), rnd.randrange(TEX_H)
+                        c = rnd.choice(((210, 212, 218), (140, 142, 148),
+                                        (236, 238, 242)))
+                        s.set_at((x, y), c)
+                    for u in (TEX_W // 4, TEX_W * 3 // 4):
+                        pygame.draw.circle(s, (14, 14, 16), (u, TEX_H // 2),
+                                           40)
+                        scrivi(s, 8, font, u, (240, 240, 240), stretto=True)
+                else:
+                    # il marchio: una rosetta bianca e un anellino sotto
+                    for u in (TEX_W // 4, TEX_W * 3 // 4):
+                        cy = TEX_H // 2 - 8
+                        for a in range(0, 360, 60):
+                            ra = math.radians(a)
+                            pygame.draw.circle(
+                                s, (240, 240, 244),
+                                (int(u + 7 * math.cos(ra)),
+                                 int(cy + 7 * math.sin(ra))), 5)
+                        pygame.draw.circle(s, (240, 240, 244), (u, cy + 26),
+                                           7, 2)
             if len(st) > 5 and st[5] == "anello":
                 altro = st[2] if num <= 7 else st[1]
                 if num == 8:
@@ -1340,12 +1379,13 @@ def _tessitura(num, font, asset=None):
     elif tipo_palle() == "birilli":
         bianca, puntini = set_birilli()[1], set_birilli()[4]
     if num == 0:
-        trifoglio = (tipo_palle() == "blackball"
-                     and len(set_blackball()) > 5
-                     and set_blackball()[5] == "anello")
-        s.fill((236, 226, 198) if (stile in ("marmo", "marmo_chiaro")
-                                   and tipo_palle() == "pool") or trifoglio
-               else bianca)
+        stile_bb = (set_blackball()[5] if tipo_palle() == "blackball"
+                    and len(set_blackball()) > 5 else None)
+        trifoglio = stile_bb == "anello"
+        s.fill((236, 226, 198) if (stile in ("marmo", "marmo_chiaro",
+                                             "continental")
+                                   and tipo_palle() == "pool")
+               or stile_bb in ("anello", "legend") else bianca)
         if trifoglio:
             # il segno a tre pallini, da due parti
             for u, v in ((128, 110), (384, 146)):
@@ -1368,6 +1408,13 @@ def _tessitura(num, font, asset=None):
         base = colore_palla(num)
         dipingi_stile(s, num, base, stile)
         for u in (TEX_W // 4, TEX_W * 3 // 4):
+            if stile == "continental":
+                # niente tondino: il numero bianco dentro un anellino
+                # bianco, dritto sul colore
+                pygame.draw.circle(s, cifra, (u, TEX_H // 2), 40, 4)
+                for d in (-1, 0, 1):
+                    scrivi(s, num, font, u + d, cifra, stretto=True)
+                continue
             pygame.draw.circle(s, tondo, (u, TEX_H // 2), 46)
             if stile in ("nere", "marmo", "marmo_chiaro"):  # l'anello
                 pygame.draw.circle(s, cifra, (u, TEX_H // 2), 43, 3)
@@ -7481,7 +7528,7 @@ for _l, _d in (("en", {"t_saved": "Tournament in progress",
                        "cr_moderni": "moderni"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
-                       "set_pastello": "Pastel", "set_neon": "Neon", "set_nere": "Black", "set_club2": "Club 2", "set_marmo": "Marble Dark", "set_marmo_chiaro": "Marble Light",
+                       "set_pastello": "Pastel", "set_neon": "Neon", "set_nere": "Black", "set_club2": "Club 2", "set_legend": "The Legend", "set_marmo": "Marble Dark", "set_marmo_chiaro": "Marble Light", "set_continental": "Continental",
                        "set_retro": "Vintage", "set_doppia": "Twin Line",
                        "set_zigzag": "Zigzag", "set_bersaglio": "Target",
                        "set_scacchi": "Checkered", "set_pro": "Pro",
@@ -7490,7 +7537,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_bianco": "White", "set_ambra": "Amber",
                        "pir_aiuto": "RIGHT CLICK / %s / RB: choose ball"}),
                ("it", {"balls": "Palle", "set_classico": "Classico",
-                       "set_pastello": "Pastello", "set_neon": "Neon", "set_nere": "Nere", "set_club2": "Club 2", "set_marmo": "Marmo scuro", "set_marmo_chiaro": "Marmo chiaro",
+                       "set_pastello": "Pastello", "set_neon": "Neon", "set_nere": "Nere", "set_club2": "Club 2", "set_legend": "The Legend", "set_marmo": "Marmo scuro", "set_marmo_chiaro": "Marmo chiaro", "set_continental": "Continental",
                        "set_retro": "Vintage", "set_doppia": "Doppia riga",
                        "set_zigzag": "Zig-zag", "set_bersaglio": "Bersaglio",
                        "set_scacchi": "Scacchi", "set_pro": "Pro",
@@ -8292,7 +8339,7 @@ _FR = {
     "t_new": "Nouveau tournoi", "t_choose": "Choisis ton tournoi",
     "crests": "Blasons", "cr_classici": "classiques", "cr_moderni": "modernes",
     "balls": "Billes", "set_classico": "Classique", "set_pastello": "Pastel",
-    "set_neon": "Neon", "set_nere": "Noires", "set_club2": "Club 2", "set_marmo": "Marbre sombre", "set_marmo_chiaro": "Marbre clair", "set_retro": "Vintage",
+    "set_neon": "Neon", "set_nere": "Noires", "set_club2": "Club 2", "set_legend": "The Legend", "set_marmo": "Marbre sombre", "set_marmo_chiaro": "Marbre clair", "set_continental": "Continental", "set_retro": "Vintage",
     "set_doppia": "Double ligne",
     "set_zigzag": "Zigzag", "set_bersaglio": "Cible",
     "set_scacchi": "Damier", "set_pro": "Pro", "set_perla": "Perle",
@@ -8341,7 +8388,7 @@ _ES = {
     "t_new": "Nuevo torneo", "t_choose": "Elige tu torneo",
     "crests": "Escudos", "cr_classici": "clasicos", "cr_moderni": "modernos",
     "balls": "Bolas", "set_classico": "Clasico", "set_pastello": "Pastel",
-    "set_neon": "Neon", "set_nere": "Negras", "set_club2": "Club 2", "set_marmo": "Marmol oscuro", "set_marmo_chiaro": "Marmol claro", "set_retro": "Vintage",
+    "set_neon": "Neon", "set_nere": "Negras", "set_club2": "Club 2", "set_legend": "The Legend", "set_marmo": "Marmol oscuro", "set_marmo_chiaro": "Marmol claro", "set_continental": "Continental", "set_retro": "Vintage",
     "set_doppia": "Doble linea",
     "set_zigzag": "Zigzag", "set_bersaglio": "Diana",
     "set_scacchi": "Ajedrez", "set_pro": "Pro", "set_perla": "Perla",
