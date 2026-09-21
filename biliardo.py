@@ -3920,12 +3920,12 @@ CPU_PIAZZA = 1.5
 # tiro invece del migliore, e quanti tiri prova di nascosto prima di
 # scegliere. Il principiante ne prova pochi e sbaglia la mira; il
 # campione li prova tutti, combinazioni comprese, e non sbaglia quasi mai.
-LIVELLI = [("l_facile", 3.2, 0.18, 0.40, 3),
-           ("l_medio", 2.0, 0.12, 0.25, 5),
-           ("l_club", 1.2, 0.08, 0.15, 7),
-           ("l_forte", 0.7, 0.05, 0.08, 10),
-           ("l_maestro", 0.35, 0.03, 0.03, 14),
-           ("l_campione", 0.12, 0.015, 0.00, 20)]
+LIVELLI = [("l_facile", 1.6, 0.12, 0.25, 5),
+           ("l_medio", 1.0, 0.08, 0.15, 7),
+           ("l_club", 0.6, 0.06, 0.09, 9),
+           ("l_forte", 0.35, 0.035, 0.05, 12),
+           ("l_maestro", 0.18, 0.02, 0.02, 16),
+           ("l_campione", 0.07, 0.01, 0.00, 22)]
 
 
 def livello_cpu(livello):
@@ -5236,6 +5236,9 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
     gesso = GESSO[partita.turno] if partita.turno in (0, 1) else 1.0
     # col gesso che cala le righe dopo il colpo sbiadiscono
     opaco = 1.0 - 0.65 * (1.0 - gesso) / (1.0 - GESSO_MIN)
+    # e si accorciano: col gesso finito resta un moncherino
+    cala = max(0.0, min(1.0, (gesso - GESSO_MIN) / (1.0 - GESSO_MIN)))
+    accorcia = 0.15 + 0.85 * cala
 
     # Se la prima palla che prendi non e' delle tue, il cerchietto diventa
     # rosso: quel tiro sarebbe fallo.
@@ -5273,7 +5276,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
             diag = math.hypot(PLAY.w, PLAY.h)
             lunga = fino if f >= 1.0 else min(
                 fino, corta + (diag - corta) * f ** 1.3)
-            lunga *= gesso
+            lunga = max(BALL_R * 1.5, lunga * accorcia)
             fascio(sc, colpita.pos + via * BALL_R, via, lunga - BALL_R,
                    col, BALL_R * 0.36, opaco=opaco)
             # e dove va la bianca dopo il colpo: a novanta gradi dalla
@@ -5282,7 +5285,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
             tang = d - via * d.dot(via)
             if tang.length_squared() > 0.02:
                 tang = tang.normalize()
-                corta_b = corta * (0.5 + 0.5 * f) * gesso
+                corta_b = corta * (0.5 + 0.5 * f) * accorcia
                 fascio(sc, fine + tang * BALL_R, tang, corta_b, col,
                        BALL_R * 0.26, 0.8, opaco)
     elif asse_sponda is not None:
@@ -5299,7 +5302,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                 if 1e-3 < t < fino:
                     fino = t
         fascio(sc, fine + rimb * BALL_R, rimb,
-               min(fino - BALL_R, corta * (0.5 + 1.5 * f) * gesso), col,
+               min(fino - BALL_R, corta * (0.5 + 1.5 * f) * accorcia), col,
                BALL_R * 0.30, 0.8, opaco)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
