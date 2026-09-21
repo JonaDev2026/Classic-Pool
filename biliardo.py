@@ -3310,6 +3310,9 @@ TORNEO_TAVOLI[8][2] = ("bordeaux.png", "ebano.png")
 TORNEO_TAVOLI[8][3] = ("verde.png", "marmo.png")
 TORNEO_TAVOLI[8][4] = ("viola.png", "pelle-martellata.png")
 TORNEO_TAVOLI[8][5] = ("cammello.png", "frassino.png")
+# snooker, tutte e due le discipline
+for _d in (2, 6):
+    TORNEO_TAVOLI[_d][1] = ("cammello.png", "rosso-ferrari.png")
 # Le palle di ogni tavolo del torneo: il nome del set, uguale per tutti i
 # giochi, o un dizionario gioco -> set. Quelli che mancano: le sue.
 TORNEO_PALLE = {
@@ -3317,7 +3320,7 @@ TORNEO_PALLE = {
         "birilli": "set_classico", "piramide": "set_classico",
         "blackball": "set_pro"},
     2: {"pool": "set_marmo_chiaro", "blackball": "set_club2",
-        "piramide": "set_black"},
+        "piramide": "set_black", "snooker": "set_classico"},
     3: {"pool": "set_zigzag", "blackball": "set_club",
         "piramide": "set_classico"},
     4: {"pool": "set_retro", "blackball": "set_pro",
