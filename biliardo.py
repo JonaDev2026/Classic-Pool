@@ -3306,6 +3306,7 @@ TORNEO_TAVOLI[4][4] = ("viola.png", "foglia-argento.png")
 TORNEO_TAVOLI[4][5] = ("antracite.png", "noce-italiano.png")
 # piramide russa
 TORNEO_TAVOLI[8][1] = ("blu.png", "nero-1.png")
+TORNEO_TAVOLI[8][2] = ("bordeaux.png", "ebano.png")
 # Le palle di ogni tavolo del torneo: il nome del set, uguale per tutti i
 # giochi, o un dizionario gioco -> set. Quelli che mancano: le sue.
 TORNEO_PALLE = {
@@ -3314,7 +3315,8 @@ TORNEO_PALLE = {
         "blackball": "set_pro"},
     2: {"pool": "set_marmo_chiaro", "blackball": "set_club2",
         "piramide": "set_black"},
-    3: {"pool": "set_zigzag", "blackball": "set_club"},
+    3: {"pool": "set_zigzag", "blackball": "set_club",
+        "piramide": "set_classico"},
     4: {"pool": "set_retro", "blackball": "set_pro"},
     5: {"pool": "set_scacchi", "blackball": "set_legend"},
     6: {"pool": "set_bersaglio", "blackball": "set_classico"},
