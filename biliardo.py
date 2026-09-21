@@ -7645,7 +7645,7 @@ def schermata_menu(sc, clock, logo):
     def voci_ora():
         if categoria is None:
             return [nome_categoria(i) for i in range(len(CATEGORIE))] + [
-                T("rules"), T("shop"), T("settings"), T("quit")]
+                T("rules"), T("shop"), T("bag"), T("settings"), T("quit")]
         return [nome_gioco(g) for g in CATEGORIE[categoria][1]] + [T("back")]
 
     def scelta(i):
@@ -7654,7 +7654,7 @@ def schermata_menu(sc, clock, logo):
             if i < len(CATEGORIE):
                 categoria, sel = i, 0
                 return None
-            return ("regole", "negozio", "settings",
+            return ("regole", "negozio", "borsa", "settings",
                     "quit")[i - len(CATEGORIE)]
         giochi = CATEGORIE[categoria][1]
         if i < len(giochi):
@@ -7706,7 +7706,8 @@ def schermata_menu(sc, clock, logo):
         sc.blit(t, t.get_rect(center=(WIN_W // 2, s(396))))
 
         rett = disegna_voci(sc, [(v, None) for v in voci], sel, font, small,
-                            s(448), s(46) if len(voci) > 6 else s(52))
+                            s(448), s(40) if len(voci) > 7 else
+                            s(46) if len(voci) > 6 else s(52))
         # il portafoglio, in alto a destra
         t = small.render(T("wallet") % dollari(soldi()), True, ORO_SCELTA)
         sc.blit(t, t.get_rect(topright=(WIN_W - s(24), s(20))))
@@ -8686,7 +8687,10 @@ for _l, _d in (
                 "ch_giallo": "Yellow", "ch_viola": "Purple",
                 "ch_arancio": "Orange", "ch_oro": "Gold",
                 "ch_none": "none", "owned": "Owned",
-                "inventory": "Your chalk"}),
+                "inventory": "Your chalk", "bag": "Bag",
+                "all_owned": "You own every cue", "bought": "Purchased",
+                "ch_uses": "%d uses per cube", "ch_have": "you have %d",
+                "ch_open": "open cube: %d uses left"}),
         ("it", {"unl_title": "Nuova stecca sbloccata", "st_aim": "Mira",
                 "st_power": "Potenza", "st_spin": "Effetto",
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
@@ -8703,7 +8707,10 @@ for _l, _d in (
                 "ch_giallo": "Giallo", "ch_viola": "Viola",
                 "ch_arancio": "Arancio", "ch_oro": "Oro",
                 "ch_none": "nessuno", "owned": "Tua",
-                "inventory": "I tuoi gessetti"}),
+                "inventory": "I tuoi gessetti", "bag": "Borsa",
+                "all_owned": "Hai tutte le stecche", "bought": "Acquistato",
+                "ch_uses": "%d usi a cubetto", "ch_have": "ne hai %d",
+                "ch_open": "cubetto aperto: restano %d usi"}),
         ("fr", {"unl_title": "Nouvelle queue debloquee", "st_aim": "Visee",
                 "st_power": "Puissance", "st_spin": "Effet",
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
@@ -8720,7 +8727,11 @@ for _l, _d in (
                 "ch_giallo": "Jaune", "ch_viola": "Violette",
                 "ch_arancio": "Orange", "ch_oro": "Doree",
                 "ch_none": "aucune", "owned": "A toi",
-                "inventory": "Tes craies"}),
+                "inventory": "Tes craies", "bag": "Sac",
+                "all_owned": "Tu as toutes les queues", "bought": "Achete",
+                "ch_uses": "%d utilisations par cube",
+                "ch_have": "tu en as %d",
+                "ch_open": "cube ouvert : %d utilisations"}),
         ("es", {"unl_title": "Nuevo taco desbloqueado",
                 "st_aim": "Punteria", "st_power": "Potencia",
                 "st_spin": "Efecto", "st_count": "%d de %d tacos",
@@ -8737,7 +8748,10 @@ for _l, _d in (
                 "ch_giallo": "Amarilla", "ch_viola": "Morada",
                 "ch_arancio": "Naranja", "ch_oro": "Dorada",
                 "ch_none": "ninguna", "owned": "Tuyo",
-                "inventory": "Tus tizas"})):
+                "inventory": "Tus tizas", "bag": "Bolsa",
+                "all_owned": "Tienes todos los tacos", "bought": "Comprado",
+                "ch_uses": "%d usos por cubo", "ch_have": "tienes %d",
+                "ch_open": "cubo abierto: quedan %d usos"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _k, _en, _it, _fr, _es in NOMI_STECCHE_55:
     for _l, _v in (("en", _en), ("it", _it), ("fr", _fr), ("es", _es)):
@@ -9620,63 +9634,145 @@ def schermata_sblocco(sc, clock, i, titolo=None):
         presenta()
 
 
-def schermata_negozio(sc, clock, logo):
-    """Il negozio: le stecche, una alla volta, e i gessetti. Si compra
-    con i soldi del portafoglio; una stecca comprata si puo' anche
-    mettere subito in uso, e cosi' il gessetto."""
-    i_st = CFG.get("stecca", 0)
-    if not 0 <= i_st < len(STECCHE):
-        i_st = 0
-    tipi = [g[0] for g in GESSI]
-    i_g = tipi.index(CFG.get("gesso_tipo", "blu")) \
-        if CFG.get("gesso_tipo") in tipi else 0
-    sel = 0
+def _anteprima_stecca(sc, i, y):
+    """La stecca in grande, col nome sopra e le tre doti sotto."""
+    n = FONTS["elegante_voce"].render("%d. %s" % (i + 1, T(STECCHE[i][0])),
+                                      True, ORO_SCELTA)
+    sc.blit(n, n.get_rect(center=(WIN_W // 2, y - s(62))))
+    lung = s(900)
+    k = 1.6 * lung / 145.0 / 2.0
+    disegna_stecca_su(sc, Vector2(WIN_W // 2 + lung // 2, y), Vector2(1, 0),
+                      lung, (1.3 * k, 2.0 * k, 3.0 * k), STECCHE[i])
+    massimi = [max(d[k2] for d in DOTI) for k2 in range(3)]
+    largo = s(130)
+    for j, (chiave, v) in enumerate(zip(("st_aim", "st_power", "st_spin"),
+                                        DOTI[i])):
+        cx = WIN_W // 2 + (j - 1) * s(300)
+        e = FONTS["mini"].render(T(chiave), True, (220, 222, 228))
+        sc.blit(e, e.get_rect(center=(cx, y + s(48))))
+        fondo_b = pygame.Rect(cx - largo // 2, y + s(62), largo, s(8))
+        pygame.draw.rect(sc, (30, 40, 36), fondo_b, border_radius=s(4))
+        pieno = fondo_b.copy()
+        pieno.w = max(s(4), int(largo * v / float(massimi[j])))
+        pygame.draw.rect(sc, ORO_SCELTA, pieno, border_radius=s(4))
+        q = FONTS["mini"].render("%d%%" % v, True, ORO_SCELTA)
+        sc.blit(q, q.get_rect(center=(cx, y + s(84))))
+
+
+def _anteprima_gesso(sc, tipo, y, righe):
+    """Il gessetto in grande, col nome sopra e i suoi dati sotto."""
+    n = FONTS["elegante_voce"].render(T("ch_" + tipo), True, ORO_SCELTA)
+    sc.blit(n, n.get_rect(center=(WIN_W // 2, y - s(84))))
+    im = icona_gesso(s(120), tipo)
+    if im is not None:
+        sc.blit(im, im.get_rect(center=(WIN_W // 2, y)))
+    for j, testo in enumerate(righe):
+        q = FONTS["mini"].render(testo, True, (220, 222, 228))
+        sc.blit(q, q.get_rect(center=(WIN_W // 2, y + s(74) + j * s(20))))
+
+
+def _righe_vetrina(sc, voci, sel, y0, passo):
+    """Le righe del negozio e della borsa: il nome a sinistra, la scelta
+    con le frecce in mezzo, il prezzo (o quanti ne hai) in fondo."""
+    tic_menu(tuple(v[0] for v in voci), sel)
+    cx = WIN_W // 2
     rett = []
-    avviso = ["", 0]        # la scritta rossa e fino a quando resta
+    for i, (et, val, prezzo, rosso, frecce) in enumerate(voci):
+        y = y0 + i * passo
+        acceso = (i == sel)
+        r = pygame.Rect(cx - s(380), y - passo // 2 + s(4), s(760),
+                        passo - s(8))
+        if acceso:
+            b = pygame.Surface(r.size, pygame.SRCALPHA)
+            b.fill((255, 255, 255, 18))
+            sc.blit(b, r)
+            pygame.draw.rect(sc, COL_GIOC[0], (r.x, r.y, max(1, s(3)), r.h))
+        col = (255, 255, 255) if acceso else (196, 200, 208)
+        t = FONTS["elegante_voce"].render(tit_el(et), True, col)
+        sc.blit(t, t.get_rect(midleft=(cx - s(350), y)))
+        if val is not None:
+            cv = ORO_SCELTA if acceso else ORO_SOTTO
+            v = FONTS["small"].render(val, True, cv)
+            sc.blit(v, v.get_rect(center=(cx + s(90), y)))
+            if acceso and frecce:
+                for x, segno in ((cx - s(50), "<"), (cx + s(230), ">")):
+                    f = FONTS["font"].render(segno, True, cv)
+                    sc.blit(f, f.get_rect(center=(x, y)))
+        if prezzo:
+            cp = (240, 96, 96) if rosso else (ORO_SCELTA if acceso
+                                               else ORO_SOTTO)
+            q = FONTS["small"].render(prezzo, True, cp)
+            sc.blit(q, q.get_rect(midright=(cx + s(360), y)))
+        rett.append(r)
+    return rett
 
-    def dice(testo):
-        avviso[0], avviso[1] = testo, pygame.time.get_ticks() + 1600
 
-    def azione(riga):
+def schermata_vetrina(sc, clock, logo, negozio=True):
+    """Il negozio (negozio=True) o la borsa. Nel negozio ci sono solo le
+    stecche che non hai e tutti i gessetti, e con A si compra quello
+    della riga. Nella borsa c'e' quello che hai, da guardare: stecca e
+    gessetto si scelgono prima di ogni partita."""
+    tipi = [g[0] for g in GESSI]
+    i_st, i_g = 0, 0
+    sel = 0
+    vista = 0               # cosa si vede sopra: 0 la stecca, 1 il gessetto
+    rett = []
+    avviso = ["", 0, ORO_SCELTA]
+
+    def dice(testo, col=(240, 96, 96)):
+        avviso[0], avviso[1], avviso[2] = (testo,
+                                           pygame.time.get_ticks() + 1600,
+                                           col)
+
+    def stecche_qui():
+        mie = stecche_mie()
+        if negozio:
+            return [i for i in range(len(STECCHE)) if i not in mie]
+        return mie
+
+    def gessi_qui():
+        return tipi if negozio else gessi_miei()
+
+    def compra(riga):
         nonlocal i_st
-        if riga == 1:                          # la stecca: si compra
-            if i_st in stecche_mie():
-                return None
-            prezzo = prezzo_stecca(i_st)
+        st, ge = stecche_qui(), gessi_qui()
+        if riga == 0 and st:
+            i = st[i_st % len(st)]
+            prezzo = prezzo_stecca(i)
             if soldi() < prezzo:
                 dice(T("no_money"))
                 return None
             soldi(-prezzo)
-            CFG["stecche_mie"] = stecche_mie() + [i_st]
+            CFG["stecche_mie"] = stecche_mie() + [i]
             salva_config()
-            if schermata_sblocco(sc, clock, i_st, T("buy_done")) == "quit":
+            if schermata_sblocco(sc, clock, i, T("buy_done")) == "quit":
                 return "quit"
-        elif riga == 3:                        # compra un cubetto
-            prezzo = GESSI[i_g][2]
+        elif riga == 1 and ge:
+            t = ge[i_g % len(ge)]
+            prezzo = gesso_dati(t)[2]
             if soldi() < prezzo:
                 dice(T("no_money"))
                 return None
             soldi(-prezzo)
             gessi = CFG.setdefault("gessi", {})
-            gessi[tipi[i_g]] = int(gessi.get(tipi[i_g], 0)) + 1
+            gessi[t] = int(gessi.get(t, 0)) + 1
             salva_config()
+            dice(T("bought"), ORO_SCELTA)
             if SUONI.get("menu_apri"):
                 suona_fx("menu_apri")
-        elif riga == 4:
-            return "menu"
         return None
 
     def gira(riga, passo):
         nonlocal i_st, i_g
-        if riga == 0:
-            i_st = (i_st + passo) % len(STECCHE)
-        elif riga == 2:
-            i_g = (i_g + passo) % len(GESSI)
+        if riga == 0 and stecche_qui():
+            i_st = (i_st + passo) % len(stecche_qui())
+        elif riga == 1 and gessi_qui():
+            i_g = (i_g + passo) % len(gessi_qui())
 
     while True:
         clock.tick(60)
         mouse = mouse_gioco()
-        font, small = FONTS["font"], FONTS["small"]
+        st, ge = stecche_qui(), gessi_qui()
         for ev in eventi():
             if ev.type == pygame.QUIT:
                 return "quit"
@@ -9684,92 +9780,92 @@ def schermata_negozio(sc, clock, logo):
                 if ev.key == pygame.K_ESCAPE:
                     return "menu"
                 if ev.key in (pygame.K_DOWN, pygame.K_s, pygame.K_TAB):
-                    sel = (sel + 1) % 5
+                    sel = (sel + 1) % 3
                 elif ev.key in (pygame.K_UP, pygame.K_w):
-                    sel = (sel - 1) % 5
+                    sel = (sel - 1) % 3
                 elif ev.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_a,
                                 pygame.K_d):
                     gira(sel, -1 if ev.key in (pygame.K_LEFT, pygame.K_a)
                          else 1)
                 elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
                                 pygame.K_SPACE):
-                    q = azione(sel)
-                    if q:
-                        return q
+                    if sel == 2:
+                        return "menu"
+                    if negozio:
+                        q = compra(sel)
+                        if q:
+                            return q
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 for i, r in enumerate(rett):
                     if not r.collidepoint(mouse):
                         continue
                     sel = i
-                    if i in (0, 2):
-                        gira(i, -1 if mouse[0] < WIN_W // 2 + VALORE_X
-                             else 1)
-                    else:
-                        q = azione(i)
+                    if i == 2:
+                        return "menu"
+                    x = mouse[0] - WIN_W // 2
+                    if -s(80) < x < s(260):
+                        gira(i, -1 if x < s(90) else 1)
+                    elif negozio:
+                        q = compra(i)
                         if q:
                             return q
+        if sel in (0, 1):
+            vista = sel
+        st, ge = stecche_qui(), gessi_qui()
 
-        sfondo_menu(sc, logo)
-        t = FONTS["elegante"].render(tit_el(T("shop")), True,
-                                     (240, 240, 244))
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(310))))
-        t = small.render(T("wallet") % dollari(soldi()), True, ORO_SCELTA)
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(356))))
+        sfondo_menu(sc, None)
+        t = FONTS["elegante"].render(tit_el(T("shop" if negozio else "bag")),
+                                     True, (240, 240, 244))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(70))))
+        t = FONTS["small"].render(T("wallet") % dollari(soldi()), True,
+                                  ORO_SCELTA)
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(118))))
 
-        mia = i_st in stecche_mie()
-        prezzo = prezzo_stecca(i_st)
-        if mia:
-            et_st, val_st = T("owned"), None
-        else:
-            et_st, val_st = T("buy"), dollari(prezzo)
-        nome_g, usi_g, prezzo_g = tipi[i_g], GESSI[i_g][1], GESSI[i_g][2]
-        ho_g = int((CFG.get("gessi") or {}).get(nome_g, 0))
-        voci = [(T("cue"), "%d. %s" % (i_st + 1, T(STECCHE[i_st][0]))),
-                (et_st, val_st),
-                (T("chalk_row"), T("ch_" + nome_g)),
-                (T("buy_chalk"), dollari(prezzo_g)),
-                (T("back"), None)]
-        rosse = set()
-        if not mia and soldi() < prezzo:
-            rosse.add(1)
-        if soldi() < prezzo_g:
-            rosse.add(3)
-        rett = disegna_voci(sc, voci, sel, font, small, s(402), s(44),
-                            frecce=True, rosse=rosse)
-
-        # la stecca in grande, con le sue doti
-        lung = s(760)
-        k = 1.6 * lung / 145.0 / 2.0
-        y = rett[-1].bottom + s(44)
-        disegna_stecca_su(sc, Vector2(WIN_W // 2 + lung // 2, y),
-                          Vector2(1, 0), lung, (1.3 * k, 2.0 * k, 3.0 * k),
-                          STECCHE[i_st])
-        dm, dp, de = DOTI[i_st]
-        c = FONTS["mini"].render(
-            "%s %d%%     %s %d%%     %s %d%%     -     %s" % (
-                T("st_aim"), dm, T("st_power"), dp, T("st_spin"), de,
-                T("st_count") % (stecche_sbloccate(), len(STECCHE))),
-            True, ORO_SCELTA)
-        sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(26))))
-        # il gessetto: icona, usi, quanti ne hai e quale e' in uso
-        im = icona_gesso(s(30), nome_g)
-        riga_g = T("ch_info") % (T("ch_" + nome_g), usi_g, ho_g)
-        c = FONTS["mini"].render(riga_g, True, ORO_SOTTO)
-        cr = c.get_rect(center=(WIN_W // 2 + s(20), y + s(66)))
-        sc.blit(c, cr)
-        if im is not None:
-            sc.blit(im, im.get_rect(midright=(cr.left - s(10), cr.centery)))
-        # l'inventario: i gessetti che hai
+        # sopra, quello che si sta guardando, coi suoi dati
+        y_prev = s(300)
         scorta = CFG.get("gessi") or {}
-        pezzi = ["%s %d" % (T("ch_" + g[0]), int(scorta.get(g[0], 0)))
-                 for g in GESSI if int(scorta.get(g[0], 0)) > 0]
-        c = FONTS["mini"].render(
-            "%s:  %s" % (T("inventory"), ",  ".join(pezzi) or T("ch_none")),
-            True, ORO_SOTTO)
-        sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(94))))
+        if vista == 0:
+            if st:
+                _anteprima_stecca(sc, st[i_st % len(st)], y_prev)
+            else:
+                q = FONTS["small"].render(T("all_owned"), True, ORO_SOTTO)
+                sc.blit(q, q.get_rect(center=(WIN_W // 2, y_prev)))
+        elif ge:
+            tg = ge[i_g % len(ge)]
+            righe = [T("ch_uses") % gesso_dati(tg)[1],
+                     T("ch_have") % int(scorta.get(tg, 0))]
+            for k_c, k_t in CUBO_K:
+                if int(CFG.get(k_c, 0)) > 0 and CFG.get(k_t) == tg:
+                    righe.append(T("ch_open") % int(CFG[k_c]))
+                    break
+            _anteprima_gesso(sc, tg, y_prev, righe)
+
+        # le righe: stecca, gessetto, indietro
+        if st:
+            i = st[i_st % len(st)]
+            v_st = "%d. %s" % (i + 1, T(STECCHE[i][0]))
+            p_st = dollari(prezzo_stecca(i)) if negozio else ""
+            r_st = negozio and soldi() < prezzo_stecca(i)
+        else:
+            v_st, p_st, r_st = "-", "", False
+        if ge:
+            tg = ge[i_g % len(ge)]
+            v_ge = T("ch_" + tg)
+            if negozio:
+                p_ge = dollari(gesso_dati(tg)[2])
+                r_ge = soldi() < gesso_dati(tg)[2]
+            else:
+                p_ge, r_ge = "x%d" % int(scorta.get(tg, 0)), False
+        else:
+            v_ge, p_ge, r_ge = T("ch_none"), "", False
+        voci = [(T("cue"), v_st, p_st, r_st, len(st) > 1),
+                (T("chalk_row"), v_ge, p_ge, r_ge, len(ge) > 1),
+                (T("back"), None, "", False, False)]
+        rett = _righe_vetrina(sc, voci, sel, s(520), s(58))
         if avviso[0] and pygame.time.get_ticks() < avviso[1]:
-            c = small.render(avviso[0], True, (240, 96, 96))
-            sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(122))))
+            c = FONTS["small"].render(avviso[0], True, avviso[2])
+            sc.blit(c, c.get_rect(center=(WIN_W // 2, s(716))))
+        aiuto_menu(sc)
         for i, r in enumerate(rett):
             if MOUSE_VIVO[0] and r.collidepoint(mouse):
                 sel = i
@@ -10694,7 +10790,9 @@ def main():
         elif dove == "regole":
             dove = schermata_regole(sc, clock, logo)
         elif dove == "negozio":
-            dove = schermata_negozio(sc, clock, logo)
+            dove = schermata_vetrina(sc, clock, logo, True)
+        elif dove == "borsa":
+            dove = schermata_vetrina(sc, clock, logo, False)
         elif dove == "torneo":
             dove = torneo(sc, clock, logo)
             if dove == "menu":
