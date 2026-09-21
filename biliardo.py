@@ -3342,7 +3342,8 @@ TORNEO_PALLE = {
         "piramide": "set_marmo_nero", "snooker": "set_marmo_chiaro",
         "birilli": "set_bi_marmo"},
     6: {"pool": "set_bersaglio", "blackball": "set_classico",
-        "piramide": "set_classico", "snooker": "set_classico"},
+        "piramide": "set_classico", "snooker": "set_classico",
+        "birilli": "set_bi_marmo_nero"},
 }
 PALLE_TORNEO = [None]   # il set del tavolo del torneo di adesso
 TURNO_ORA = [None]      # il turno del torneo che si sta giocando
