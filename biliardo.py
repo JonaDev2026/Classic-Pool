@@ -8774,6 +8774,7 @@ def aiuto_menu(sc):
     bordo = FONDI_TINTE[t][1] if t in FONDI_TINTE else SFONDO_BORDO
     col_f = tuple(int(v * 0.6) for v in bordo) + (235,)
     fascia.fill(col_f)
+    FOOTER_ORA[0] = (alto, col_f, FOOTER_VIS[0])
     fascia.blit(r, r.get_rect(center=(WIN_W // 2, alto // 2)))
     fascia.set_alpha(int(255 * FOOTER_VIS[0]))
     sc.blit(fascia, (0, WIN_H - alto))
@@ -11017,66 +11018,40 @@ BORDI_VISTA = None
 
 
 def presenta():
-    """Porta la scena sullo schermo, ingrandita quanto ci sta senza
-    deformarla. Dove la scena non arriva, ai lati o sopra e sotto, si
-    allungano i suoi bordi fino al margine della finestra: il fondo, la
-    fascia dei comandi e tutto il resto riempiono la finestra intera,
-    senza giunture. Il portafoglio sta nell'angolo della finestra."""
+    """Porta la scena sullo schermo, ingrandita quanto ci sta. Le bande
+    che avanzano ai lati non restano nere: ci va lo stesso fondo della
+    schermata, stirato a tutto schermo, e la fascia dei comandi le
+    attraversa da un lato all'altro. Sullo schermo si copiano solo
+    superfici piene: quelle trasparenti sul Mac si rovinano."""
+    global BORDI_VISTA
+    portafoglio(SCENA)
     k, ox, oy = VISTA
-    misura = SCHERMO.get_size()
     if abs(k - 1.0) < 0.001 and ox == 0 and oy == 0:
         SCHERMO.blit(SCENA, (0, 0))
     else:
-        sw, sh = int(WIN_W * k), int(WIN_H * k)
-        grande = pygame.transform.smoothscale(SCENA, (sw, sh))
-        SCHERMO.blit(grande, (ox, oy))
-        dx = misura[0] - ox - sw
-
-        def allunga(pezzo, verso_x, misura_b):
-            """Il bordo della scena, ammorbidito (la grana del fondo
-            allungata farebbe delle righe) e steso sulla banda. Fatto coi
-            numeri e non con smoothscale, che su certi Mac con misure di
-            un pixel restituisce nero."""
-            if not HA_NUMPY:
-                return pygame.transform.scale(pezzo, misura_b)
-            a = pygame.surfarray.array3d(pezzo).astype(np.float32)
-            if verso_x:
-                linea = a.mean(axis=0)              # una colonna: (h, 3)
-            else:
-                linea = a.mean(axis=1)              # una riga: (w, 3)
-            n = max(1, len(linea) // 60)
-            nucleo = np.ones(2 * n + 1, np.float32) / (2 * n + 1)
-            piena = np.pad(linea, ((n, n), (0, 0)), mode="edge")
-            liscia = np.stack([np.convolve(piena[:, c], nucleo, "valid")
-                               for c in range(3)], axis=1)
-            liscia = np.clip(liscia, 0, 255).astype(np.uint8)
-            if verso_x:
-                q = pygame.surfarray.make_surface(liscia[None, :, :])
-            else:
-                q = pygame.surfarray.make_surface(liscia[:, None, :])
-            return pygame.transform.scale(q, misura_b)
-
-        if ox > 0:
-            SCHERMO.blit(allunga(grande.subsurface((0, 0, 4, sh)), True,
-                                 (ox, sh)), (0, oy))
-        if dx > 0:
-            SCHERMO.blit(allunga(grande.subsurface((sw - 4, 0, 4, sh)), True,
-                                 (dx, sh)), (ox + sw, oy))
-        sotto = misura[1] - oy - sh
-        if oy > 0:
-            riga = SCHERMO.subsurface((0, oy, misura[0], 4)).copy()
-            SCHERMO.blit(allunga(riga, False, (misura[0], oy)), (0, 0))
-        if sotto > 0:
-            riga = SCHERMO.subsurface((0, oy + sh - 4, misura[0], 4)).copy()
-            SCHERMO.blit(allunga(riga, False, (misura[0], sotto)),
-                         (0, oy + sh))
-    portafoglio(SCHERMO, k)
+        misura = SCHERMO.get_size()
+        tinta = TINTA_ORA[0]
+        if BORDI_VISTA is None or BORDI_VISTA[0] != (misura, tinta):
+            BORDI_VISTA = ((misura, tinta), pygame.transform.smoothscale(
+                fondo(tinta), misura))
+        SCHERMO.blit(BORDI_VISTA[1], (0, 0))
+        if FOOTER_ORA[0] is not None:
+            alto, col_f, vis = FOOTER_ORA[0]
+            t = FONDI_TINTE[tinta][1] if tinta in FONDI_TINTE \
+                else SFONDO_BORDO
+            a = vis * col_f[3] / 255.0
+            pieno = tuple(int(col_f[c] * a + t[c] * (1.0 - a))
+                          for c in range(3))
+            y = int(oy + (WIN_H - alto) * k)
+            SCHERMO.fill(pieno, pygame.Rect(0, y, misura[0], misura[1] - y))
+        SCHERMO.blit(pygame.transform.smoothscale(
+            SCENA, (int(WIN_W * k), int(WIN_H * k))), (ox, oy))
+    FOOTER_ORA[0] = None
     pygame.display.flip()
 
 
-def portafoglio(sc, k=1.0):
-    """Il portafoglio, sempre nell'angolo in alto a destra della finestra:
-    nei menu e in partita."""
+def portafoglio(sc):
+    """Il portafoglio, sempre in alto a destra: nei menu e in partita."""
     f = FONTS.get("small")
     if f is None:
         return
@@ -11084,10 +11059,7 @@ def portafoglio(sc, k=1.0):
         t = f.render(T("wallet") % dollari(soldi()), True, ORO_SCELTA)
     except (KeyError, TypeError, ValueError):
         return
-    if abs(k - 1.0) > 0.001:
-        t = pygame.transform.rotozoom(t, 0, k)
-    w = sc.get_width()
-    sc.blit(t, t.get_rect(topright=(w - int(s(24) * k), int(s(12) * k))))
+    sc.blit(t, t.get_rect(topright=(WIN_W - s(24), s(12))))
 
 
 def mouse_gioco():
