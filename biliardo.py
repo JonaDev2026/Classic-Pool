@@ -1216,22 +1216,9 @@ def tavolo_a_birilli():
 SET_SNOOKER = (
     ("set_classico", SN_ROSSO,
      dict(SN_TINTA), (204, 46, 46)),
-    ("set_retro", (120, 22, 26),
-     {SN_GIALLO: (206, 164, 40), SN_VERDE: (20, 84, 46),
-      SN_MARRONE: (96, 58, 30), SN_BLU: (22, 50, 120),
-      SN_ROSA: (212, 128, 132), SN_NERO: (18, 16, 16)}, (160, 70, 50)),
-    ("set_pastello", (255, 108, 120),
-     {SN_GIALLO: (255, 214, 90), SN_VERDE: (106, 218, 148),
-      SN_MARRONE: (200, 150, 110), SN_BLU: (88, 168, 255),
-      SN_ROSA: (255, 176, 206), SN_NERO: (50, 50, 60)}, (255, 120, 180)),
-    ("set_neon", (255, 30, 56),
-     {SN_GIALLO: (255, 228, 0), SN_VERDE: (0, 214, 104),
-      SN_MARRONE: (200, 110, 40), SN_BLU: (0, 118, 255),
-      SN_ROSA: (255, 90, 190), SN_NERO: (18, 18, 22)}, (0, 200, 255)),
-    ("set_pro", (176, 16, 30),
-     {SN_GIALLO: (250, 206, 0), SN_VERDE: (0, 128, 60),
-      SN_MARRONE: (130, 70, 24), SN_BLU: (0, 80, 200),
-      SN_ROSA: (246, 120, 160), SN_NERO: (14, 14, 16)}, None),
+    # il classico in marmo, chiaro e scuro; la bianca in marmo bianco
+    ("set_marmo_chiaro", SN_ROSSO, dict(SN_TINTA), (204, 46, 46), "chiaro"),
+    ("set_marmo", SN_ROSSO, dict(SN_TINTA), (204, 46, 46), "scuro"),
 )
 # I set del blackball: le rosse, le gialle, la nera, i puntini della
 # bianca. Palle lisce, senza numeri, come quelle dei pub inglesi.
@@ -1294,11 +1281,18 @@ SET_BIRILLI = (
 
 def bi_marmo(s, num, base):
     """Nei set di marmo dei birilli la palla prende le venature."""
-    st = set_birilli()
-    if tipo_palle() != "birilli" or len(st) < 8:
+    if tipo_palle() == "birilli":
+        vene = set_birilli()[7] if len(set_birilli()) > 7 else None
+    elif tipo_palle() == "snooker":
+        vene = set_snooker()[4] if len(set_snooker()) > 4 else None
+        if num == 0 and vene:
+            vene = "chiaro"     # la bianca resta bianca
+    else:
+        vene = None
+    if not vene:
         return
     pygame.surfarray.pixels3d(s)[:] = marmo(num, base, s.get_width(),
-                                            s.get_height(), st[7] == "chiaro")
+                                            s.get_height(), vene == "chiaro")
 
 
 def sn_tinta(num):
@@ -1427,7 +1421,7 @@ def _tessitura(num, font, asset=None):
                                              "continental", "pastello")
                                    and tipo_palle() == "pool")
                or stile_bb in ("anello", "legend") else bianca)
-        if tipo_palle() == "birilli":
+        if tipo_palle() in ("birilli", "snooker"):
             bi_marmo(s, 0, bianca)
         if trifoglio:
             # il segno a tre pallini, da due parti
