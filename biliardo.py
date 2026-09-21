@@ -3316,6 +3316,7 @@ for _d in (2, 6):
     TORNEO_TAVOLI[_d][2] = ("tabacco.png", "Maglia.jpg")
     TORNEO_TAVOLI[_d][3] = ("viola.png", "ulivo.png")
     TORNEO_TAVOLI[_d][4] = ("antracite.png", "invecchiato.png")
+    TORNEO_TAVOLI[_d][5] = ("verde-british.png", "ebano.png")
 # Le palle di ogni tavolo del torneo: il nome del set, uguale per tutti i
 # giochi, o un dizionario gioco -> set. Quelli che mancano: le sue.
 TORNEO_PALLE = {
@@ -3331,7 +3332,7 @@ TORNEO_PALLE = {
     5: {"pool": "set_scacchi", "blackball": "set_legend",
         "piramide": "set_marmo_nero", "snooker": "set_marmo_chiaro"},
     6: {"pool": "set_bersaglio", "blackball": "set_classico",
-        "piramide": "set_classico"},
+        "piramide": "set_classico", "snooker": "set_classico"},
 }
 PALLE_TORNEO = [None]   # il set del tavolo del torneo di adesso
 TURNO_ORA = [None]      # il turno del torneo che si sta giocando
