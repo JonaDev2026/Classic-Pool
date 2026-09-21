@@ -4767,9 +4767,27 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
         via = (colpita.pos - fine)
         if via.length_squared() > 1e-6:
             via = via.normalize()
-            lunga = RIGA_MIRA * doti_di(partita.turno)[0] / 100.0
-            pygame.draw.aaline(sc, (255, 210, 120),
-                               colpita.pos, colpita.pos + via * lunga)
+            # quanto manca alla sponda, lungo la strada della palla
+            fino = 4000.0
+            for bordo, asse in ((PLAY.left + BALL_R, 0),
+                                (PLAY.right - BALL_R, 0),
+                                (PLAY.top + BALL_R, 1),
+                                (PLAY.bottom - BALL_R, 1)):
+                dd = via.x if asse == 0 else via.y
+                pp = colpita.pos.x if asse == 0 else colpita.pos.y
+                if abs(dd) > 1e-6:
+                    t = (bordo - pp) / dd
+                    if 0 < t < fino:
+                        fino = t
+            # la prima stecca un filo meno di prima; la leggenda arriva
+            # fino in buca
+            f = max(0.0, min(1.0, (doti_di(partita.turno)[0] - 10) / 90.0))
+            corta = PLAY.w * 80.0 / 950.0
+            diag = math.hypot(PLAY.w, PLAY.h)
+            lunga = fino if f >= 1.0 else min(
+                fino, corta + (diag - corta) * f ** 1.3)
+            fascio(sc, Vector2(colpita.pos), via, lunga,
+                   luce_di(partita.turno), BALL_R * 0.55)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
 
@@ -5357,16 +5375,16 @@ def _doti_stecche():
     ultima = max(1, len(STECCHE) - 1)
     for i in range(len(STECCHE)):
         t = i / float(ultima)
-        mira = 89 + 111 * t
+        mira = 10 + 90 * t
         pot = 95 + 15 * t
         eff = 90 + 28 * t
         carattere = i % 4 if 0 < i < ultima else 0
         if carattere == 1:          # mira lunga, un filo meno forte
-            mira, pot = mira + 14, pot - 2
+            mira, pot = mira + 7, pot - 2
         elif carattere == 2:        # forte, meno effetto
             pot, eff = pot + 3, eff - 4
         elif carattere == 3:        # tanto effetto, mira piu' corta
-            eff, mira = eff + 5, mira - 9
+            eff, mira = eff + 5, mira - 5
         doti.append((int(round(mira)), int(round(pot)), int(round(eff))))
     # l'ultima, la leggenda, resta la migliore in tutto
     top = doti[-1]
@@ -5374,7 +5392,74 @@ def _doti_stecche():
 
 
 DOTI = _doti_stecche()
-RIGA_MIRA = 90          # la riga della palla colpita, al 100 per cento
+
+
+def _luce_stecca(st):
+    """Il colore della riga di mira: il colore piu' vivo della stecca,
+    preso dal legno davanti, dal calcio, dalle punte e dagli intarsi.
+    Se e' tutta scura o tutta legno, oro chiaro."""
+    cand = [tr[2] for tr in st[1][3:-1]]     # senza cuoio, ghiera e fusto
+    if st[2]:
+        cand += [st[2][0], st[2][1]]
+    for d in (st[3] if len(st) > 3 else ()):
+        cand.append(d[2] if d[0] in ("strisce", "punti") else
+                    d[4] if d[0] == "spirale" else d[2])
+    meglio, voto = None, 0.0
+    for c in cand:
+        r, g, b = c[:3]
+        vivo = (max(r, g, b) - min(r, g, b)) / 255.0
+        chiaro = max(r, g, b) / 255.0
+        v = vivo * chiaro
+        if v > voto:
+            meglio, voto = c, v
+    if meglio is None or voto < 0.28:
+        return (250, 220, 150)
+    # un po' piu' chiaro, che sul panno si veda
+    return tuple(min(255, int(v + (255 - v) * 0.30)) for v in meglio[:3])
+
+
+LUCI_MIRA = [_luce_stecca(st) for st in STECCHE]
+
+
+def luce_di(chi):
+    st = stecca_di(chi)
+    for i, q in enumerate(STECCHE):
+        if q is st:
+            return LUCI_MIRA[i]
+    return LUCI_MIRA[0]
+
+
+def fascio(sc, da, verso, lung, colore, largo):
+    """La riga della palla colpita: un fascio leggero che parte pieno e
+    sfuma fino a sparire."""
+    if lung < 2:
+        return
+    fine = da + verso * lung
+    n = Vector2(-verso.y, verso.x)
+    x0 = int(min(da.x, fine.x) - largo - 2)
+    y0 = int(min(da.y, fine.y) - largo - 2)
+    x1 = int(max(da.x, fine.x) + largo + 2)
+    y1 = int(max(da.y, fine.y) + largo + 2)
+    velo = pygame.Surface((max(1, x1 - x0), max(1, y1 - y0)),
+                          pygame.SRCALPHA)
+    o = Vector2(x0, y0)
+    pezzi = max(8, min(60, int(lung / 8)))
+    for strato, (mezzo, forza) in enumerate(((largo, 0.30),
+                                             (largo * 0.45, 0.85))):
+        for k in range(pezzi):
+            f0, f1 = k / float(pezzi), (k + 1) / float(pezzi)
+            a = int(230 * forza * (1.0 - 0.8 * f0) ** 1.3)
+            if a <= 0:
+                continue
+            # si stringe un poco andando avanti
+            m0 = mezzo * (1.0 - 0.45 * f0)
+            m1 = mezzo * (1.0 - 0.45 * f1)
+            p0 = da + verso * (lung * f0) - o
+            p1 = da + verso * (lung * f1) - o
+            q = [p0 + n * m0, p1 + n * m1, p1 - n * m1, p0 - n * m0]
+            q = [(int(round(v.x)), int(round(v.y))) for v in q]
+            pygame.draw.polygon(velo, colore[:3] + (a,), q)
+    sc.blit(velo, (x0, y0))
 
 
 def stecche_sbloccate():
