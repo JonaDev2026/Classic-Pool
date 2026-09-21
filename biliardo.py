@@ -7221,7 +7221,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_perla": "Pearl", "set_notte": "Night",
                        "set_club": "Club", "bb_visit": "%s - second visit",
                        "set_bianco": "White", "set_ambra": "Amber",
-                       "pir_aiuto": "RIGHT CLICK / %s / X: choose ball"}),
+                       "pir_aiuto": "RIGHT CLICK / %s / RB: choose ball"}),
                ("it", {"balls": "Palle", "set_classico": "Classico",
                        "set_pastello": "Pastello", "set_neon": "Neon",
                        "set_retro": "Vintage", "set_doppia": "Doppia riga",
@@ -7231,7 +7231,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_club": "Club",
                        "bb_visit": "%s - seconda visita",
                        "set_bianco": "Bianco", "set_ambra": "Ambra",
-                       "pir_aiuto": "TASTO DESTRO / %s / X: scegli la palla"})):
+                       "pir_aiuto": "TASTO DESTRO / %s / RB: scegli la palla"})):
     TESTI.setdefault(_l, {}).update(_d)
 # i nomi delle discipline, delle famiglie e dei tipi di palle
 _NOMI_GIOCHI = {
@@ -8029,7 +8029,7 @@ _FR = {
     "set_scacchi": "Damier", "set_pro": "Pro", "set_perla": "Perle",
     "set_notte": "Nuit", "set_club": "Club", "set_bianco": "Blanc",
     "set_ambra": "Ambre", "bb_visit": "%s - deuxieme visite",
-    "pir_aiuto": "CLIC DROIT / %s / X : choisir la bille",
+    "pir_aiuto": "CLIC DROIT / %s / RB : choisir la bille",
     "cue_zaffiro": "Saphir", "cue_rubino": "Rubis", "cue_smeraldo": "Emeraude",
     "cue_oro_nero": "Or noir", "cue_bocote": "Bocote",
     "cue_zebrano": "Zebrano", "cue_ciliegio": "Merisier",
@@ -8077,7 +8077,7 @@ _ES = {
     "set_scacchi": "Ajedrez", "set_pro": "Pro", "set_perla": "Perla",
     "set_notte": "Noche", "set_club": "Club", "set_bianco": "Blanco",
     "set_ambra": "Ambar", "bb_visit": "%s - segunda visita",
-    "pir_aiuto": "CLIC DERECHO / %s / X: elegir la bola",
+    "pir_aiuto": "CLIC DERECHO / %s / RB: elegir la bola",
     "cue_zaffiro": "Zafiro", "cue_rubino": "Rubi", "cue_smeraldo": "Esmeralda",
     "cue_oro_nero": "Oro negro", "cue_bocote": "Bocote",
     "cue_zebrano": "Zebrano", "cue_ciliegio": "Cerezo",
@@ -8409,7 +8409,7 @@ def aiuto_comandi():
     palla con cui tirare."""
     riga = _aiuto_comandi()
     if modo_comandi() == "pad":
-        riga = riga.replace("START", "RB %s     START" % T("pa_chalk"), 1)
+        riga = riga.replace("START", "X %s     START" % T("pa_chalk"), 1)
     else:
         riga += "     %s %s" % (nome_tasto(tasto("gesso")), T("pa_chalk"))
     if GIOCO[0] == 8:
@@ -8529,9 +8529,9 @@ def pad_evento(ev, fuori):
     elif ev.type == pygame.CONTROLLERBUTTONDOWN:
         k = PAD_TASTI.get(ev.button)
         if ev.button == pygame.CONTROLLER_BUTTON_X:
-            k = tasto("cambia")         # piramide: la palla dopo
-        if ev.button == pygame.CONTROLLER_BUTTON_RIGHTSHOULDER:
             k = tasto("gesso")          # il gesso sulla stecca
+        if ev.button == pygame.CONTROLLER_BUTTON_RIGHTSHOULDER:
+            k = tasto("cambia")         # piramide: la palla dopo
         if k is not None:
             fuori.append(finto_tasto(k))
     elif ev.type == pygame.CONTROLLERAXISMOTION and ev.axis in (
@@ -8622,7 +8622,7 @@ def ICONE_TASTI_OK():
 
 RIGA_GIOCO = ((("l",), "pa_aim"), (("lb",), "pa_fine"),
               (("a", "rt"), "pa_shoot"), (("r",), "pa_spin"),
-              (("y",), "pa_clear"), (("rb",), "pa_chalk"),
+              (("y",), "pa_clear"), (("x",), "pa_chalk"),
               ((), "pa_pause"))
 RIGA_MENU = ((("a",), "pa_select"), (("b",), "pa_back"))
 
@@ -8856,8 +8856,8 @@ def righe_setting(pagina, blocca_tavolo):
                     ("v_eff", "c_spin", "R STICK"),
                     ("v_via", "k_clear", "Y"),
                     ("v_mano", "c_ball", "L STICK / D-PAD + A"),
-                    ("v_cambia", "k_switch", "X"),
-                    ("v_gesso", "k_chalk", "RB"),
+                    ("v_cambia", "k_switch", "RB"),
+                    ("v_gesso", "k_chalk", "X"),
                     ("v_pausa", "c_pause", "START"),
                     ("v_scegli", "c_select", "A"),
                     ("v_torna", "c_back", "B")):
