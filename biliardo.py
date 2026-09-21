@@ -1272,11 +1272,11 @@ SET_BIRILLI = (
     ("set_verde", (246, 246, 242), BI_TINTA[BI_GIALLA], (22, 138, 68),
      (22, 138, 68), (22, 138, 68)),
     # le versioni black: i birilli bianchi diventano neri
-    ("set_classico_nero", (246, 246, 242), BI_TINTA[BI_GIALLA],
+    ("set_classico_nero", (22, 22, 26), BI_TINTA[BI_GIALLA],
      BI_TINTA[BI_PALLINO], (204, 46, 46), (188, 40, 34), (22, 22, 26)),
-    ("set_blu_nero", (246, 246, 242), BI_TINTA[BI_GIALLA], (30, 76, 196),
+    ("set_blu_nero", (22, 22, 26), BI_TINTA[BI_GIALLA], (30, 76, 196),
      (30, 76, 196), (30, 76, 196), (22, 22, 26)),
-    ("set_verde_nero", (246, 246, 242), BI_TINTA[BI_GIALLA], (22, 138, 68),
+    ("set_verde_nero", (22, 22, 26), BI_TINTA[BI_GIALLA], (22, 138, 68),
      (22, 138, 68), (22, 138, 68), (22, 22, 26)),
 )
 
