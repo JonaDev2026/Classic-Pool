@@ -4791,6 +4791,15 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                 fino, corta + (diag - corta) * f ** 1.3)
             fascio(sc, colpita.pos + via * BALL_R, via, lunga - BALL_R,
                    luce_di(partita.turno), BALL_R * 0.36)
+            # e dove va la bianca dopo il colpo: a novanta gradi dalla
+            # palla colpita. Cresce poco: dalla meta' della riga corta
+            # fino alla riga corta intera.
+            tang = d - via * d.dot(via)
+            if tang.length_squared() > 0.02:
+                tang = tang.normalize()
+                corta_b = corta * (0.5 + 0.5 * f)
+                fascio(sc, fine + tang * BALL_R, tang, corta_b, col,
+                       BALL_R * 0.26, 0.8)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
 
