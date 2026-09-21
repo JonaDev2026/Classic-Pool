@@ -6054,8 +6054,8 @@ def prezzo_stecca(i):
     for (a, pa), (b, pb) in zip(_PREZZI_PUNTI, _PREZZI_PUNTI[1:]):
         if a <= i <= b:
             v = pa + (pb - pa) * (i - a) / float(b - a)
-            return int(round(v / 10.0)) * 10
-    return _PREZZI_PUNTI[-1][1]
+            return int(round(v / 10.0)) * 100     # uno zero in piu'
+    return _PREZZI_PUNTI[-1][1] * 10
 
 
 # I gessetti: nome, quanti usi dura un cubetto, prezzo, colore. Il primo,
