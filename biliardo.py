@@ -4740,6 +4740,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
             colpita = b
 
     # se non incontra niente, tira fino alla sponda
+    asse_sponda = None
     if meglio is None:
         meglio = 4000.0
         for bordo, asse in ((PLAY.left + BALL_R, 0), (PLAY.right - BALL_R, 0),
@@ -4750,6 +4751,10 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                 t = (bordo - pp) / dd
                 if 0 < t < meglio:
                     meglio = t
+                    asse_sponda = asse
+    # quanto crescono le righe con la stecca
+    f = max(0.0, min(1.0, (doti_di(partita.turno)[0] - 10) / 90.0))
+    corta = PLAY.w * 80.0 / 950.0
 
     # Se la prima palla che prendi non e' delle tue, il cerchietto diventa
     # rosso: quel tiro sarebbe fallo.
@@ -4784,8 +4789,6 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                         fino = t
             # la prima stecca un filo meno di prima; la leggenda arriva
             # fino in buca
-            f = max(0.0, min(1.0, (doti_di(partita.turno)[0] - 10) / 90.0))
-            corta = PLAY.w * 80.0 / 950.0
             diag = math.hypot(PLAY.w, PLAY.h)
             lunga = fino if f >= 1.0 else min(
                 fino, corta + (diag - corta) * f ** 1.3)
@@ -4800,6 +4803,12 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                 corta_b = corta * (0.5 + 0.5 * f)
                 fascio(sc, fine + tang * BALL_R, tang, corta_b, col,
                        BALL_R * 0.26, 0.8)
+    elif asse_sponda is not None:
+        # sulla sponda: l'angolo del rimbalzo, dalla meta' della riga corta
+        # fino al doppio
+        rimb = Vector2(-d.x, d.y) if asse_sponda == 0 else Vector2(d.x, -d.y)
+        fascio(sc, fine + rimb * BALL_R, rimb, corta * (0.5 + 1.5 * f), col,
+               BALL_R * 0.30, 0.8)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
 
@@ -5505,6 +5514,10 @@ def sorteggia_stecca_avv(tutte=True):
     if mia < 0:
         mia = STECCA_ORA[0]
     fino = len(STECCHE) if tutte else stecche_sbloccate()
+    sua = CFG.get("stecca2", -1)
+    if not tutte and 0 <= sua < fino:
+        STECCA_AVV[0] = sua          # il giocatore 2 l'ha scelta lui
+        return
     altre = [i for i in range(fino) if i != mia] or [mia]
     if altre:
         STECCA_AVV[0] = random.choice(altre)
@@ -5845,6 +5858,17 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
         sc.blit(q, q.get_rect(midleft=(x, y_msg)))
         x += q.get_width()
     scritta_logo(sc, WIN_W // 2, s(44), 0.55)
+    # ai lati del logo le stecche dei due giocatori, la punta verso il
+    # centro; quella di chi tira non c'e': ce l'ha in mano
+    lung_h = s(300)
+    k_h = 1.25 * lung_h / 145.0 / 2.0
+    for gi in (0, 1):
+        if gi == partita.turno and not partita.finita:
+            continue
+        verso = Vector2(1, 0) if gi == 0 else Vector2(-1, 0)
+        punta = Vector2(WIN_W // 2 + (-1 if gi == 0 else 1) * s(215), s(44))
+        disegna_stecca_su(sc, punta, verso, lung_h,
+                          (1.3 * k_h, 2.0 * k_h, 3.0 * k_h), stecca_di(gi))
 
     # ai due capi della riga in cima: il livello del computer e l'aiuto
     mini = FONTS["mini"]
@@ -6889,7 +6913,8 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "torneo_record": 0,               # il livello piu' alto raggiunto
        "bandiere": ["it", "gb"],         # il paese dei due giocatori
        "stecca": 0,
-       "stecche_vinte": 0,               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
+       "stecche_vinte": 0,
+       "stecca2": -1,                    # quella del giocatore 2               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
        "risoluzione": [1280, 820],       # si applica alla riapertura
        "tempo": 0,                       # secondi per tirare, 0 = niente
        "match": 1,                       # frame per partita: 1, 3, 5, 7
@@ -8706,10 +8731,11 @@ def _via_nomi(nomi, bandiere, livello, contro_cpu):
 
 
 def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
-    """Chi gioca. Per ognuno il nome e la bandiera; contro il computer si
-    scrive un nome solo e sotto c'e' il livello, che nel torneo invece
-    non si sceglie perche' lo decide il torneo. Tutto resta salvato,
-    cosi' la volta dopo basta premere invio."""
+    """Chi gioca. Per ognuno il nome, la bandiera e la stecca; contro il
+    computer si scrive un nome solo e sotto c'e' il livello. Nella partita
+    libera si sceglie anche quanti frame. Nel torneo solo nome e bandiera:
+    il resto lo decide il torneo. Tutto resta salvato, cosi' la volta
+    dopo basta premere invio."""
     nomi = [CFG["nomi"][0], CFG["nomi"][1]]
     paesi = list(CFG.get("bandiere", ["it", "gb"]))[:2]
     while len(paesi) < 2:
@@ -8717,30 +8743,56 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
     livello = max(0, min(len(LIVELLI) - 1, CFG.get("livello", 1)))
     tutte = elenco_bandiere()
     scrivibili = 1 if contro_cpu else 2      # contro il computer, un nome solo
-    riga_liv = contro_cpu and scegli_livello
-    n_nome = scrivibili * 2                  # nome e bandiera, a coppie
-    n_voci = n_nome + (1 if riga_liv else 0) + 2
-    i_via, i_indietro = n_voci - 2, n_voci - 1
+    libera = scegli_livello                  # partita libera, non torneo
+    righe = []
+    for gi in range(scrivibili):
+        righe += [("nome", gi), ("band", gi)]
+        if libera:
+            righe.append(("stecca", gi))
+    if contro_cpu and libera:
+        righe.append(("liv", 0))
+    if libera:
+        righe.append(("match", 0))
+    righe += [("via", 0), ("indietro", 0)]
+    n_voci = len(righe)
     sel = 0
     rett = []
     MAX = 14
+    CHIAVE_ST = ("stecca", "stecca2")
 
-    def gira_bandiera(riga, passo):
-        if not tutte:
-            return
-        gi = riga // 2
-        try:
-            k = tutte.index(paesi[gi])
-        except ValueError:
-            k = 0
-        paesi[gi] = tutte[(k + passo) % len(tutte)]
+    def gira(riga, passo):
+        nonlocal livello
+        tipo, gi = riga
+        if tipo == "band" and tutte:
+            try:
+                k = tutte.index(paesi[gi])
+            except ValueError:
+                k = 0
+            paesi[gi] = tutte[(k + passo) % len(tutte)]
+        elif tipo == "stecca":
+            giro = [-1] + list(range(stecche_sbloccate()))
+            ora = CFG.get(CHIAVE_ST[gi], -1)
+            k = giro.index(ora) if ora in giro else 0
+            CFG[CHIAVE_ST[gi]] = giro[(k + passo) % len(giro)]
+        elif tipo == "liv":
+            livello = (livello + passo) % len(LIVELLI)
+        elif tipo == "match":
+            i = (MATCH.index(CFG.get("match", 1))
+                 if CFG.get("match", 1) in MATCH else 0)
+            CFG["match"] = MATCH[(i + passo) % len(MATCH)]
+
+    def nome_stecca(gi):
+        i = CFG.get(CHIAVE_ST[gi], -1)
+        if not 0 <= i < stecche_sbloccate():
+            return T("random")
+        return "%d. %s" % (i + 1, T(STECCHE[i][0]))
 
     while True:
         clock.tick(60)
         mouse = mouse_gioco()
         font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
-        scrive = (sel < n_nome and sel % 2 == 0)
-        su_bandiera = (sel < n_nome and sel % 2 == 1)
+        tipo_sel, gi_sel = righe[sel]
+        scrive = (tipo_sel == "nome")
 
         for ev in eventi():
             if ev.type == pygame.QUIT:
@@ -8753,20 +8805,16 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                 elif ev.key == pygame.K_UP:
                     sel = (sel - 1) % n_voci
                 elif ev.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                    passo = -1 if ev.key == pygame.K_LEFT else 1
-                    if su_bandiera:
-                        gira_bandiera(sel, passo)
-                    elif riga_liv and sel == n_nome:
-                        livello = (livello + passo) % len(LIVELLI)
+                    gira(righe[sel], -1 if ev.key == pygame.K_LEFT else 1)
                 elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                    if sel == i_indietro:
+                    if tipo_sel == "indietro":
                         return "menu"
                     return _via_nomi(nomi, paesi, livello, contro_cpu)
                 elif ev.key == pygame.K_BACKSPACE and scrive:
-                    nomi[sel // 2] = nomi[sel // 2][:-1]
+                    nomi[gi_sel] = nomi[gi_sel][:-1]
                 elif scrive and ev.unicode and ev.unicode.isprintable():
-                    if len(nomi[sel // 2]) < MAX:
-                        nomi[sel // 2] += ev.unicode
+                    if len(nomi[gi_sel]) < MAX:
+                        nomi[gi_sel] += ev.unicode
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 for i, r in enumerate(rett):
                     if not r.collidepoint(mouse):
@@ -8774,44 +8822,57 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                     sel = i
                     # a sinistra del valore si torna indietro, a destra avanti
                     passo = -1 if mouse[0] < WIN_W // 2 + VALORE_X else 1
-                    if i < n_nome and i % 2 == 1:
-                        gira_bandiera(i, passo)
-                    elif riga_liv and i == n_nome:
-                        livello = (livello + passo) % len(LIVELLI)
-                    elif i == i_via:
+                    tipo = righe[i][0]
+                    if tipo == "via":
                         return _via_nomi(nomi, paesi, livello, contro_cpu)
-                    elif i == i_indietro:
+                    if tipo == "indietro":
                         return "menu"
+                    gira(righe[i], passo)
 
         sfondo_menu(sc, logo)
+        tante = n_voci > 7
+        y_tit = s(310) if tante else s(320)
         t = FONTS["elegante"].render(tit_el(T("names")), True, (240, 240, 244))
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(320))))
-        t = small.render(T("sub_cpu") if riga_liv else T("sub_names"),
-                         True, ORO_SOTTO)
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(366))))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, y_tit)))
+        t = small.render(T("sub_cpu") if contro_cpu and libera
+                         else T("sub_names"), True, ORO_SOTTO)
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, y_tit + s(46))))
 
         voci, ante = [], {}
-        for i in range(scrivibili):
-            scritto = nomi[i]
-            if sel == i * 2:
-                scritto += "_" if (pygame.time.get_ticks() // 400) % 2 else " "
-            elif not scritto:
-                scritto = T("player") % (i + 1)
-            voci.append((T("player") % (i + 1), scritto))
-            voci.append((T("flag"), paesi[i].upper()))
-            ante[len(voci) - 1] = bandiera(paesi[i], s(20))
-        if riga_liv:
-            voci.append((T("level"), T(LIVELLI[livello][0])))
-        voci.append((T("start"), None))
-        voci.append((T("back"), None))
-        rett = disegna_voci(sc, voci, sel, font, small, s(430), s(48),
-                            frecce=True, ante=ante)
+        for i, (tipo, gi) in enumerate(righe):
+            if tipo == "nome":
+                scritto = nomi[gi]
+                if sel == i:
+                    scritto += ("_" if (pygame.time.get_ticks() // 400) % 2
+                                else " ")
+                elif not scritto:
+                    scritto = T("player") % (gi + 1)
+                voci.append((T("player") % (gi + 1), scritto))
+            elif tipo == "band":
+                voci.append((T("flag"), paesi[gi].upper()))
+                ante[i] = bandiera(paesi[gi], s(20))
+            elif tipo == "stecca":
+                voci.append((T("cue"), nome_stecca(gi)))
+            elif tipo == "liv":
+                voci.append((T("level"), T(LIVELLI[livello][0])))
+            elif tipo == "match":
+                n = CFG.get("match", 1)
+                voci.append((T("match"), T("m_uno") if n <= 1
+                             else T("m_best") % n))
+            elif tipo == "via":
+                voci.append((T("start"), None))
+            else:
+                voci.append((T("back"), None))
+        rett = disegna_voci(sc, voci, sel, font, small,
+                            s(402) if tante else s(430),
+                            s(40) if tante else s(48), frecce=True, ante=ante)
         # il colore del giocatore sul suo campo, come in partita
-        for i in range(scrivibili):
-            r = rett[i * 2]
-            pygame.draw.rect(sc, COL_GIOC[i],
-                             (WIN_W // 2 - RIGA_MEZZO, r.y + s(4),
-                              max(1, s(3)), r.h - s(8)))
+        for i, (tipo, gi) in enumerate(righe):
+            if tipo == "nome":
+                r = rett[i]
+                pygame.draw.rect(sc, COL_GIOC[gi],
+                                 (WIN_W // 2 - RIGA_MEZZO, r.y + s(4),
+                                  max(1, s(3)), r.h - s(8)))
         presenta()
 
 
