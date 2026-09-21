@@ -1278,7 +1278,23 @@ SET_BIRILLI = (
      (30, 76, 196), (30, 76, 196), (22, 22, 26)),
     ("set_verde_nero", (22, 22, 26), BI_TINTA[BI_GIALLA], (22, 138, 68),
      (22, 138, 68), (22, 138, 68), (22, 22, 26)),
+    # il classico in marmo: bianco coi birilli bianchi, nero coi neri
+    ("set_bi_marmo", (246, 246, 242), BI_TINTA[BI_GIALLA],
+     BI_TINTA[BI_PALLINO], (204, 46, 46), (188, 40, 34), (238, 234, 222),
+     "chiaro"),
+    ("set_bi_marmo_nero", (22, 22, 26), BI_TINTA[BI_GIALLA],
+     BI_TINTA[BI_PALLINO], (204, 46, 46), (188, 40, 34), (22, 22, 26),
+     "scuro"),
 )
+
+
+def bi_marmo(s, num, base):
+    """Nei set di marmo dei birilli la palla prende le venature."""
+    st = set_birilli()
+    if tipo_palle() != "birilli" or len(st) < 8:
+        return
+    pygame.surfarray.pixels3d(s)[:] = marmo(num, base, s.get_width(),
+                                            s.get_height(), st[7] == "chiaro")
 
 
 def sn_tinta(num):
@@ -1317,6 +1333,7 @@ def _tessitura(num, font, asset=None):
     if num >= 100:
         # snooker: tinta piena e basta, niente numero
         s.fill(sn_tinta(num))
+        bi_marmo(s, num, sn_tinta(num))
         return pygame.surfarray.array3d(s).astype(np.float32)
 
     _, _, puntini, tondo, cifra, _, stile = set_palle()
@@ -1398,6 +1415,8 @@ def _tessitura(num, font, asset=None):
                                              "continental", "pastello")
                                    and tipo_palle() == "pool")
                or stile_bb in ("anello", "legend") else bianca)
+        if tipo_palle() == "birilli":
+            bi_marmo(s, 0, bianca)
         if trifoglio:
             # il segno a tre pallini, da due parti
             for u, v in ((128, 110), (384, 146)):
@@ -7547,7 +7566,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_zigzag": "Zigzag", "set_bersaglio": "Target",
                        "set_scacchi": "Checkered", "set_pro": "Pro",
                        "set_perla": "Pearl", "set_notte": "Night",
-                       "set_club": "Club", "set_blu": "Blue", "set_verde": "Green", "set_classico_nero": "Classic Black", "set_blu_nero": "Blue Black", "set_verde_nero": "Green Black", "bb_visit": "%s - second visit",
+                       "set_club": "Club", "set_blu": "Blue", "set_verde": "Green", "set_classico_nero": "Classic Black", "set_blu_nero": "Blue Black", "set_verde_nero": "Green Black", "set_bi_marmo": "Marble White", "set_bi_marmo_nero": "Marble Black", "bb_visit": "%s - second visit",
                        "set_bianco": "White", "set_ambra": "Amber",
                        "pir_aiuto": "RIGHT CLICK / %s / RB: choose ball"}),
                ("it", {"balls": "Palle", "set_classico": "Classico",
@@ -7556,7 +7575,7 @@ for _l, _d in (("en", {"balls": "Balls", "set_classico": "Classic",
                        "set_zigzag": "Zig-zag", "set_bersaglio": "Bersaglio",
                        "set_scacchi": "Scacchi", "set_pro": "Pro",
                        "set_perla": "Perla", "set_notte": "Notte",
-                       "set_club": "Club", "set_blu": "Blu", "set_verde": "Verde", "set_classico_nero": "Classico Black", "set_blu_nero": "Blu Black", "set_verde_nero": "Verde Black",
+                       "set_club": "Club", "set_blu": "Blu", "set_verde": "Verde", "set_classico_nero": "Classico Black", "set_blu_nero": "Blu Black", "set_verde_nero": "Verde Black", "set_bi_marmo": "Marmo Bianco", "set_bi_marmo_nero": "Marmo Nero",
                        "bb_visit": "%s - seconda visita",
                        "set_bianco": "Bianco", "set_ambra": "Ambra",
                        "pir_aiuto": "TASTO DESTRO / %s / RB: scegli la palla"})):
@@ -8357,7 +8376,7 @@ _FR = {
     "set_doppia": "Double ligne",
     "set_zigzag": "Zigzag", "set_bersaglio": "Cible",
     "set_scacchi": "Damier", "set_pro": "Pro", "set_perla": "Perle",
-    "set_notte": "Nuit", "set_club": "Club", "set_blu": "Bleu", "set_verde": "Vert", "set_classico_nero": "Classique Noir", "set_blu_nero": "Bleu Noir", "set_verde_nero": "Vert Noir", "set_bianco": "Blanc",
+    "set_notte": "Nuit", "set_club": "Club", "set_blu": "Bleu", "set_verde": "Vert", "set_classico_nero": "Classique Noir", "set_blu_nero": "Bleu Noir", "set_verde_nero": "Vert Noir", "set_bi_marmo": "Marbre Blanc", "set_bi_marmo_nero": "Marbre Noir", "set_bianco": "Blanc",
     "set_ambra": "Ambre", "bb_visit": "%s - deuxieme visite",
     "pir_aiuto": "CLIC DROIT / %s / RB : choisir la bille",
     "cue_zaffiro": "Saphir", "cue_rubino": "Rubis", "cue_smeraldo": "Emeraude",
@@ -8406,7 +8425,7 @@ _ES = {
     "set_doppia": "Doble linea",
     "set_zigzag": "Zigzag", "set_bersaglio": "Diana",
     "set_scacchi": "Ajedrez", "set_pro": "Pro", "set_perla": "Perla",
-    "set_notte": "Noche", "set_club": "Club", "set_blu": "Azul", "set_verde": "Verde", "set_classico_nero": "Clasico Negro", "set_blu_nero": "Azul Negro", "set_verde_nero": "Verde Negro", "set_bianco": "Blanco",
+    "set_notte": "Noche", "set_club": "Club", "set_blu": "Azul", "set_verde": "Verde", "set_classico_nero": "Clasico Negro", "set_blu_nero": "Azul Negro", "set_verde_nero": "Verde Negro", "set_bi_marmo": "Marmol Blanco", "set_bi_marmo_nero": "Marmol Negro", "set_bianco": "Blanco",
     "set_ambra": "Ambar", "bb_visit": "%s - segunda visita",
     "pir_aiuto": "CLIC DERECHO / %s / RB: elegir la bola",
     "cue_zaffiro": "Zafiro", "cue_rubino": "Rubi", "cue_smeraldo": "Esmeralda",
