@@ -5826,6 +5826,13 @@ def stecca_di(chi):
     return stecca_scelta()
 
 
+def stecca_avversario(nome):
+    """La stecca di un avversario: ognuno ha la sua, sempre quella, scelta
+    dal suo nome. Mai la base: sono giocatori veri."""
+    somma = sum(ord(c) * (k + 1) for k, c in enumerate(nome or ""))
+    return 1 + somma % (len(STECCHE) - 1)
+
+
 def sorteggia_stecca_avv(tutte=True):
     """A ogni partita l'avversario pesca una stecca, mai la tua. Il
     computer puo' avere qualunque stecca; il secondo giocatore vero solo
@@ -5834,6 +5841,12 @@ def sorteggia_stecca_avv(tutte=True):
     if mia < 0:
         mia = STECCA_ORA[0]
     giro = list(range(len(STECCHE))) if tutte else stecche_mie()
+    if tutte and NOMI[1] in AVVERSARI:
+        k = stecca_avversario(NOMI[1])
+        if k == mia:
+            k = 1 + k % (len(STECCHE) - 1)
+        STECCA_AVV[0] = k
+        return
     sua = CFG.get("stecca2", -1)
     if not tutte and sua in giro:
         STECCA_AVV[0] = sua          # il giocatore 2 l'ha scelta lui
@@ -7307,6 +7320,7 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "stecca": 0,
        "stecche_vinte": 0,
        "stecca2": -1,                    # quella del giocatore 2
+       "avversario": "",                 # contro il computer: chi, o a caso
        "soldi": 0,                       # il portafoglio
        "stecche_mie": [0],               # le stecche comprate
        "gessi": {"blu": 1},              # i cubetti ancora da aprire
@@ -9282,7 +9296,12 @@ def _via_nomi(nomi, bandiere, livello, contro_cpu):
     if contro_cpu:
         # un avversario a sorte, con la sua bandiera: giocare contro uno
         # che si chiama "Computer" non e' la stessa cosa
-        NOMI[1] = random.choice(AVVERSARI) if AVVERSARI else T("computer")
+        scelto = CFG.get("avversario", "")
+        if scelto in AVVERSARI:
+            NOMI[1] = scelto
+        else:
+            NOMI[1] = random.choice(AVVERSARI) if AVVERSARI \
+                else T("computer")
         BANDIERA[1] = PAESI.get(NOMI[1], "")
     else:
         NOMI[1] = nomi[1]
@@ -9314,7 +9333,8 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
             # in due si gioca alla buona: la stecca base per tutti e due
             righe.append(("stecca", gi, gi))
     if contro_cpu and libera:
-        righe.append(("liv", 1, 1))
+        # a destra il computer: chi e' (o a caso), il livello, la sua stecca
+        righe += [("avv", 1, 1), ("liv", 1, 1), ("stavv", 1, 1)]
     if libera and contro_cpu:
         righe.append(("gesso", 0, "c"))
     if libera:
@@ -9342,6 +9362,11 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
             CFG[CHIAVE_ST[gi]] = giro[(k + passo) % len(giro)]
         elif tipo == "liv":
             livello = (livello + passo) % len(LIVELLI)
+        elif tipo == "avv":
+            giro = [""] + sorted(AVVERSARI)
+            ora = CFG.get("avversario", "")
+            k = giro.index(ora) if ora in giro else 0
+            CFG["avversario"] = giro[(k + passo) % len(giro)]
         elif tipo == "gesso":
             gira_gesso(passo)
         elif tipo == "match":
@@ -9364,13 +9389,23 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
     larga = s(540)
     x_col = (WIN_W // 2 - s(300), WIN_W // 2 + s(300))
 
+    def passa(da, verso):
+        """La riga dopo (o prima), saltando quelle che non si scelgono."""
+        i = da
+        while True:
+            i += verso
+            if i < 0 or i > n_voci - 2:
+                return da
+            if righe[i][0] != "stavv":
+                return i
+
     def posti(dove):
         """Quanti posti occupa una colonna: la stecca ne prende due, uno
         per il disegno sopra la sua riga."""
         n = 0
         for r in righe:
             if r[2] == dove:
-                n += 2 if r[0] == "stecca" else 1
+                n += 2 if r[0] in ("stecca", "stavv") else 1
         return n
 
     def cella(i):
@@ -9380,7 +9415,7 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
             for j, r in enumerate(righe):
                 if r[2] != dove:
                     continue
-                if r[0] == "stecca":
+                if r[0] in ("stecca", "stavv"):
                     k += 1          # il posto del disegno
                 if j == i:
                     break
@@ -9415,12 +9450,12 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                     return "menu"
                 if ev.key in (pygame.K_DOWN, pygame.K_TAB):
                     if dove_sel != "b":
-                        sel = min(n_voci - 2, sel + 1)
+                        sel = passa(sel, 1)
                 elif ev.key == pygame.K_UP:
                     if dove_sel == "b":
-                        sel = n_voci - 3
+                        sel = passa(n_voci - 2, -1)
                     else:
-                        sel = max(0, sel - 1)
+                        sel = passa(sel, -1)
                 elif ev.key in (pygame.K_LEFT, pygame.K_RIGHT):
                     passo_k = -1 if ev.key == pygame.K_LEFT else 1
                     if dove_sel == "b":
@@ -9510,6 +9545,26 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                                               3.0 * k_s), STECCHE[i_s])
             elif tipo == "liv":
                 et, val = T("level"), T(LIVELLI[livello][0])
+            elif tipo == "avv":
+                chi = CFG.get("avversario", "")
+                et = T("computer")
+                val = chi if chi in AVVERSARI else T("random")
+                if chi in AVVERSARI:
+                    ante = bandiera(PAESI.get(chi, ""), s(20))
+            elif tipo == "stavv":
+                chi = CFG.get("avversario", "")
+                et = T("cue")
+                if chi in AVVERSARI:
+                    i_s = stecca_avversario(chi)
+                    val = "%d. %s" % (i_s + 1, T(STECCHE[i_s][0]))
+                    lung = s(480)
+                    k_s = 1.5 * lung / 145.0 / 2.0
+                    disegna_stecca_su(
+                        sc, Vector2(r.centerx + lung // 2, r.centery - passo),
+                        Vector2(1, 0), lung, (1.3 * k_s, 2.0 * k_s,
+                                              3.0 * k_s), STECCHE[i_s])
+                else:
+                    val = T("random")
             elif tipo == "gesso":
                 et, val = T("chalk_row"), nome_gesso_scelto()
             else:
@@ -9525,7 +9580,7 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
             if v.get_width() > s(170):
                 v = FONTS["mini"].render(val, True, cv)
             sc.blit(v, v.get_rect(center=(xv, r.centery)))
-            if acceso and tipo != "nome":
+            if acceso and tipo not in ("nome", "stavv"):
                 for x, segno in ((xv - s(106), "<"), (xv + s(106), ">")):
                     f = font.render(segno, True, cv)
                     sc.blit(f, f.get_rect(center=(x, r.centery)))
