@@ -5880,6 +5880,13 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
         punta = Vector2(WIN_W // 2 + (-1 if gi == 0 else 1) * s(215), s(44))
         disegna_stecca_su(sc, punta, verso, lung_h,
                           (1.3 * k_h, 2.0 * k_h, 3.0 * k_h), stecca_di(gi))
+        # sotto, in corsivo, il numero e il nome
+        st = stecca_di(gi)
+        num = next((i for i, q in enumerate(STECCHE) if q is st), 0) + 1
+        t = FONTS.get("elegante_mini", FONTS["mini"]).render(
+            "%d. %s" % (num, T(st[0])), True, ORO_SOTTO)
+        cx = punta.x - verso.x * lung_h / 2.0
+        sc.blit(t, t.get_rect(center=(int(cx), s(44) + s(17))))
 
     # ai due capi della riga in cima: il livello del computer e l'aiuto
     mini = FONTS["mini"]
@@ -6761,6 +6768,7 @@ def fai_fonts():
     FONTS["elegante"] = carattere_elegante(s(58)) or FONTS["grande"]
     FONTS["elegante_p"] = carattere_elegante(s(42)) or FONTS["titolo"]
     FONTS["elegante_voce"] = carattere_elegante(s(28)) or FONTS["font"]
+    FONTS["elegante_mini"] = carattere_elegante(s(15)) or FONTS["mini"]
     # il messaggio della partita, in alto: il carattere elegante
     FONTS["messaggio"] = carattere_elegante(s(22)) or FONTS["font"]
     return FONTS
