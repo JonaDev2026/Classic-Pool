@@ -10666,7 +10666,7 @@ def schermata_vetrina(sc, clock, logo, negozio=True):
 
 PREMI_TORNEO = (50, 75, 100, 150, 200, 300)     # incontro vinto, per turno
 PREMIO_CAMPIONE = 150
-VERDE_SOLDI = (118, 196, 84)    # i dollari, verde come quelli di GTA
+VERDE_SOLDI = (107, 195, 159)    # i dollari, verde come quelli di GTA
 
 
 def _torneo(sc, clock, logo, disc_vera, k_t):
