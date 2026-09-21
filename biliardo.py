@@ -745,6 +745,10 @@ SET_PALLE = (
      (190, 170, 130), (244, 240, 230), (22, 22, 26), CAR_CLASSICO, "marmo"),
     ("set_continental", _BASE8, (200, 40, 40), (244, 236, 214),
      (246, 240, 226), CAR_CLASSICO, "continental"),
+    ("set_pastello", [(248, 186, 40), (120, 196, 236), (226, 44, 50),
+                      (168, 120, 204), (200, 110, 40), (30, 168, 150),
+                      (246, 120, 136), (16, 16, 20)],
+     (20, 20, 22), (250, 250, 246), (22, 22, 26), CAR_CLASSICO, "pastello"),
     ("set_marmo_chiaro", [(244, 190, 50), (70, 110, 220), (226, 60, 64),
                           (146, 90, 210), (246, 132, 56), (46, 166, 100),
                           (176, 60, 80), (30, 30, 34)],
@@ -902,7 +906,7 @@ def dipingi_stile(s, num, base, stile):
                     if ((x // q) + k) % 2 == 0:
                         pygame.draw.rect(s, bianco, pygame.Rect(x, y, q, q))
         return
-    if stile == "continental":
+    if stile in ("continental", "pastello"):
         # come il classico, ma le calotte color avorio
         if mezza:
             s.fill((240, 232, 210))
@@ -1382,9 +1386,10 @@ def _tessitura(num, font, asset=None):
     if num == 0:
         stile_bb = (set_blackball()[5] if tipo_palle() == "blackball"
                     and len(set_blackball()) > 5 else None)
-        trifoglio = stile_bb == "anello"
+        trifoglio = stile_bb == "anello" or (stile == "pastello" and
+                                             tipo_palle() == "pool")
         s.fill((236, 226, 198) if (stile in ("marmo", "marmo_chiaro",
-                                             "continental")
+                                             "continental", "pastello")
                                    and tipo_palle() == "pool")
                or stile_bb in ("anello", "legend") else bianca)
         if trifoglio:
