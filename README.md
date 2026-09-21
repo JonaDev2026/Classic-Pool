@@ -26,8 +26,12 @@ On Windows use `py` instead of `python3`.
 python3 biliardo.py
 ```
 
-Settings and the tournament in progress are saved next to the game
-(`biliardo_config.json`, `biliardo_torneo.json`).
+Your settings, wallet, cues and the tournament in progress are saved in
+your user data folder, not in the game folder:
+
+- Windows: `%APPDATA%\ClassicPool`
+- macOS: `~/Library/Application Support/ClassicPool`
+- Linux: `~/.local/share/ClassicPool`
 
 ## Controls
 

@@ -29,6 +29,7 @@ import json
 import math
 import os
 import random
+import shutil
 import sys
 
 import pygame
@@ -89,10 +90,41 @@ RISOLUZIONI = ((1280, 820), (1600, 1000), (1920, 1200), (2304, 1296),
                (2560, 1440), (3200, 1800), (3840, 2160))
 
 
+def cartella_dati():
+    """Dove stanno le cose del giocatore (impostazioni, portafoglio,
+    stecche comprate, torneo in corso): fuori dalla cartella del gioco,
+    nella cartella dati dell'utente. Windows: AppData, Mac: Application
+    Support, Linux: ~/.local/share. La prima volta ci sposta i file che
+    stavano ancora accanto al gioco."""
+    if sys.platform.startswith("win"):
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    elif sys.platform == "darwin":
+        base = os.path.expanduser("~/Library/Application Support")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or \
+            os.path.expanduser("~/.local/share")
+    dove = os.path.join(base, "ClassicPool")
+    try:
+        os.makedirs(dove, exist_ok=True)
+    except OSError:
+        return os.path.dirname(os.path.abspath(__file__))
+    vecchia = os.path.dirname(os.path.abspath(__file__))
+    for nome in ("biliardo_config.json", "biliardo_torneo.json"):
+        prima, dopo = os.path.join(vecchia, nome), os.path.join(dove, nome)
+        if os.path.exists(prima) and not os.path.exists(dopo):
+            try:
+                shutil.move(prima, dopo)
+            except OSError:
+                pass
+    return dove
+
+
+DATI = cartella_dati()
+
+
 def _misura_salvata():
     try:
-        f = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "biliardo_config.json")
+        f = os.path.join(DATI, "biliardo_config.json")
         with open(f, "r") as q:
             d = json.load(q)
         v = d.get("risoluzione")
@@ -7097,7 +7129,7 @@ def T(chiave):
 
 # ------------------------------------------------------- le impostazioni
 
-CONFIG = os.path.join(CARTELLA, "biliardo_config.json")
+CONFIG = os.path.join(DATI, "biliardo_config.json")
 CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "musica": 20,                     # volume della musica nel menu
        "musica_gioco": 20,               # e al tavolo, lo stesso: se no
@@ -9179,7 +9211,7 @@ def schermata_torneo(sc, clock, logo, titolo, sotto, nota, voci, chiavi,
         presenta()
 
 
-SALVA_TORNEO = os.path.join(CARTELLA, "biliardo_torneo.json")
+SALVA_TORNEO = os.path.join(DATI, "biliardo_torneo.json")
 
 # I tornei: tre per disciplina, da un frame, al meglio di tre e al meglio
 # di cinque. Ognuno ha il suo nome e il suo stemma, che sta in
