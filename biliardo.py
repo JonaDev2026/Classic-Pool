@@ -9660,15 +9660,18 @@ def schermata_sblocco(sc, clock, i, titolo=None, tinta=None):
             pygame.draw.rect(sc, (30, 40, 36), fondo_b, border_radius=s(6))
             pieno = fondo_b.copy()
             pieno.w = max(s(8), int(largo * v / float(m)))
-            pygame.draw.rect(sc, ORO_SCELTA, pieno, border_radius=s(6))
-            pygame.draw.rect(sc, ORO_SOTTO, fondo_b, 1, border_radius=s(6))
-            q = FONTS["font"].render("%d%%" % v, True, ORO_SCELTA)
+            pygame.draw.rect(sc, COL_DOTI[r], pieno, border_radius=s(6))
+            q = FONTS["font"].render("%d%%" % v, True, COL_DOTI[r])
             sc.blit(q, q.get_rect(midleft=(fondo_b.right + s(20), y)))
         c = FONTS["small"].render(
             T("st_count") % (stecche_sbloccate(), len(STECCHE)), True,
             ORO_SOTTO)
         sc.blit(c, c.get_rect(center=(WIN_W // 2, s(620))))
         presenta()
+
+
+# i colori delle tre doti: mira viola, potenza arancione, effetto blu
+COL_DOTI = ((176, 118, 236), (242, 144, 52), (84, 154, 242))
 
 
 def _anteprima_stecca(sc, i, y):
@@ -9691,8 +9694,8 @@ def _anteprima_stecca(sc, i, y):
         pygame.draw.rect(sc, (30, 40, 36), fondo_b, border_radius=s(4))
         pieno = fondo_b.copy()
         pieno.w = max(s(4), int(largo * v / float(massimi[j])))
-        pygame.draw.rect(sc, ORO_SCELTA, pieno, border_radius=s(4))
-        q = FONTS["mini"].render("%d%%" % v, True, ORO_SCELTA)
+        pygame.draw.rect(sc, COL_DOTI[j], pieno, border_radius=s(4))
+        q = FONTS["mini"].render("%d%%" % v, True, COL_DOTI[j])
         sc.blit(q, q.get_rect(center=(cx, y + s(84))))
 
 
