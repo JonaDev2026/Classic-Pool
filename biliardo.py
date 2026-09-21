@@ -3554,7 +3554,7 @@ TROFEO_LARGO = 210      # il posto che c'e' in mezzo al tabellone
 TROFEO_GIOCO = {0: "trofeo_8ball", 1: "trofeo_9ball", 5: "trofeo_10ball",
                 2: "trofeo_snooker", 6: "trofeo_snooker",
                 3: "trofeo_birilli", 7: "trofeo_birilli",
-                8: "trofeo_piramide"}
+                8: "trofeo_piramide", 4: "trofeo_blackball"}
 
 
 def trofeo_del_gioco(riserva=0):
