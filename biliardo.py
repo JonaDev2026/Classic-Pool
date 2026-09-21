@@ -5551,27 +5551,52 @@ def consuma_gesso(chi):
 # Il cubetto: ogni volta che dai il gesso ne consumi un uso. Finito il
 # cubetto se ne apre un altro dei tuoi; se non ne hai piu', niente gesso
 # finche' non li ricompri al negozio. In due si usa la stessa scorta.
-GESSO_QUANDO = [0]      # quando si e' dato il gesso, per l'animazione
+GESSO_QUANDO = [0, 0]   # quando si e' dato il gesso, per l'animazione
 GESSO_PNG = {}
+# Ognuno ha il suo cubetto aperto, come il serbatoio di ogni macchina; i
+# cubetti nuovi escono tutti dalla stessa scorta, quella del giocatore 1.
+CUBO_K = (("cubo", "cubo_tipo"), ("cubo2", "cubo2_tipo"))
+# Il computer il gesso lo fa per finta: un cubetto a partita, del colore
+# del suo livello, e lo da' tanto piu' spesso quanto piu' e' bravo.
+CPU_ORA = [None]        # il livello del computer in questa partita
+CPU_CUBO = [0]
 
 
-def gesso_pronto():
+def gesso_cpu_tipo(livello):
+    return GESSI[min(len(GESSI) - 1, max(0, int(livello) - 1))][0]
+
+
+def gesso_pronto(chi=0):
     """C'e' un cubetto aperto, o se ne puo' aprire uno."""
-    if int(CFG.get("cubo", 0)) > 0:
+    if int(CFG.get(CUBO_K[chi][0], 0)) > 0:
         return True
     return any(int(v) > 0 for v in (CFG.get("gessi") or {}).values())
 
 
-def apri_cubetto():
+def apri_cubetto(chi=0):
     gessi = CFG.setdefault("gessi", {})
     ordine = [CFG.get("gesso_tipo", "grigio")] + [g[0] for g in GESSI]
     for t in ordine:
         if int(gessi.get(t, 0)) > 0:
             gessi[t] = int(gessi[t]) - 1
-            CFG["cubo"] = gesso_dati(t)[1]
-            CFG["cubo_tipo"] = t
+            CFG[CUBO_K[chi][0]] = gesso_dati(t)[1]
+            CFG[CUBO_K[chi][1]] = t
             return True
     return False
+
+
+def gesso_del_computer():
+    """Prima di tirare il computer guarda la sua stecca: se il gesso e'
+    calato abbastanza, e il cubetto non e' finito, lo da'."""
+    liv = CPU_ORA[0] or 0
+    soglia = 0.92 + 0.012 * liv
+    if GESSO[1] <= soglia + 1e-6 and CPU_CUBO[0] > 0:
+        CPU_CUBO[0] -= 1
+        GESSO[1] = 1.0
+        GESSO_TIRI[1] = 0
+        GESSO_QUANDO[1] = pygame.time.get_ticks()
+        if SUONI.get("gesso"):
+            suona_fx("gesso")
 
 
 def metti_gesso(chi):
@@ -5579,13 +5604,14 @@ def metti_gesso(chi):
     riga e' gia' piena non si spreca niente."""
     if GESSO[chi] >= 0.999:
         return False
-    if int(CFG.get("cubo", 0)) <= 0 and not apri_cubetto():
+    k = CUBO_K[chi][0]
+    if int(CFG.get(k, 0)) <= 0 and not apri_cubetto(chi):
         return False
-    CFG["cubo"] = int(CFG["cubo"]) - 1
+    CFG[k] = int(CFG[k]) - 1
     salva_config()
     GESSO[chi] = 1.0
     GESSO_TIRI[chi] = 0
-    GESSO_QUANDO[0] = pygame.time.get_ticks()
+    GESSO_QUANDO[chi] = pygame.time.get_ticks()
     if SUONI.get("gesso"):
         suona_fx("gesso")
     return True
@@ -5999,36 +6025,50 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
     sc.blit(h, h.get_rect(center=(WIN_W // 2,
                                   (BANDA_PALLE.bottom + WIN_H) // 2)))
 
-    # Potenza ed effetto sul fianco sinistro, in mezzo allo spazio fra il
-    # bordo della finestra e il legno del tavolo: attaccati al tavolo
-    # stavano stretti.
+    # Potenza, effetto e gesso: il giocatore 1 sul fianco sinistro, il 2
+    # (o il computer) sul destro, a specchio. Si accende il fianco di chi
+    # tira; l'altro resta a riposo col suo gesso.
     x_lato = max(s(30), int((TAV_POS[0] + TAV_VISTA[0] * SCALA) / 2.0))
+    for gi, x in ((0, x_lato), (1, WIN_W - x_lato)):
+        fianco(sc, partita, gi, x, potenza, mini)
+
+
+def fianco(sc, partita, gi, x_lato, potenza, mini):
+    attivo = (partita.turno == gi and not partita.finita)
+    col_et = TESTO_OPACO if attivo else (96, 104, 112)
     alto_barra = s(190)
     y_barra = (ALTO + BASSO) // 2 - alto_barra // 2
-    lab = mini.render(T("power"), True, TESTO_OPACO)
+    lab = mini.render(T("power"), True, col_et)
     sc.blit(lab, lab.get_rect(center=(x_lato, y_barra - s(14))))
     barra_potenza(sc, x_lato - s(6), y_barra, s(12), alto_barra,
-                  potenza, su=True)
+                  potenza if attivo else 0.0, su=True)
     y_spin = y_barra + alto_barra + s(50)
-    disegna_spin(sc, partita.spin, x_lato, y_spin, s(19))
-    lab = mini.render(T("spin"), True, TESTO_OPACO)
+    disegna_spin(sc, partita.spin if attivo else Vector2(0, 0), x_lato,
+                 y_spin, s(19))
+    lab = mini.render(T("spin"), True, col_et)
     sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(32))))
-    # il gessetto di chi tira: sotto, quanto resta del cubetto. Quando la
-    # riga ha perso meta' di quello che puo' perdere, pulsa piano; finito
-    # il cubetto resta spento.
-    chi = partita.turno if partita.turno in (0, 1) else 0
-    g = GESSO[chi]
-    tipo_c = CFG.get("cubo_tipo", "grigio")
-    if int(CFG.get("cubo", 0)) > 0:
-        cubo = int(CFG["cubo"]) / float(gesso_dati(tipo_c)[1])
+    # il gessetto: sotto, quanto resta del suo cubetto. Quando la riga ha
+    # perso meta' di quello che puo' perdere, pulsa piano; finito il
+    # cubetto resta spento.
+    g = GESSO[gi]
+    if gi == 1 and CPU_ORA[0] is not None:
+        tipo_c = gesso_cpu_tipo(CPU_ORA[0])
+        cubo = CPU_CUBO[0] / float(gesso_dati(tipo_c)[1])
+        scorta = 0
+        pronto = CPU_CUBO[0] > 0
     else:
-        cubo = 0.0
-        tipo_c = CFG.get("gesso_tipo", "grigio")
-    scorta = int((CFG.get("gessi") or {}).get(tipo_c, 0))
-    pronto = gesso_pronto()
+        k_cubo, k_tipo = CUBO_K[gi]
+        tipo_c = CFG.get(k_tipo, "grigio")
+        if int(CFG.get(k_cubo, 0)) > 0:
+            cubo = int(CFG[k_cubo]) / float(gesso_dati(tipo_c)[1])
+        else:
+            cubo = 0.0
+            tipo_c = CFG.get("gesso_tipo", "grigio")
+        scorta = int((CFG.get("gessi") or {}).get(tipo_c, 0))
+        pronto = gesso_pronto(gi)
     ora = pygame.time.get_ticks()
     lato = s(34)
-    passati = (ora - GESSO_QUANDO[0]) / 1000.0
+    passati = (ora - GESSO_QUANDO[gi]) / 1000.0
     if 0.0 <= passati < 0.5:
         lato = int(lato * (1.0 + 0.35 * (1.0 - passati / 0.5)))
     im = icona_gesso(lato, tipo_c)
@@ -6038,8 +6078,10 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
             im.set_alpha(70)
         elif g <= 1.0 - (1.0 - GESSO_MIN) / 2.0 + 1e-6:
             im.set_alpha(int(110 + 145 * (0.5 + 0.5 * math.sin(ora / 250.0))))
+        elif not attivo:
+            im.set_alpha(150)
         sc.blit(im, im.get_rect(center=(x_lato, y_spin + s(66))))
-    lab = mini.render(T("chalk"), True, TESTO_OPACO)
+    lab = mini.render(T("chalk"), True, col_et)
     sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(96))))
     q = mini.render("%d%%" % int(round(cubo * 100))
                     + ("  +%d" % scorta if scorta else ""), True,
@@ -7072,7 +7114,9 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "gessi": {"grigio": 3},           # i cubetti ancora da aprire
        "gesso_tipo": "grigio",           # il gessetto che si usa
        "cubo": 0,                        # gli usi rimasti nel cubetto aperto
-       "cubo_tipo": "grigio",               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
+       "cubo_tipo": "grigio",
+       "cubo2": 0,                       # il cubetto aperto del giocatore 2
+       "cubo2_tipo": "grigio",               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
        "risoluzione": [1280, 820],       # si applica alla riapertura
        "tempo": 0,                       # secondi per tirare, 0 = niente
        "match": 1,                       # frame per partita: 1, 3, 5, 7
@@ -9736,6 +9780,9 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     sorteggia_stecca_avv(cpu is not None)
     GESSO[:] = [1.0, 1.0]
     GESSO_TIRI[:] = [0, 0]
+    CPU_ORA[0] = cpu
+    if cpu is not None:
+        CPU_CUBO[0] = gesso_dati(gesso_cpu_tipo(cpu))[1]
     if partita.gioco not in (3, 7):          # ai birilli il triangolo non c'e'
         suona_triangolo()
     del CODA_VOCE[:]
@@ -10155,6 +10202,8 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                     cpu_attesa -= dt
                 if cpu_tiro is not None and cpu_attesa <= 0.0:
                     d_cpu, f_cpu = cpu_tiro
+                    gesso_del_computer()
+                    consuma_gesso(1)
                     dir_tiro = Vector2(d_cpu)
                     partita.foto()
                     partita.cue().vel = d_cpu * (TIRO_MAX * f_cpu)
@@ -10273,7 +10322,10 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                 verso = mouse - partita.cue().pos
             traccia_mira(sc, partita, verso, potenza)
 
-        pannello(sc, partita, potenza,
+        pot_vista = potenza
+        if suo and cpu_tiro is not None:
+            pot_vista = mira_cpu(cpu_da, cpu_tiro, cpu_attesa)[1]
+        pannello(sc, partita, pot_vista,
                  resta_t if (orologio and not partita.finita)
                  else None,
                  torneo if isinstance(torneo, int) and torneo is not True
