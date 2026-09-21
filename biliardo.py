@@ -5376,7 +5376,7 @@ def _doti_stecche():
     for i in range(len(STECCHE)):
         t = i / float(ultima)
         mira = 10 + 90 * t
-        pot = 95 + 15 * t
+        pot = 58 + 52 * t
         eff = 90 + 28 * t
         carattere = i % 4 if 0 < i < ultima else 0
         if carattere == 1:          # mira lunga, un filo meno forte
