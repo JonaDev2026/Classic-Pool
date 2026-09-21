@@ -654,18 +654,32 @@ BUCA = (12, 12, 14)
 SFONDO = (8, 50, 42)           # al centro
 SFONDO_BORDO = (2, 22, 18)     # agli angoli
 FONDO = None
+# Lo stesso fondo in altri colori: il negozio bordeaux, la borsa blu, cosi'
+# si capisce subito dove si e'.
+FONDI_TINTE = {"negozio": ((54, 12, 22), (22, 4, 9)),
+               "borsa": ((12, 30, 64), (4, 10, 26))}
+FONDI = {}
 
 
 def scurisci(c, k):
     return (int(c[0] * k), int(c[1] * k), int(c[2] * k))
 
 
-def fondo():
+def fondo(tinta=None):
     """Si disegna una volta sola e si ricopia. La grana finissima serve
     a non far vedere le fasce del degrade sugli schermi grandi."""
     global FONDO
+    if tinta in FONDI_TINTE:
+        if tinta not in FONDI:
+            FONDI[tinta] = _fai_fondo(*FONDI_TINTE[tinta])
+        return FONDI[tinta]
     if FONDO is not None:
         return FONDO
+    FONDO = _fai_fondo(SFONDO, SFONDO_BORDO)
+    return FONDO
+
+
+def _fai_fondo(SFONDO, SFONDO_BORDO):
     s = pygame.Surface((WIN_W, WIN_H)).convert()
     if HA_NUMPY:
         gx = (np.arange(WIN_W, dtype=np.float32) - WIN_W / 2.0) / (WIN_W / 2.0)
@@ -680,8 +694,7 @@ def fondo():
         del px
     else:
         s.fill(SFONDO)
-    FONDO = s
-    return FONDO
+    return s
 
 
 TESTO = (232, 232, 236)
@@ -7338,9 +7351,9 @@ def a_caso_o_fisso(chiave, quanti, attuale):
 # ------------------------------------------------------------- il menu
 
 
-def sfondo_menu(sc, palla_grossa):
+def sfondo_menu(sc, palla_grossa, tinta=None):
     musica_menu()
-    sc.blit(fondo(), (0, 0))
+    sc.blit(fondo(tinta), (0, 0))
     # una luce dall'alto, come la lampada sopra un tavolo da biliardo
     alone = pygame.Surface((WIN_W, WIN_H), pygame.SRCALPHA)
     for i in range(26):
@@ -9578,7 +9591,7 @@ def torneo(sc, clock, logo):
         TORNEO_TURNO[0] = 0
 
 
-def schermata_sblocco(sc, clock, i, titolo=None):
+def schermata_sblocco(sc, clock, i, titolo=None, tinta=None):
     """Hai vinto l'incontro: la stecca nuova, disegnata in grande, col
     suo numero, il nome e le sue doti."""
     st = STECCHE[i]
@@ -9597,7 +9610,7 @@ def schermata_sblocco(sc, clock, i, titolo=None):
                 return "ok"
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 return "ok"
-        sc.blit(fondo(), (0, 0))
+        sc.blit(fondo(tinta), (0, 0))
         aiuto_menu(sc)
         t = FONTS["elegante"].render(tit_el(titolo or T("unl_title")), True,
                                      (240, 240, 244))
@@ -9745,7 +9758,8 @@ def schermata_vetrina(sc, clock, logo, negozio=True):
             soldi(-prezzo)
             CFG["stecche_mie"] = stecche_mie() + [i]
             salva_config()
-            if schermata_sblocco(sc, clock, i, T("buy_done")) == "quit":
+            if schermata_sblocco(sc, clock, i, T("buy_done"),
+                                 "negozio") == "quit":
                 return "quit"
         elif riga == 1 and ge:
             t = ge[i_g % len(ge)]
@@ -9813,7 +9827,7 @@ def schermata_vetrina(sc, clock, logo, negozio=True):
             vista = sel
         st, ge = stecche_qui(), gessi_qui()
 
-        sfondo_menu(sc, None)
+        sfondo_menu(sc, None, "negozio" if negozio else "borsa")
         t = FONTS["elegante"].render(tit_el(T("shop" if negozio else "bag")),
                                      True, (240, 240, 244))
         sc.blit(t, t.get_rect(center=(WIN_W // 2, s(70))))
