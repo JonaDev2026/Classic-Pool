@@ -3472,28 +3472,58 @@ def disegna_tabellone(sc, tab, battito):
                     sc.blit(nome_r, nome_r.get_rect(midright=(tx,
                                                               riga.centery)))
 
-def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi):
-    """La schermata del tabellone, con due scelte in fondo."""
-    sel = 0
+def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
+                        scelte=False):
+    """La schermata del tabellone, con le scelte in fondo. Con scelte=True
+    davanti ai bottoni ci sono la stecca e il gessetto per l'incontro:
+    si cambiano con su e giu', con invio o cliccando a destra o a
+    sinistra del bottone."""
+    base_v, base_k = list(voci), list(chiavi)
+    n_sc = 2 if scelte else 0
+    sel = n_sc
     rett = []
+
+    def cambia(i, passo):
+        if i == 0:
+            gira_stecca_cfg(passo)
+        else:
+            gira_gesso(passo)
+        salva_config()
+        suona_fx("menu_tic", 0.6)
+
     while True:
         clock.tick(60)
         mouse = mouse_gioco()
+        if scelte:
+            voci = ["%s: %s" % (T("cue"), nome_stecca_cfg()),
+                    "%s: %s" % (T("chalk_row"), nome_gesso_scelto())] + base_v
+            chiavi = ["_st", "_ge"] + base_k
         for ev in eventi():
             if ev.type == pygame.QUIT:
                 return "quit"
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     return chiavi[-1]
-                if ev.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_TAB):
+                if ev.key in (pygame.K_RIGHT, pygame.K_TAB):
                     sel = (sel + 1) % len(voci)
-                if ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
-                              pygame.K_SPACE):
-                    return chiavi[sel]
+                if ev.key == pygame.K_LEFT:
+                    sel = (sel - 1) % len(voci)
+                if sel < n_sc and ev.key in (pygame.K_UP, pygame.K_DOWN):
+                    cambia(sel, 1 if ev.key == pygame.K_DOWN else -1)
+                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                                pygame.K_SPACE):
+                    if sel < n_sc:
+                        cambia(sel, 1)
+                    else:
+                        return chiavi[sel]
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 for i, r in enumerate(rett):
                     if r.collidepoint(mouse):
-                        return chiavi[i]
+                        if i < n_sc:
+                            sel = i
+                            cambia(i, -1 if mouse[0] < r.centerx else 1)
+                        else:
+                            return chiavi[i]
 
         font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
         sfondo_menu(sc, None)
@@ -3517,12 +3547,16 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi):
             sc.blit(t, t.get_rect(center=(WIN_W // 2, s(704))))
 
         rett = []
-        largo = s(200)
         stac = s(20)
-        x0 = WIN_W // 2 - (largo * len(voci) + stac * (len(voci) - 1)) // 2
-        tic_menu(("tabellone",) + tuple(voci), sel)
+        larghi = [s(300) if i < n_sc else (s(170) if n_sc else s(200))
+                  for i in range(len(voci))]
+        x0 = WIN_W // 2 - (sum(larghi) + stac * (len(voci) - 1)) // 2
+        tic_menu(("tabellone",) + tuple(voci[n_sc:]), max(0, sel - n_sc))
+        x = x0
         for i, v in enumerate(voci):
-            r = pygame.Rect(x0 + i * (largo + stac), s(724), largo, s(40))
+            largo = larghi[i]
+            r = pygame.Rect(x, s(724), largo, s(40))
+            x += largo + stac
             if MOUSE_VIVO[0] and r.collidepoint(mouse):
                 sel = i
             acceso = (i == sel)
@@ -3532,8 +3566,20 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi):
             if acceso:
                 pygame.draw.rect(sc, COL_GIOC[0], (r.x, r.y, 3, r.h))
             col = (255, 255, 255) if acceso else (190, 196, 208)
-            tv = FONTS.get("elegante_voce", font).render(tit_el(v), True, col)
-            sc.blit(tv, tv.get_rect(center=r.center))
+            if i < n_sc:
+                # le scelte: il valore in oro, con le frecce ai lati
+                tv = small.render(v, True, ORO_SCELTA if acceso
+                                  else ORO_SOTTO)
+                sc.blit(tv, tv.get_rect(center=r.center))
+                if acceso:
+                    for lato, segno in ((r.left + s(12), "<"),
+                                        (r.right - s(12), ">")):
+                        f = small.render(segno, True, ORO_SCELTA)
+                        sc.blit(f, f.get_rect(center=(lato, r.centery)))
+            else:
+                tv = FONTS.get("elegante_voce", font).render(tit_el(v), True,
+                                                             col)
+                sc.blit(tv, tv.get_rect(center=r.center))
             rett.append(r)
         presenta()
 
@@ -5514,9 +5560,9 @@ def stecche_sbloccate():
 
 # I prezzi delle stecche: la prima e' tua, poi salgono a gruppi di dieci.
 # Fra un punto e l'altro si va dritti, arrotondando a cinquanta.
-_PREZZI_PUNTI = ((1, 450), (9, 1350), (10, 1500), (19, 3000), (20, 3300),
-                 (29, 5250), (30, 5700), (39, 8250), (40, 9000),
-                 (49, 12750), (50, 15000), (54, 30000))
+_PREZZI_PUNTI = ((1, 60), (9, 170), (10, 190), (19, 375), (20, 410),
+                 (29, 655), (30, 710), (39, 1030), (40, 1125),
+                 (49, 1595), (50, 1875), (54, 3750))
 
 
 def prezzo_stecca(i):
@@ -5525,7 +5571,7 @@ def prezzo_stecca(i):
     for (a, pa), (b, pb) in zip(_PREZZI_PUNTI, _PREZZI_PUNTI[1:]):
         if a <= i <= b:
             v = pa + (pb - pa) * (i - a) / float(b - a)
-            return int(round(v / 50.0)) * 50
+            return int(round(v / 10.0)) * 10
     return _PREZZI_PUNTI[-1][1]
 
 
@@ -5541,6 +5587,53 @@ GESSI = (("blu", 10, 20, (52, 108, 206)),
          ("viola", 17, 85, (132, 64, 190)),
          ("arancio", 18, 95, (236, 124, 32)),
          ("oro", 20, 110, (214, 172, 70)))
+
+
+def gessi_miei():
+    """I gessetti fra cui scegliere: quelli di cui hai cubetti, anche solo
+    un cubetto gia' aperto o messo da parte."""
+    scorta = CFG.get("gessi") or {}
+    avanzi = CFG.get("avanzi") or {}
+    aperti = set(CFG.get(k_t) for k_c, k_t in CUBO_K
+                 if int(CFG.get(k_c, 0)) > 0)
+    return [g[0] for g in GESSI
+            if int(scorta.get(g[0], 0)) > 0 or int(avanzi.get(g[0], 0)) > 0
+            or g[0] in aperti]
+
+
+def nome_gesso_scelto():
+    miei = gessi_miei()
+    if not miei:
+        return T("ch_none")
+    t = CFG.get("gesso_tipo", "blu")
+    if t not in miei:
+        t = miei[0]
+        CFG["gesso_tipo"] = t
+    n = int((CFG.get("gessi") or {}).get(t, 0))
+    return "%s (%d)" % (T("ch_" + t), n)
+
+
+def gira_gesso(passo):
+    miei = gessi_miei()
+    if not miei:
+        return
+    t = CFG.get("gesso_tipo", "blu")
+    k = miei.index(t) if t in miei else 0
+    CFG["gesso_tipo"] = miei[(k + passo) % len(miei)]
+
+
+def gira_stecca_cfg(passo):
+    giro = [-1] + stecche_mie()
+    ora = CFG.get("stecca", 0)
+    k = giro.index(ora) if ora in giro else 0
+    CFG["stecca"] = giro[(k + passo) % len(giro)]
+
+
+def nome_stecca_cfg():
+    i = CFG.get("stecca", 0)
+    if i not in stecche_mie():
+        return T("random")
+    return "%d. %s" % (i + 1, T(STECCHE[i][0]))
 
 
 def gesso_dati(tipo):
@@ -5614,15 +5707,35 @@ def gesso_pronto(chi=0):
 
 
 def apri_cubetto(chi=0):
+    """Si apre un cubetto nuovo, ma solo del gessetto scelto per la
+    partita: finiti quelli, niente gesso fino alla partita dopo."""
     gessi = CFG.setdefault("gessi", {})
-    ordine = [CFG.get("gesso_tipo", "blu")] + [g[0] for g in GESSI]
-    for t in ordine:
-        if int(gessi.get(t, 0)) > 0:
-            gessi[t] = int(gessi[t]) - 1
-            CFG[CUBO_K[chi][0]] = gesso_dati(t)[1]
-            CFG[CUBO_K[chi][1]] = t
-            return True
+    t = CFG.get("gesso_tipo", "blu")
+    if int(gessi.get(t, 0)) > 0:
+        gessi[t] = int(gessi[t]) - 1
+        CFG[CUBO_K[chi][0]] = gesso_dati(t)[1]
+        CFG[CUBO_K[chi][1]] = t
+        return True
     return False
+
+
+def prepara_gessi(due):
+    """A inizio partita ognuno prende in mano il gessetto scelto: se aveva
+    aperto un cubetto di un altro colore lo mette da parte (non si butta),
+    e se ne aveva uno mezzo usato del colore scelto lo riprende."""
+    t = CFG.get("gesso_tipo", "blu")
+    avanzi = CFG.setdefault("avanzi", {})
+    for chi in ((0, 1) if due else (0,)):
+        k_cubo, k_tipo = CUBO_K[chi]
+        aperto, tipo = int(CFG.get(k_cubo, 0)), CFG.get(k_tipo, t)
+        if aperto > 0 and tipo == t:
+            continue
+        if aperto > 0:
+            avanzi[tipo] = int(avanzi.get(tipo, 0)) + aperto
+        resto = int(avanzi.pop(t, 0))
+        CFG[k_cubo] = resto
+        CFG[k_tipo] = t
+    salva_config()
 
 
 def gesso_del_computer():
@@ -7151,12 +7264,13 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "stecca2": -1,                    # quella del giocatore 2
        "soldi": 0,                       # il portafoglio
        "stecche_mie": [0],               # le stecche comprate
-       "gessi": {"blu": 3},              # i cubetti ancora da aprire
+       "gessi": {"blu": 1},              # i cubetti ancora da aprire
        "gesso_tipo": "blu",              # il gessetto che si usa
        "cubo": 0,                        # gli usi rimasti nel cubetto aperto
        "cubo_tipo": "blu",
        "cubo2": 0,                       # il cubetto aperto del giocatore 2
-       "cubo2_tipo": "blu",               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
+       "cubo2_tipo": "blu",
+       "avanzi": {},                     # cubetti aperti messi da parte               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
        "risoluzione": [1280, 820],       # si applica alla riapertura
        "tempo": 0,                       # secondi per tirare, 0 = niente
        "match": 1,                       # frame per partita: 1, 3, 5, 7
@@ -8570,7 +8684,9 @@ for _l, _d in (
                 "ch_blu": "Blue", "ch_rosso": "Red", "ch_verde": "Green",
                 "ch_nero": "Black", "ch_bianco": "White",
                 "ch_giallo": "Yellow", "ch_viola": "Purple",
-                "ch_arancio": "Orange", "ch_oro": "Gold"}),
+                "ch_arancio": "Orange", "ch_oro": "Gold",
+                "ch_none": "none", "owned": "Owned",
+                "inventory": "Your chalk"}),
         ("it", {"unl_title": "Nuova stecca sbloccata", "st_aim": "Mira",
                 "st_power": "Potenza", "st_spin": "Effetto",
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
@@ -8585,7 +8701,9 @@ for _l, _d in (
                 "ch_blu": "Blu", "ch_rosso": "Rosso", "ch_verde": "Verde",
                 "ch_nero": "Nero", "ch_bianco": "Bianco",
                 "ch_giallo": "Giallo", "ch_viola": "Viola",
-                "ch_arancio": "Arancio", "ch_oro": "Oro"}),
+                "ch_arancio": "Arancio", "ch_oro": "Oro",
+                "ch_none": "nessuno", "owned": "Tua",
+                "inventory": "I tuoi gessetti"}),
         ("fr", {"unl_title": "Nouvelle queue debloquee", "st_aim": "Visee",
                 "st_power": "Puissance", "st_spin": "Effet",
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
@@ -8600,7 +8718,9 @@ for _l, _d in (
                 "ch_blu": "Bleue", "ch_rosso": "Rouge", "ch_verde": "Verte",
                 "ch_nero": "Noire", "ch_bianco": "Blanche",
                 "ch_giallo": "Jaune", "ch_viola": "Violette",
-                "ch_arancio": "Orange", "ch_oro": "Doree"}),
+                "ch_arancio": "Orange", "ch_oro": "Doree",
+                "ch_none": "aucune", "owned": "A toi",
+                "inventory": "Tes craies"}),
         ("es", {"unl_title": "Nuevo taco desbloqueado",
                 "st_aim": "Punteria", "st_power": "Potencia",
                 "st_spin": "Efecto", "st_count": "%d de %d tacos",
@@ -8615,7 +8735,9 @@ for _l, _d in (
                 "ch_blu": "Azul", "ch_rosso": "Roja", "ch_verde": "Verde",
                 "ch_nero": "Negra", "ch_bianco": "Blanca",
                 "ch_giallo": "Amarilla", "ch_viola": "Morada",
-                "ch_arancio": "Naranja", "ch_oro": "Dorada"})):
+                "ch_arancio": "Naranja", "ch_oro": "Dorada",
+                "ch_none": "ninguna", "owned": "Tuyo",
+                "inventory": "Tus tizas"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _k, _en, _it, _fr, _es in NOMI_STECCHE_55:
     for _l, _v in (("en", _en), ("it", _it), ("fr", _fr), ("es", _es)):
@@ -8640,10 +8762,12 @@ def righe_setting(pagina, blocca_tavolo):
                 ("match", T("match"),
                  T("m_uno") if n <= 1 else T("m_best") % n)]
     if pagina == "tavolo":
-        righe = [("stecca", T("cue"), T("random")
-                  if CFG.get("stecca", 0) < 0
-                  else "%d. %s" % (STECCHE.index(stecca_scelta()) + 1,
-                                   T(stecca_scelta()[0])))]
+        # a partita cominciata la stecca e' quella: non si cambia
+        righe = [] if DENTRO_PARTITA[0] else [
+            ("stecca", T("cue"), T("random")
+             if CFG.get("stecca", 0) < 0
+             else "%d. %s" % (STECCHE.index(stecca_scelta()) + 1,
+                              T(stecca_scelta()[0])))]
         tp = tipo_palle()
         if DENTRO_PARTITA[0]:
             # al tavolo si scorrono solo le palle del gioco in corso
@@ -9053,6 +9177,7 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
     if contro_cpu and libera:
         righe.append(("liv", 0))
     if libera:
+        righe.append(("gesso", 0))
         righe.append(("match", 0))
     righe += [("via", 0), ("indietro", 0)]
     n_voci = len(righe)
@@ -9077,6 +9202,8 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
             CFG[CHIAVE_ST[gi]] = giro[(k + passo) % len(giro)]
         elif tipo == "liv":
             livello = (livello + passo) % len(LIVELLI)
+        elif tipo == "gesso":
+            gira_gesso(passo)
         elif tipo == "match":
             i = (MATCH.index(CFG.get("match", 1))
                  if CFG.get("match", 1) in MATCH else 0)
@@ -9156,6 +9283,8 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                 voci.append((T("cue"), nome_stecca(gi)))
             elif tipo == "liv":
                 voci.append((T("level"), T(LIVELLI[livello][0])))
+            elif tipo == "gesso":
+                voci.append((T("chalk_row"), nome_gesso_scelto()))
             elif tipo == "match":
                 n = CFG.get("match", 1)
                 voci.append((T("match"), T("m_uno") if n <= 1
@@ -9164,9 +9293,10 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                 voci.append((T("start"), None))
             else:
                 voci.append((T("back"), None))
+        passo_r = s(36) if n_voci > 9 else s(40) if tante else s(48)
         rett = disegna_voci(sc, voci, sel, font, small,
                             s(402) if tante else s(430),
-                            s(40) if tante else s(48), frecce=True, ante=ante)
+                            passo_r, frecce=True, ante=ante)
         # il colore del giocatore sul suo campo, come in partita
         for i, (tipo, gi) in enumerate(righe):
             if tipo == "nome":
@@ -9509,11 +9639,8 @@ def schermata_negozio(sc, clock, logo):
 
     def azione(riga):
         nonlocal i_st
-        if riga == 1:                          # la stecca: compra o usa
+        if riga == 1:                          # la stecca: si compra
             if i_st in stecche_mie():
-                CFG["stecca"] = i_st
-                salva_config()
-                suona_fx("menu_tic", 0.6)
                 return None
             prezzo = prezzo_stecca(i_st)
             if soldi() < prezzo:
@@ -9521,14 +9648,9 @@ def schermata_negozio(sc, clock, logo):
                 return None
             soldi(-prezzo)
             CFG["stecche_mie"] = stecche_mie() + [i_st]
-            CFG["stecca"] = i_st
             salva_config()
             if schermata_sblocco(sc, clock, i_st, T("buy_done")) == "quit":
                 return "quit"
-        elif riga == 2:                        # il gessetto: in uso
-            CFG["gesso_tipo"] = tipi[i_g]
-            salva_config()
-            suona_fx("menu_tic", 0.6)
         elif riga == 3:                        # compra un cubetto
             prezzo = GESSI[i_g][2]
             if soldi() < prezzo:
@@ -9597,8 +9719,7 @@ def schermata_negozio(sc, clock, logo):
         mia = i_st in stecche_mie()
         prezzo = prezzo_stecca(i_st)
         if mia:
-            et_st = T("in_use") if CFG.get("stecca", 0) == i_st else T("use")
-            val_st = None
+            et_st, val_st = T("owned"), None
         else:
             et_st, val_st = T("buy"), dollari(prezzo)
         nome_g, usi_g, prezzo_g = tipi[i_g], GESSI[i_g][1], GESSI[i_g][2]
@@ -9632,25 +9753,31 @@ def schermata_negozio(sc, clock, logo):
         sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(26))))
         # il gessetto: icona, usi, quanti ne hai e quale e' in uso
         im = icona_gesso(s(30), nome_g)
-        riga_g = "%s     -     %s" % (
-            T("ch_info") % (T("ch_" + nome_g), usi_g, ho_g),
-            T("ch_uso") % T("ch_" + CFG.get("gesso_tipo", "blu")))
+        riga_g = T("ch_info") % (T("ch_" + nome_g), usi_g, ho_g)
         c = FONTS["mini"].render(riga_g, True, ORO_SOTTO)
         cr = c.get_rect(center=(WIN_W // 2 + s(20), y + s(66)))
         sc.blit(c, cr)
         if im is not None:
             sc.blit(im, im.get_rect(midright=(cr.left - s(10), cr.centery)))
+        # l'inventario: i gessetti che hai
+        scorta = CFG.get("gessi") or {}
+        pezzi = ["%s %d" % (T("ch_" + g[0]), int(scorta.get(g[0], 0)))
+                 for g in GESSI if int(scorta.get(g[0], 0)) > 0]
+        c = FONTS["mini"].render(
+            "%s:  %s" % (T("inventory"), ",  ".join(pezzi) or T("ch_none")),
+            True, ORO_SOTTO)
+        sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(94))))
         if avviso[0] and pygame.time.get_ticks() < avviso[1]:
             c = small.render(avviso[0], True, (240, 96, 96))
-            sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(100))))
+            sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(122))))
         for i, r in enumerate(rett):
             if MOUSE_VIVO[0] and r.collidepoint(mouse):
                 sel = i
         presenta()
 
 
-PREMI_TORNEO = (100, 150, 200, 300, 500, 800)   # incontro vinto, per turno
-PREMIO_CAMPIONE = 1000
+PREMI_TORNEO = (50, 75, 100, 150, 200, 300)     # incontro vinto, per turno
+PREMIO_CAMPIONE = 150
 
 
 def _torneo(sc, clock, logo, disc_vera, k_t):
@@ -9710,7 +9837,8 @@ def _torneo(sc, clock, logo, disc_vera, k_t):
         else:
             scelta = schermata_tabellone(
                 sc, clock, logo, tab, tab_turno(tab),
-                T("t_vs") % avv, [T("t_go"), T("back")], ["gioca", "menu"])
+                T("t_vs") % avv, [T("t_go"), T("back")], ["gioca", "menu"],
+                scelte=True)
             if scelta != "gioca":
                 return scelta
 
@@ -9784,10 +9912,10 @@ def applica_tavolo(i_panno, i_bordo):
     return i_panno, i_bordo
 
 
-PAGA_CPU = 12           # per frame, vincendo contro il computer...
-PAGA_LIVELLO = 6        # ...piu' questo per ogni livello sopra il primo
-PAGA_PERSA = 8          # per frame, anche perdendo: il consumo
-PAGA_DUE = 12           # per frame, in due sullo stesso computer
+PAGA_CPU = 10           # per frame, vincendo contro il computer...
+PAGA_LIVELLO = 2        # ...piu' questo per ogni livello sopra il primo
+PAGA_PERSA = 5          # per frame, perdendo: non copre tutto il gesso
+PAGA_DUE = 8            # per frame, in due sullo stesso computer
 
 
 def gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
@@ -9828,6 +9956,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     sorteggia_stecca_avv(cpu is not None)
     GESSO[:] = [1.0, 1.0]
     GESSO_TIRI[:] = [0, 0]
+    prepara_gessi(cpu is None)
     CPU_ORA[0] = cpu
     if cpu is not None:
         CPU_CUBO[0] = gesso_dati(gesso_cpu_tipo(cpu))[1]
