@@ -6255,9 +6255,6 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
     q = mini.render("%d%%" % int(round(cubo * 100)), True,
                     ORO_SCELTA if pronto else (232, 96, 72))
     sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(112))))
-    if gi == 0 or CPU_ORA[0] is None:
-        q = mini.render(T("ch_spare") % scorta, True, TESTO_OPACO)
-        sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(128))))
 
 
 # ------------------------------------------------------- musica ed effetti
