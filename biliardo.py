@@ -8732,8 +8732,8 @@ def icona_tasto(nome, alto):
             q = pygame.transform.smoothscale(
                 q, (max(1, int(q.get_width() * alto / float(q.get_height()))),
                     alto))
-            tinta = TINTE_TASTI.get(nome, GRIGIO_AIUTO)
-            q.fill(tinta + (255,), special_flags=pygame.BLEND_RGBA_MULT)
+            # tutte bianche: piu' eleganti delle icone colorate
+            q.fill((236, 236, 240, 255), special_flags=pygame.BLEND_RGBA_MULT)
         except (pygame.error, OSError, FileNotFoundError):
             q = None
         ICONE_TASTO[chiave] = q
@@ -8768,7 +8768,10 @@ def aiuto_menu(sc):
     # una fascia scura per tutta la larghezza, alta quanto la riga
     alto = r.get_height() + s(12)
     fascia = pygame.Surface((WIN_W, alto), pygame.SRCALPHA)
-    fascia.fill((0, 0, 0, 150))
+    # dello stesso colore del fondo della schermata, appena piu' scuro
+    t = TINTA_ORA[0]
+    bordo = FONDI_TINTE[t][1] if t in FONDI_TINTE else SFONDO_BORDO
+    fascia.fill(tuple(int(v * 0.6) for v in bordo) + (235,))
     fascia.blit(r, r.get_rect(center=(WIN_W // 2, alto // 2)))
     fascia.set_alpha(int(255 * FOOTER_VIS[0]))
     sc.blit(fascia, (0, WIN_H - alto))
