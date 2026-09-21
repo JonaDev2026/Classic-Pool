@@ -3303,6 +3303,7 @@ TORNEO_TAVOLI = {disc: TORNEO_SEI for disc in range(9)}
 TORNEO_PALLE = {
     1: "set_classico",
     2: {"pool": "set_marmo_chiaro"},
+    3: {"pool": "set_zigzag"},
 }
 PALLE_TORNEO = [None]   # il set del tavolo del torneo di adesso
 
