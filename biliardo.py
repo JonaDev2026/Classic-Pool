@@ -1224,7 +1224,10 @@ SET_SNOOKER = (
 SET_BLACKBALL = (
     ("set_classico", (200, 26, 34), (246, 202, 20), (16, 16, 18),
      (204, 46, 46)),
-    ("set_pro", (160, 14, 28), (232, 180, 16), (10, 10, 12), None),
+    # il Pro dei tornei: rosse bordeaux con le calotte color crema, gialle
+    # piene, tutte col numero piccolo su un tondino scuro
+    ("set_pro", (122, 18, 30), (250, 196, 24), (12, 12, 14), (196, 30, 40),
+     "numeri"),
     ("set_club", (26, 70, 190), (246, 202, 20), (16, 16, 18),
      (26, 70, 190)),
     ("set_neon", (255, 36, 60), (255, 228, 0), (18, 18, 22),
@@ -1300,7 +1303,18 @@ def _tessitura(num, font, asset=None):
         if 1 <= num <= 15:
             # rosse dall'1 al 7, gialle dal 9 al 15, la nera senza numero
             st = set_blackball()
-            s.fill(st[1] if num <= 7 else st[3] if num == 8 else st[2])
+            base = st[1] if num <= 7 else st[3] if num == 8 else st[2]
+            s.fill(base)
+            if len(st) > 5 and st[5] == "numeri":
+                if num <= 7:        # le rosse: calotte crema
+                    s.fill((238, 228, 206))
+                    pygame.draw.rect(s, base, pygame.Rect(0, 64, TEX_W,
+                                                          TEX_H - 128))
+                for u in (TEX_W // 4, TEX_W * 3 // 4):
+                    fondo_n = (238, 228, 206) if num == 8 else (22, 20, 20)
+                    cifra_n = (20, 20, 22) if num == 8 else (240, 234, 220)
+                    pygame.draw.circle(s, fondo_n, (u, TEX_H // 2), 34)
+                    scrivi(s, num, font, u, cifra_n, stretto=True)
             return pygame.surfarray.array3d(s).astype(np.float32)
     elif tipo_palle() == "piramide":
         _, avorio, rossa, nero = set_piramide()
