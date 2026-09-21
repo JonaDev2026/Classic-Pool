@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.DS_Store
+biliardo_config.json
+biliardo_torneo.json
+prove/
