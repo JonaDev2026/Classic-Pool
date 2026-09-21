@@ -3552,7 +3552,9 @@ TROFEO_LARGO = 210      # il posto che c'e' in mezzo al tabellone
 # Il trofeo di ogni gioco, per nome di file. Chi non ce l'ha ancora
 # prende quello pescato col tabellone.
 TROFEO_GIOCO = {0: "trofeo_8ball", 1: "trofeo_9ball", 5: "trofeo_10ball",
-                2: "trofeo_snooker", 6: "trofeo_snooker"}
+                2: "trofeo_snooker", 6: "trofeo_snooker",
+                3: "trofeo_birilli", 7: "trofeo_birilli",
+                8: "trofeo_piramide"}
 
 
 def trofeo_del_gioco(riserva=0):
