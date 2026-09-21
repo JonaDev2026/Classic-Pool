@@ -4757,7 +4757,10 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
     col = (255, 255, 255) if ok else (236, 72, 72)
 
     fine = p + d * meglio
-    pygame.draw.aaline(sc, col, p, fine)
+    # dalla bianca alla palla fantasma: un fascio chiaro, che parte dopo
+    # la bianca e si ferma al cerchio
+    fascio(sc, p + d * BALL_R, d, meglio - 2 * BALL_R, col,
+           BALL_R * 0.34, 0.35)
     anello(sc, col, fine, BALL_R)
     if not ok:
         anello(sc, col, fine, BALL_R + 3)
@@ -4786,8 +4789,8 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
             diag = math.hypot(PLAY.w, PLAY.h)
             lunga = fino if f >= 1.0 else min(
                 fino, corta + (diag - corta) * f ** 1.3)
-            fascio(sc, Vector2(colpita.pos), via, lunga,
-                   luce_di(partita.turno), BALL_R * 0.55)
+            fascio(sc, colpita.pos + via * BALL_R, via, lunga - BALL_R,
+                   luce_di(partita.turno), BALL_R * 0.36)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
 
@@ -5429,7 +5432,7 @@ def luce_di(chi):
     return LUCI_MIRA[0]
 
 
-def fascio(sc, da, verso, lung, colore, largo):
+def fascio(sc, da, verso, lung, colore, largo, sfuma=0.8):
     """La riga della palla colpita: un fascio leggero che parte pieno e
     sfuma fino a sparire."""
     if lung < 2:
@@ -5448,12 +5451,12 @@ def fascio(sc, da, verso, lung, colore, largo):
                                              (largo * 0.45, 0.85))):
         for k in range(pezzi):
             f0, f1 = k / float(pezzi), (k + 1) / float(pezzi)
-            a = int(230 * forza * (1.0 - 0.8 * f0) ** 1.3)
+            a = int(230 * forza * (1.0 - sfuma * f0) ** 1.3)
             if a <= 0:
                 continue
             # si stringe un poco andando avanti
-            m0 = mezzo * (1.0 - 0.45 * f0)
-            m1 = mezzo * (1.0 - 0.45 * f1)
+            m0 = mezzo * (1.0 - 0.45 * sfuma * f0)
+            m1 = mezzo * (1.0 - 0.45 * sfuma * f1)
             p0 = da + verso * (lung * f0) - o
             p1 = da + verso * (lung * f1) - o
             q = [p0 + n * m0, p1 + n * m1, p1 - n * m1, p0 - n * m0]
@@ -6876,7 +6879,8 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "livello": 1,                     # bravura del computer, 0..3
        "torneo_record": 0,               # il livello piu' alto raggiunto
        "bandiere": ["it", "gb"],         # il paese dei due giocatori
-       "stecca": 0,                      # quale stecca, fra quelle disegnate
+       "stecca": 0,
+       "stecche_vinte": 0,               # incontri di torneo vinti                      # quale stecca, fra quelle disegnate
        "risoluzione": [1280, 820],       # si applica alla riapertura
        "tempo": 0,                       # secondi per tirare, 0 = niente
        "match": 1,                       # frame per partita: 1, 3, 5, 7
