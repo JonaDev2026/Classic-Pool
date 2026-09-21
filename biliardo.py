@@ -659,6 +659,7 @@ FONDO = None
 FONDI_TINTE = {"negozio": ((54, 12, 22), (22, 4, 9)),
                "borsa": ((12, 30, 64), (4, 10, 26))}
 FONDI = {}
+TINTA_ORA = [None]      # il fondo dell'ultima schermata, per le bande
 
 
 def scurisci(c, k):
@@ -669,6 +670,7 @@ def fondo(tinta=None):
     """Si disegna una volta sola e si ricopia. La grana finissima serve
     a non far vedere le fasce del degrade sugli schermi grandi."""
     global FONDO
+    TINTA_ORA[0] = tinta if tinta in FONDI_TINTE else None
     if tinta in FONDI_TINTE:
         if tinta not in FONDI:
             FONDI[tinta] = _fai_fondo(*FONDI_TINTE[tinta])
@@ -7721,9 +7723,6 @@ def schermata_menu(sc, clock, logo):
         rett = disegna_voci(sc, [(v, None) for v in voci], sel, font, small,
                             s(448), s(40) if len(voci) > 7 else
                             s(46) if len(voci) > 6 else s(52))
-        # il portafoglio, in alto a destra
-        t = small.render(T("wallet") % dollari(soldi()), True, ORO_SCELTA)
-        sc.blit(t, t.get_rect(topright=(WIN_W - s(24), s(20))))
         for i, r in enumerate(rett):
             if MOUSE_VIVO[0] and r.collidepoint(mouse):
                 sel = i
@@ -8608,7 +8607,12 @@ def aiuto_menu(sc):
     if modo_comandi() != "pad" or not ICONE_TASTI_OK():
         return
     r = riga_pad(FONTS["small"], RIGA_MENU)
-    sc.blit(r, r.get_rect(center=(WIN_W // 2, WIN_H - s(16))))
+    # una fascia scura per tutta la larghezza, alta quanto la riga
+    alto = r.get_height() + s(12)
+    fascia = pygame.Surface((WIN_W, alto), pygame.SRCALPHA)
+    fascia.fill((0, 0, 0, 150))
+    sc.blit(fascia, (0, WIN_H - alto))
+    sc.blit(r, r.get_rect(center=(WIN_W // 2, WIN_H - alto // 2)))
 
 
 def riga_pad(small, voci=RIGA_GIOCO):
@@ -9831,9 +9835,6 @@ def schermata_vetrina(sc, clock, logo, negozio=True):
         t = FONTS["elegante"].render(tit_el(T("shop" if negozio else "bag")),
                                      True, (240, 240, 244))
         sc.blit(t, t.get_rect(center=(WIN_W // 2, s(70))))
-        t = FONTS["small"].render(T("wallet") % dollari(soldi()), True,
-                                  ORO_SCELTA)
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(118))))
 
         # sopra, quello che si sta guardando, coi suoi dati
         y_prev = s(300)
@@ -10696,17 +10697,32 @@ def presenta():
     che avanzano ai lati non restano nere: ci va lo stesso fondo, stirato
     a tutto schermo, cosi' la finestra e' piena comunque la allarghi."""
     global BORDI_VISTA
+    portafoglio(SCENA)
     k, ox, oy = VISTA
     if abs(k - 1.0) < 0.001 and ox == 0 and oy == 0:
         SCHERMO.blit(SCENA, (0, 0))
     else:
         misura = SCHERMO.get_size()
-        if BORDI_VISTA is None or BORDI_VISTA.get_size() != misura:
-            BORDI_VISTA = pygame.transform.smoothscale(fondo(), misura)
-        SCHERMO.blit(BORDI_VISTA, (0, 0))
+        tinta = TINTA_ORA[0]
+        if BORDI_VISTA is None or BORDI_VISTA[0] != (misura, tinta):
+            BORDI_VISTA = ((misura, tinta), pygame.transform.smoothscale(
+                fondo(tinta), misura))
+        SCHERMO.blit(BORDI_VISTA[1], (0, 0))
         SCHERMO.blit(pygame.transform.smoothscale(
             SCENA, (int(WIN_W * k), int(WIN_H * k))), (ox, oy))
     pygame.display.flip()
+
+
+def portafoglio(sc):
+    """Il portafoglio, sempre in alto a destra: nei menu e in partita."""
+    f = FONTS.get("small")
+    if f is None:
+        return
+    try:
+        t = f.render(T("wallet") % dollari(soldi()), True, ORO_SCELTA)
+    except (KeyError, TypeError, ValueError):
+        return
+    sc.blit(t, t.get_rect(topright=(WIN_W - s(24), s(12))))
 
 
 def mouse_gioco():
