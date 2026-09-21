@@ -10308,6 +10308,22 @@ def scelta_torneo(sc, clock, logo, disc):
         presenta()
 
 
+QUADRANTE = {}
+
+
+def quadrante(lato):
+    """Il quadrante dell'orologio in PNG (biliardo_gfx/orologio.png),
+    portato a misura. Se non c'e' si disegna quello d'oro."""
+    if lato not in QUADRANTE:
+        f = os.path.join(GFX, "orologio.png")
+        try:
+            img = pygame.image.load(f).convert_alpha()
+            QUADRANTE[lato] = pygame.transform.smoothscale(img, (lato, lato))
+        except (pygame.error, IOError, FileNotFoundError):
+            QUADRANTE[lato] = None
+    return QUADRANTE[lato]
+
+
 def disegna_orologio(sc, resta, totale):
     """L'orologio del tiro in alto a destra, a specchio dello stemma: un
     cerchio d'oro con le tacche, e una lancetta che scatta ogni secondo e
@@ -10317,6 +10333,31 @@ def disegna_orologio(sc, resta, totale):
     x_lato = max(s(30), int((TAV_POS[0] + TAV_VISTA[0] * SCALA) / 2.0))
     lato = min(s(88), max(s(40), x_lato * 2 - s(8)))
     cx, cy = WIN_W - x_lato, ALTO + s(10) + lato // 2
+    img = quadrante(lato)
+    if img is not None:
+        # il quadrante in PNG e una lancetta dei secondi marrone scuro,
+        # fine, con la punta a lancia e il contrappeso dietro
+        sc.blit(img, img.get_rect(center=(cx, cy)))
+        passati = int(totale) - max(0, int(math.ceil(resta)))
+        a = 2 * math.pi * passati / 60.0 - math.pi / 2
+        ux, uy = math.cos(a), math.sin(a)
+        px, py = -uy, ux
+        r = lato / 2.0
+        col = (58, 34, 18)
+        P = lambda t, w: (cx + ux * r * t + px * w, cy + uy * r * t + py * w)
+        w = max(0.7, r * 0.02)
+        forma = [P(-0.22, w * 0.8), P(0.50, w * 0.6), P(0.58, w * 2.6),
+                 P(0.72, 0), P(0.58, -w * 2.6), P(0.50, -w * 0.6),
+                 P(-0.22, -w * 0.8)]
+        pygame.draw.polygon(sc, col, forma)
+        pygame.draw.aalines(sc, col, True, forma)
+        coda = P(-0.22, 0)
+        pygame.draw.circle(sc, col, (int(coda[0]), int(coda[1])),
+                           max(2, int(r * 0.045)))
+        pygame.draw.circle(sc, col, (int(cx), int(cy)), max(2, int(r * 0.05)))
+        pygame.draw.circle(sc, (150, 110, 60), (int(cx), int(cy)),
+                           max(1, int(r * 0.025)))
+        return
     r = lato // 2 - s(2)
     oro, oro_s = ORO_SCELTA, (150, 118, 52)
     fondo = pygame.Surface((lato, lato), pygame.SRCALPHA)
