@@ -10315,6 +10315,30 @@ LANCETTA = {"vista": 0.0, "torna": False, "t": 0}
 GIRO_RITORNO = 2.5      # giri al secondo quando torna a zero
 
 
+def scritta_quadrante(largo):
+    """La scritta del logo (Classic e POOL coi fili) tutta marroncina,
+    stampata sul quadrante come sugli orologi classici."""
+    chiave = ("scritta", largo)
+    if chiave not in QUADRANTE:
+        tmp = pygame.Surface((s(420), s(140)), pygame.SRCALPHA)
+        scritta_logo(tmp, tmp.get_width() // 2, tmp.get_height() // 2)
+        r = tmp.get_bounding_rect()
+        img = None
+        if r.w > 0 and r.h > 0:
+            img = tmp.subsurface(r).copy()
+            try:
+                pix = pygame.surfarray.pixels3d(img)
+                pix[:, :, 0], pix[:, :, 1], pix[:, :, 2] = 74, 46, 24
+                del pix
+            except Exception:
+                pass
+            k = largo / float(r.w)
+            img = pygame.transform.smoothscale(
+                img, (max(1, int(r.w * k)), max(1, int(r.h * k))))
+        QUADRANTE[chiave] = img
+    return QUADRANTE[chiave]
+
+
 def quadrante(lato):
     """Il quadrante dell'orologio in PNG (biliardo_gfx/orologio.png),
     portato a misura. Se non c'e' si disegna quello d'oro."""
@@ -10342,6 +10366,9 @@ def disegna_orologio(sc, resta, totale):
         # il quadrante in PNG e una lancetta dei secondi marrone scuro,
         # fine, con la punta a lancia e il contrappeso dietro
         sc.blit(img, img.get_rect(center=(cx, cy)))
+        scr = scritta_quadrante(int(lato * 0.5))
+        if scr is not None:
+            sc.blit(scr, scr.get_rect(center=(cx, cy - int(lato * 0.17))))
         passati = int(totale) - max(0, int(math.ceil(resta)))
         meta = passati / 60.0
         ora = pygame.time.get_ticks()
