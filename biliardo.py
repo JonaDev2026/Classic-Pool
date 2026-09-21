@@ -4767,8 +4767,9 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
         via = (colpita.pos - fine)
         if via.length_squared() > 1e-6:
             via = via.normalize()
+            lunga = RIGA_MIRA * doti_di(partita.turno)[0] / 100.0
             pygame.draw.aaline(sc, (255, 210, 120),
-                               colpita.pos, colpita.pos + via * 90)
+                               colpita.pos, colpita.pos + via * lunga)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
 
@@ -5347,6 +5348,50 @@ STECCA_ORA = [0]        # quale stecca in questa partita, quando e' a caso
 STECCA_AVV = [1]        # e quella dell'avversario: sempre un'altra
 
 
+def _doti_stecche():
+    """Le tre doti di ogni stecca, in percentuale: mira (quanto e' lunga
+    la riga della palla colpita), potenza e effetto. Salgono piano dalla
+    prima all'ultima; ogni stecca ha il suo carattere: una tira piu'
+    lungo ma meno forte, una e' piu' forte ma con meno effetto..."""
+    doti = []
+    ultima = max(1, len(STECCHE) - 1)
+    for i in range(len(STECCHE)):
+        t = i / float(ultima)
+        mira = 89 + 111 * t
+        pot = 95 + 15 * t
+        eff = 90 + 28 * t
+        carattere = i % 4 if 0 < i < ultima else 0
+        if carattere == 1:          # mira lunga, un filo meno forte
+            mira, pot = mira + 14, pot - 2
+        elif carattere == 2:        # forte, meno effetto
+            pot, eff = pot + 3, eff - 4
+        elif carattere == 3:        # tanto effetto, mira piu' corta
+            eff, mira = eff + 5, mira - 9
+        doti.append((int(round(mira)), int(round(pot)), int(round(eff))))
+    # l'ultima, la leggenda, resta la migliore in tutto
+    top = doti[-1]
+    return [tuple(min(v, top[k]) for k, v in enumerate(d)) for d in doti]
+
+
+DOTI = _doti_stecche()
+RIGA_MIRA = 90          # la riga della palla colpita, al 100 per cento
+
+
+def stecche_sbloccate():
+    """Quante stecche hai: la prima c'e' sempre, poi una per ogni
+    incontro vinto nel torneo."""
+    return max(1, min(len(STECCHE), 1 + int(CFG.get("stecche_vinte", 0))))
+
+
+def doti_di(chi):
+    """Le doti della stecca di chi tira."""
+    st = stecca_di(chi)
+    for i, q in enumerate(STECCHE):
+        if q is st:
+            return DOTI[i]
+    return DOTI[0]
+
+
 def stecca_di(chi):
     """La stecca di chi tira: il giocatore uno ha la sua, l'altro una
     diversa, cosi' si vede subito chi ha in mano la stecca."""
@@ -5355,12 +5400,15 @@ def stecca_di(chi):
     return stecca_scelta()
 
 
-def sorteggia_stecca_avv():
-    """A ogni partita l'avversario pesca una stecca, mai la tua."""
+def sorteggia_stecca_avv(tutte=True):
+    """A ogni partita l'avversario pesca una stecca, mai la tua. Il
+    computer puo' avere qualunque stecca; il secondo giocatore vero solo
+    quelle gia' sbloccate."""
     mia = CFG.get("stecca", 0)
     if mia < 0:
         mia = STECCA_ORA[0]
-    altre = [i for i in range(len(STECCHE)) if i != mia]
+    fino = len(STECCHE) if tutte else stecche_sbloccate()
+    altre = [i for i in range(fino) if i != mia] or [mia]
     if altre:
         STECCA_AVV[0] = random.choice(altre)
 
@@ -5371,6 +5419,7 @@ def stecca_scelta():
         i = STECCA_ORA[0]
     if not 0 <= i < len(STECCHE):
         i = 0
+    i = min(i, stecche_sbloccate() - 1)
     return STECCHE[i]
 
 
@@ -5379,7 +5428,7 @@ def sorteggia_tavolo():
     a ogni partita: panno, legno e stecca. Non nel torneo, che il tavolo
     se lo porta da solo."""
     if STECCHE:
-        STECCA_ORA[0] = random.randrange(len(STECCHE))
+        STECCA_ORA[0] = random.randrange(stecche_sbloccate())
     i_panno = (random.randrange(len(PANNI)) if PANNI
                else 0) if CFG["panno"] < 0 else CFG["panno"]
     i_bordo = (random.randrange(len(BORDI)) if BORDI
@@ -8131,6 +8180,20 @@ COMANDI_TESTI = {
 }
 for _l, _d in COMANDI_TESTI.items():
     TESTI.setdefault(_l, {}).update(_d)
+for _l, _d in (
+        ("en", {"unl_title": "New cue unlocked", "st_aim": "Aim",
+                "st_power": "Power", "st_spin": "Spin",
+                "st_count": "%d of %d cues"}),
+        ("it", {"unl_title": "Nuova stecca sbloccata", "st_aim": "Mira",
+                "st_power": "Potenza", "st_spin": "Effetto",
+                "st_count": "%d di %d stecche"}),
+        ("fr", {"unl_title": "Nouvelle queue debloquee", "st_aim": "Visee",
+                "st_power": "Puissance", "st_spin": "Effet",
+                "st_count": "%d sur %d queues"}),
+        ("es", {"unl_title": "Nuevo taco desbloqueado",
+                "st_aim": "Punteria", "st_power": "Potencia",
+                "st_spin": "Efecto", "st_count": "%d de %d tacos"})):
+    TESTI.setdefault(_l, {}).update(_d)
 for _k, _en, _it, _fr, _es in NOMI_STECCHE_55:
     for _l, _v in (("en", _en), ("it", _it), ("fr", _fr), ("es", _es)):
         TESTI.setdefault(_l, {})[_k] = _v
@@ -8156,7 +8219,7 @@ def righe_setting(pagina, blocca_tavolo):
     if pagina == "tavolo":
         righe = [("stecca", T("cue"), T("random")
                   if CFG.get("stecca", 0) < 0
-                  else "%d. %s" % (CFG.get("stecca", 0) + 1,
+                  else "%d. %s" % (STECCHE.index(stecca_scelta()) + 1,
                                    T(stecca_scelta()[0])))]
         tp = tipo_palle()
         if DENTRO_PARTITA[0]:
@@ -8236,11 +8299,10 @@ def cambia_setting(nome, cambia, blocca_tavolo):
              if CFG.get("match", 1) in MATCH else 0)
         CFG["match"] = MATCH[(i + cambia) % len(MATCH)]
     elif nome == "stecca":
-        CFG["stecca"] = CFG.get("stecca", 0) + cambia
-        if CFG["stecca"] >= len(STECCHE):
-            CFG["stecca"] = -1
-        elif CFG["stecca"] < -1:
-            CFG["stecca"] = len(STECCHE) - 1
+        giro = [-1] + list(range(stecche_sbloccate()))
+        ora = CFG.get("stecca", 0)
+        k = giro.index(ora) if ora in giro else len(giro) - 1
+        CFG["stecca"] = giro[(k + cambia) % len(giro)]
     elif nome in ("panno", "bordo") and not blocca_tavolo:
         quanti = max(1, len(PANNI if nome == "panno" else BORDI))
         CFG[nome] = CFG[nome] + cambia
@@ -8448,7 +8510,14 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
             disegna_stecca_su(sc, Vector2(WIN_W // 2 + lung // 2, y),
                               Vector2(1, 0), lung,
                               (1.3 * k, 2.0 * k, 3.0 * k),
-                              STECCHE[CFG["stecca"]])
+                              stecca_scelta())
+            dm, dp, de = DOTI[STECCHE.index(stecca_scelta())]
+            c = FONTS["mini"].render(
+                "%s %d%%     %s %d%%     %s %d%%     -     %s" % (
+                    T("st_aim"), dm, T("st_power"), dp, T("st_spin"), de,
+                    T("st_count") % (stecche_sbloccate(), len(STECCHE))),
+                True, ORO_SCELTA)
+            sc.blit(c, c.get_rect(center=(WIN_W // 2, y + s(26))))
         # e il set di palle, in fila: la bianca e le quindici
         if pagina == "tavolo" and HA_NUMPY and M_FACCIA is not None:
             r_p = s(15)
@@ -8905,6 +8974,61 @@ def torneo(sc, clock, logo):
         TORNEO_TURNO[0] = 0
 
 
+def schermata_sblocco(sc, clock, i):
+    """Hai vinto l'incontro: la stecca nuova, disegnata in grande, col
+    suo numero, il nome e le sue doti."""
+    st = STECCHE[i]
+    doti = DOTI[i]
+    massimi = [max(d[k] for d in DOTI) for k in range(3)]
+    if SUONI.get("menu_apri"):
+        suona_fx("menu_apri")
+    while True:
+        clock.tick(60)
+        for ev in eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            if ev.type == pygame.KEYDOWN and ev.key in (
+                    pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE,
+                    pygame.K_ESCAPE):
+                return "ok"
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                return "ok"
+        sc.blit(fondo(), (0, 0))
+        aiuto_menu(sc)
+        t = FONTS["elegante"].render(tit_el(T("unl_title")), True,
+                                     (240, 240, 244))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(220))))
+        n = FONTS["elegante_voce"].render(
+            "%d. %s" % (i + 1, T(st[0])), True, ORO_SCELTA)
+        sc.blit(n, n.get_rect(center=(WIN_W // 2, s(300))))
+        lung = s(900)
+        k = 1.6 * lung / 145.0 / 2.0
+        disegna_stecca_su(sc, Vector2(WIN_W // 2 + lung // 2, s(390)),
+                          Vector2(1, 0), lung, (1.3 * k, 2.0 * k, 3.0 * k),
+                          st)
+        # le tre doti, con la loro barra
+        largo = s(320)
+        for r, (chiave, v, m) in enumerate(zip(
+                ("st_aim", "st_power", "st_spin"), doti, massimi)):
+            y = s(470) + r * s(44)
+            e = FONTS["font"].render(T(chiave), True, (236, 236, 240))
+            sc.blit(e, e.get_rect(midright=(WIN_W // 2 - largo // 2 - s(20),
+                                            y)))
+            fondo_b = pygame.Rect(WIN_W // 2 - largo // 2, y - s(6),
+                                  largo, s(12))
+            pygame.draw.rect(sc, (30, 40, 36), fondo_b, border_radius=s(6))
+            pieno = fondo_b.copy()
+            pieno.w = max(s(8), int(largo * v / float(m)))
+            pygame.draw.rect(sc, ORO_SCELTA, pieno, border_radius=s(6))
+            pygame.draw.rect(sc, ORO_SOTTO, fondo_b, 1, border_radius=s(6))
+            q = FONTS["font"].render("%d%%" % v, True, ORO_SCELTA)
+            sc.blit(q, q.get_rect(midleft=(fondo_b.right + s(20), y)))
+        c = FONTS["small"].render(
+            T("st_count") % (i + 1, len(STECCHE)), True, ORO_SOTTO)
+        sc.blit(c, c.get_rect(center=(WIN_W // 2, s(620))))
+        presenta()
+
+
 def _torneo(sc, clock, logo, disc_vera, k_t):
     """Il torneo scelto. Il salvataggio e' per torneo: se ne possono
     tenere a meta' anche piu' d'uno."""
@@ -8978,6 +9102,12 @@ def _torneo(sc, clock, logo, disc_vera, k_t):
 
         vinto = (fine == "vinto")
         tab_avanza(tab, vinto)
+        if vinto and stecche_sbloccate() < len(STECCHE):
+            CFG["stecche_vinte"] = int(CFG.get("stecche_vinte", 0)) + 1
+            salva_config()
+            if schermata_sblocco(sc, clock,
+                                 stecche_sbloccate() - 1) == "quit":
+                return "quit"
         if tab["vinte"] > CFG.get("torneo_record", 0):
             CFG["torneo_record"] = tab["vinte"]
             salva_config()
@@ -9060,7 +9190,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
 
     partita = Partita(GIOCO[0])
     applica_palle()             # le palle col set di questo gioco
-    sorteggia_stecca_avv()
+    sorteggia_stecca_avv(cpu is not None)
     if partita.gioco not in (3, 7):          # ai birilli il triangolo non c'e'
         suona_triangolo()
     del CODA_VOCE[:]
@@ -9255,15 +9385,16 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                     carico = False
                     if potenza > 0.02:
                         partita.foto()
-                        partita.cue().vel = dir_tiro * (TIRO_MAX *
-                                                        spinta(potenza))
+                        _, d_pot, d_eff = doti_di(partita.turno)
+                        partita.cue().vel = dir_tiro * (
+                            TIRO_MAX * spinta(potenza) * d_pot / 100.0)
                         for q in partita.palle:
                             q.di_sponda = False
                         stato = {"imbucate": [], "prima": None,
                                  "sponda": False,
                                  "bilia": partita.cue().num,
-                                 "spin_x": partita.spin.x,
-                                 "spin_y": partita.spin.y}
+                                 "spin_x": partita.spin.x * d_eff / 100.0,
+                                 "spin_y": partita.spin.y * d_eff / 100.0}
                         segna(stato, "cue", TIRO_MAX * potenza)
                     potenza = 0.0
 
@@ -9410,15 +9541,16 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                     carico = False
                     if potenza > 0.02:
                         partita.foto()
-                        partita.cue().vel = dir_tiro * (TIRO_MAX *
-                                                        spinta(potenza))
+                        _, d_pot, d_eff = doti_di(partita.turno)
+                        partita.cue().vel = dir_tiro * (
+                            TIRO_MAX * spinta(potenza) * d_pot / 100.0)
                         for q in partita.palle:
                             q.di_sponda = False
                         stato = {"imbucate": [], "prima": None,
                                  "sponda": False,
                                  "bilia": partita.cue().num,
-                                 "spin_x": partita.spin.x,
-                                 "spin_y": partita.spin.y}
+                                 "spin_x": partita.spin.x * d_eff / 100.0,
+                                 "spin_y": partita.spin.y * d_eff / 100.0}
                         segna(stato, "cue", TIRO_MAX * potenza)
                     potenza = 0.0
             else:
