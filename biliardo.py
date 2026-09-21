@@ -3558,6 +3558,7 @@ TROFEO_GIOCO = {0: "trofeo_8ball", 1: "trofeo_9ball", 5: "trofeo_10ball",
 
 
 TROFEO_VISTA = [None]   # T sul tabellone: si girano tutti i trofei
+TASTO_TROFEI = False    # True per riaccendere T sul tabellone
 
 
 def trofeo_del_gioco(riserva=0):
@@ -3822,7 +3823,7 @@ def schermata_tabellone(sc, clock, logo, tab, titolo, sotto, voci, chiavi,
                 if ev.key == pygame.K_ESCAPE:
                     TROFEO_VISTA[0] = None
                     return chiavi[-1]
-                if ev.key == pygame.K_t and TROFEI:
+                if ev.key == pygame.K_t and TROFEI and TASTO_TROFEI:
                     # T: si guardano tutti i trofei, uno alla volta
                     ora = TROFEO_VISTA[0]
                     TROFEO_VISTA[0] = (trofeo_del_gioco() + 1 if ora is None
