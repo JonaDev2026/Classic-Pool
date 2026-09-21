@@ -10668,10 +10668,11 @@ def schermata_vetrina(sc, clock, logo, negozio=True):
 PREMI_TORNEO = (50, 75, 100, 150, 200, 300)     # incontro vinto, per turno
 PREMIO_CAMPIONE = 150
 # il premio a chi vince il torneo, oltre ai turni: piu' e' difficile il
-# gioco, piu' si prende. Pool e blackball 3.000, snooker e piramide
-# 7.000, birilli 10.000.
-PREMIO_TORNEO = {0: 3000, 1: 3000, 5: 3000, 4: 3000,
-                 2: 7000, 6: 7000, 8: 7000,
+# gioco, piu' si prende. Piramide 3.000, pool e blackball 5.000,
+# snooker 7.000, birilli 10.000.
+PREMIO_TORNEO = {8: 3000,
+                 0: 5000, 1: 5000, 5: 5000, 4: 5000,
+                 2: 7000, 6: 7000,
                  3: 10000, 7: 10000}
 VERDE_SOLDI = (107, 195, 159)    # i dollari, verde come quelli di GTA
 
