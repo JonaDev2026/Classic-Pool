@@ -11034,13 +11034,27 @@ def presenta():
 
         def allunga(pezzo, verso_x, misura_b):
             """Il bordo della scena, ammorbidito (la grana del fondo
-            allungata farebbe delle righe) e steso sulla banda."""
-            w, h = pezzo.get_size()
+            allungata farebbe delle righe) e steso sulla banda. Fatto coi
+            numeri e non con smoothscale, che su certi Mac con misure di
+            un pixel restituisce nero."""
+            if not HA_NUMPY:
+                return pygame.transform.scale(pezzo, misura_b)
+            a = pygame.surfarray.array3d(pezzo).astype(np.float32)
             if verso_x:
-                q = pygame.transform.smoothscale(pezzo, (1, max(1, h // 6)))
+                linea = a.mean(axis=0)              # una colonna: (h, 3)
             else:
-                q = pygame.transform.smoothscale(pezzo, (max(1, w // 6), 1))
-            return pygame.transform.smoothscale(q, misura_b)
+                linea = a.mean(axis=1)              # una riga: (w, 3)
+            n = max(1, len(linea) // 60)
+            nucleo = np.ones(2 * n + 1, np.float32) / (2 * n + 1)
+            piena = np.pad(linea, ((n, n), (0, 0)), mode="edge")
+            liscia = np.stack([np.convolve(piena[:, c], nucleo, "valid")
+                               for c in range(3)], axis=1)
+            liscia = np.clip(liscia, 0, 255).astype(np.uint8)
+            if verso_x:
+                q = pygame.surfarray.make_surface(liscia[None, :, :])
+            else:
+                q = pygame.surfarray.make_surface(liscia[:, None, :])
+            return pygame.transform.scale(q, misura_b)
 
         if ox > 0:
             SCHERMO.blit(allunga(grande.subsurface((0, 0, 4, sh)), True,
@@ -11071,9 +11085,7 @@ def portafoglio(sc, k=1.0):
     except (KeyError, TypeError, ValueError):
         return
     if abs(k - 1.0) > 0.001:
-        t = pygame.transform.smoothscale(
-            t, (max(1, int(t.get_width() * k)), max(1, int(t.get_height()
-                                                             * k))))
+        t = pygame.transform.rotozoom(t, 0, k)
     w = sc.get_width()
     sc.blit(t, t.get_rect(topright=(w - int(s(24) * k), int(s(12) * k))))
 
