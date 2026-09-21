@@ -3305,6 +3305,7 @@ TORNEO_PALLE = {
     2: {"pool": "set_marmo_chiaro"},
     3: {"pool": "set_zigzag"},
     4: {"pool": "set_retro"},
+    5: {"pool": "set_scacchi"},
 }
 PALLE_TORNEO = [None]   # il set del tavolo del torneo di adesso
 
