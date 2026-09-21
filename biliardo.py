@@ -5911,6 +5911,28 @@ def disegna_spin(sc, spin, x, y, r=19):
     sc.blit(s, s.get_rect(center=(x, y)))
 
 
+def barra_precisione(sc, x, y, w, h, val):
+    """La barra della precisione: piena col gesso fresco, cala tiro dopo
+    tiro finche' non lo ridai. Viola, come la mira nel negozio."""
+    q = pygame.Surface((w * INGR, h * INGR), pygame.SRCALPHA)
+    r = q.get_rect()
+    pygame.draw.rect(q, (42, 44, 50), r, border_radius=4 * INGR)
+    if val > 0:
+        alta = int((h - 4) * val) * INGR
+        pygame.draw.rect(q, COL_DOTI[0], (2 * INGR, r.h - 2 * INGR - alta,
+                                          (w - 4) * INGR, alta),
+                         border_radius=3 * INGR)
+    pygame.draw.rect(q, (110, 112, 120), r, width=INGR,
+                     border_radius=4 * INGR)
+    sc.blit(pygame.transform.smoothscale(q, (w, h)), (x, y))
+
+
+def scritta_in_piedi(sc, testo, font, col, cx, cy):
+    """Una scritta girata in verticale, che si legge dal basso in alto."""
+    t = pygame.transform.rotate(font.render(testo, True, col), 90)
+    sc.blit(t, t.get_rect(center=(int(cx), int(cy))))
+
+
 def barra_potenza(sc, x, y, w, h, val, su=False):
     """La barra della potenza. Con su=True si riempie dal basso verso
     l'alto, com'e' naturale quando sta in piedi di lato."""
@@ -6247,10 +6269,18 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
     col_et = TESTO_OPACO
     alto_barra = s(190)
     y_barra = (ALTO + BASSO) // 2 - alto_barra // 2
-    lab = mini.render(T("power"), True, col_et)
-    sc.blit(lab, lab.get_rect(center=(x_lato, y_barra - s(14))))
-    barra_potenza(sc, x_lato - s(6), y_barra, s(12), alto_barra,
+    # due barre una accanto all'altra, ognuna con la sua scritta in piedi
+    # sulla sinistra: la potenza e la precisione (il gesso sulla stecca)
+    x_pot, x_pre = x_lato - s(22), x_lato + s(16)
+    scritta_in_piedi(sc, T("power"), mini, col_et, x_pot - s(9),
+                     y_barra + alto_barra // 2)
+    barra_potenza(sc, x_pot, y_barra, s(12), alto_barra,
                   potenza if attivo else 0.0, su=True)
+    scritta_in_piedi(sc, T("precision"), mini, col_et, x_pre - s(9),
+                     y_barra + alto_barra // 2)
+    prec = 0.4 + 0.6 * (GESSO[gi] - GESSO_MIN) / (1.0 - GESSO_MIN)
+    barra_precisione(sc, x_pre, y_barra, s(12), alto_barra,
+                     max(0.0, min(1.0, prec)))
     y_spin = y_barra + alto_barra + s(50)
     disegna_spin(sc, partita.spin if attivo else Vector2(0, 0), x_lato,
                  y_spin, s(19))
@@ -8800,6 +8830,7 @@ for _l, _d in (
                 "st_count": "%d of %d cues", "chalk": "CHALK",
                 "k_chalk": "Chalk the cue", "shop": "Shop", "games": "Games",
                 "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Keyboard",
+                "precision": "PRECISION",
                 "wallet": "Wallet: %s", "buy": "Buy", "use": "Use",
                 "in_use": "In use", "chalk_row": "Chalk",
                 "buy_chalk": "Buy chalk", "no_money": "Not enough money",
@@ -8821,6 +8852,7 @@ for _l, _d in (
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
                 "k_chalk": "Gesso sulla stecca", "shop": "Negozio",
                 "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Tastiera",
+                "precision": "PRECISIONE",
                 "games": "Giochi",
                 "wallet": "Portafoglio: %s", "buy": "Compra", "use": "Usa",
                 "in_use": "In uso", "chalk_row": "Gessetto",
@@ -8844,6 +8876,7 @@ for _l, _d in (
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
                 "k_chalk": "Craie sur la queue", "shop": "Boutique",
                 "p_mouse": "Souris", "p_pad": "Manette", "p_tastiera": "Clavier",
+                "precision": "PRECISION",
                 "games": "Jeux",
                 "wallet": "Porte-monnaie : %s", "buy": "Acheter",
                 "use": "Utiliser", "in_use": "Utilisee",
@@ -8869,6 +8902,7 @@ for _l, _d in (
                 "chalk": "TIZA", "k_chalk": "Tiza en el taco",
                 "shop": "Tienda", "wallet": "Cartera: %s", "buy": "Comprar",
                 "p_mouse": "Raton", "p_pad": "Mando", "p_tastiera": "Teclado",
+                "precision": "PRECISION",
                 "games": "Juegos",
                 "use": "Usar", "in_use": "En uso", "chalk_row": "Tiza",
                 "buy_chalk": "Comprar tiza",
