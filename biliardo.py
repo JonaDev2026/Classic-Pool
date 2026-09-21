@@ -2194,7 +2194,24 @@ def messaggio_ora(partita):
 class Partita:
     def __init__(self, gioco=0):
         self.gioco = gioco              # 0 palla 8, 1 palla 9
+        # tiri fatti e tiri a segno, per tutto il match
+        self.tiri = [0, 0]
+        self.segno = [0, 0]
         self.reset()
+
+    def conta_tiro(self, chi, prima):
+        """Dopo ogni tiro: e' a segno se non e' fallo e hai imbucato, o
+        fatto punti, o tieni il tavolo, o hai vinto."""
+        if chi not in (0, 1):
+            return
+        self.tiri[chi] += 1
+        punti0, mie0 = prima
+        buono = (not self.ultimo_fallo and
+                 (self.punti[chi] > punti0 or len(self.mie[chi]) > mie0 or
+                  (self.turno == chi and not self.finita) or
+                  self.vincitore == chi))
+        if buono:
+            self.segno[chi] += 1
 
     def reset(self):
         if self.gioco not in (3, 7):
@@ -6829,6 +6846,14 @@ def fianco(sc, partita, gi, x_lato, potenza, mini):
         q = mini.render("%d%%" % int(round(cubo * 100)), True,
                         ORO_SCELTA if pronto else (232, 96, 72))
         sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(124))))
+    # sotto il gesso: quanti tiri a segno su quanti tirati
+    lab = mini.render(T("accuracy"), True, col_et)
+    sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(152))))
+    tiri = partita.tiri[gi] if hasattr(partita, "tiri") else 0
+    fatti = partita.segno[gi] if hasattr(partita, "segno") else 0
+    val = ("%d%%" % int(round(100.0 * fatti / tiri))) if tiri else "-"
+    q = mini.render(val, True, ORO_SCELTA)
+    sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(168))))
 
 
 # ------------------------------------------------------- musica ed effetti
@@ -9339,7 +9364,7 @@ for _l, _d in (
                 "st_count": "%d of %d cues", "chalk": "CHALK",
                 "k_chalk": "Chalk the cue", "shop": "Shop", "games": "Games",
                 "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Keyboard",
-                "precision": "PRECISION",
+                "precision": "PRECISION", "accuracy": "ACCURACY",
                 "wallet": "Wallet: %s", "buy": "Buy", "use": "Use",
                 "in_use": "In use", "chalk_row": "Chalk",
                 "buy_chalk": "Buy chalk", "no_money": "Not enough money",
@@ -9361,7 +9386,7 @@ for _l, _d in (
                 "st_count": "%d di %d stecche", "chalk": "GESSO",
                 "k_chalk": "Gesso sulla stecca", "shop": "Negozio",
                 "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Tastiera",
-                "precision": "PRECISIONE",
+                "precision": "PRECISIONE", "accuracy": "A SEGNO",
                 "games": "Giochi",
                 "wallet": "Portafoglio: %s", "buy": "Compra", "use": "Usa",
                 "in_use": "In uso", "chalk_row": "Gessetto",
@@ -9385,7 +9410,7 @@ for _l, _d in (
                 "st_count": "%d sur %d queues", "chalk": "CRAIE",
                 "k_chalk": "Craie sur la queue", "shop": "Boutique",
                 "p_mouse": "Souris", "p_pad": "Manette", "p_tastiera": "Clavier",
-                "precision": "PRECISION",
+                "precision": "PRECISION", "accuracy": "REUSSITE",
                 "games": "Jeux",
                 "wallet": "Porte-monnaie : %s", "buy": "Acheter",
                 "use": "Utiliser", "in_use": "Utilisee",
@@ -9411,7 +9436,7 @@ for _l, _d in (
                 "chalk": "TIZA", "k_chalk": "Tiza en el taco",
                 "shop": "Tienda", "wallet": "Cartera: %s", "buy": "Comprar",
                 "p_mouse": "Raton", "p_pad": "Mando", "p_tastiera": "Teclado",
-                "precision": "PRECISION",
+                "precision": "PRECISION", "accuracy": "ACIERTO",
                 "games": "Juegos",
                 "use": "Usar", "in_use": "En uso", "chalk_row": "Tiza",
                 "buy_chalk": "Comprar tiza",
@@ -11518,7 +11543,11 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
             suona_eventi(stato)
             if tutto_fermo(partita.palle):
                 chi_era = partita.turno
+                prima = (partita.punti[chi_era] if chi_era in (0, 1) else 0,
+                         len(partita.mie[chi_era]) if chi_era in (0, 1)
+                         else 0)
                 partita.valuta(stato)
+                partita.conta_tiro(chi_era, prima)
                 partita.delusione(stato)
                 suona_festa(partita.festa)
                 if partita.turno != chi_era and not partita.finita:
