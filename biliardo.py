@@ -10339,6 +10339,36 @@ def scritta_quadrante(largo):
     return QUADRANTE[chiave]
 
 
+def arco_quadrante(lato):
+    """STANDARD TIME piegato lungo il cerchio sotto il perno, come sui
+    vecchi orologi da muro. Fatto grande e ridotto, se no a questa
+    misura le lettere si impastano."""
+    chiave = ("arco", lato)
+    if chiave not in QUADRANTE:
+        G = 4
+        D = lato * G
+        sup = pygame.Surface((D, D), pygame.SRCALPHA)
+        f = pygame.font.SysFont("georgia,baskerville,timesnewroman,"
+                                "liberationserif,dejavuserif",
+                                max(8, int(D * 0.052)), bold=True)
+        testo = "STANDARD TIME"
+        raggio = D * 0.225
+        passo = 11.5                  # gradi fra una lettera e l'altra
+        n = len(testo)
+        for i, ch in enumerate(testo):
+            if ch == " ":
+                continue
+            # da sinistra a destra lungo l'arco di sotto
+            th = 90 + passo * ((n - 1) / 2.0 - i)
+            l = f.render(ch, True, (74, 46, 24))
+            l = pygame.transform.rotozoom(l, -(th - 90), 1.0)
+            x = D / 2 + raggio * math.cos(math.radians(th))
+            y = D / 2 + raggio * math.sin(math.radians(th))
+            sup.blit(l, l.get_rect(center=(int(x), int(y))))
+        QUADRANTE[chiave] = pygame.transform.smoothscale(sup, (lato, lato))
+    return QUADRANTE[chiave]
+
+
 def quadrante(lato):
     """Il quadrante dell'orologio in PNG (biliardo_gfx/orologio.png),
     portato a misura. Se non c'e' si disegna quello d'oro."""
@@ -10368,7 +10398,10 @@ def disegna_orologio(sc, resta, totale):
         sc.blit(img, img.get_rect(center=(cx, cy)))
         scr = scritta_quadrante(int(lato * 0.5))
         if scr is not None:
-            sc.blit(scr, scr.get_rect(center=(cx, cy + int(lato * 0.19))))
+            sc.blit(scr, scr.get_rect(center=(cx, cy - int(lato * 0.17))))
+        arco = arco_quadrante(lato)
+        if arco is not None:
+            sc.blit(arco, arco.get_rect(center=(cx, cy)))
         passati = int(totale) - max(0, int(math.ceil(resta)))
         meta = passati / 60.0
         ora = pygame.time.get_ticks()
@@ -10390,19 +10423,22 @@ def disegna_orologio(sc, resta, totale):
         r = lato / 2.0
         col = (58, 34, 18)
         P = lambda t, w: (cx + ux * r * t + px * w, cy + uy * r * t + py * w)
-        # fusto sottile come un capello, una piccola lancia in punta,
-        # il contrappeso dietro e il perno: niente di piu'
-        pygame.draw.aaline(sc, col, P(-0.18, 0), P(0.62, 0))
-        pygame.draw.aaline(sc, col, P(-0.18, 0.5), P(0.62, 0.5))
-        wl = max(1.2, r * 0.035)
-        lancia = [P(0.60, 0), P(0.66, wl), P(0.74, 0), P(0.66, -wl)]
-        pygame.draw.polygon(sc, col, lancia)
-        pygame.draw.aalines(sc, col, True, lancia)
-        coda = P(-0.18, 0)
-        pygame.draw.circle(sc, col, (int(round(coda[0])), int(round(coda[1]))),
-                           max(1, int(round(r * 0.035))))
+        # come la lancetta dei minuti dei vecchi orologi: fusto fine che
+        # arriva a punta oltre una piccola losanga, e dietro la coda corta
+        # col suo ricciolo a picca
+        col = (40, 26, 16)
+        pygame.draw.aaline(sc, col, P(-0.20, 0), P(0.80, 0))
+        pygame.draw.aaline(sc, col, P(-0.20, 0.45), P(0.74, 0.45))
+        wl = max(1.3, r * 0.04)
+        losanga = [P(0.52, 0), P(0.60, wl), P(0.68, 0), P(0.60, -wl)]
+        pygame.draw.polygon(sc, col, losanga)
+        pygame.draw.aalines(sc, col, True, losanga)
+        wp = max(1.2, r * 0.045)
+        picca = [P(-0.16, 0), P(-0.22, wp), P(-0.30, 0), P(-0.22, -wp)]
+        pygame.draw.polygon(sc, col, picca)
+        pygame.draw.aalines(sc, col, True, picca)
         pygame.draw.circle(sc, col, (int(round(cx)), int(round(cy))),
-                           max(2, int(round(r * 0.04))))
+                           max(2, int(round(r * 0.045))))
         return
     r = lato // 2 - s(2)
     oro, oro_s = ORO_SCELTA, (150, 118, 52)
