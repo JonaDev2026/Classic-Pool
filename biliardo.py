@@ -5001,16 +5001,26 @@ PROVA = [False]         # F3: fa vedere dove il gioco crede che sia il tavolo
 # Prove in partita: T gira i sei tavoli del torneo, B i set di palle.
 # In alto a sinistra si legge per un attimo cosa c'e' adesso.
 TAV_PROVA = [None]
+BORDO_PROVA = [None]    # R: le cornici sul panno di adesso
+BORDO_ORA = [0]         # la cornice che si sta disegnando
 SCRITTA_PROVA = ["", 0]
 
 
 def prova_tasto(key):
     """T e B in partita. Ritorna True se il tasto era suo."""
-    if not DENTRO_PARTITA[0] or key not in (pygame.K_t, pygame.K_b):
+    if not DENTRO_PARTITA[0] or key not in (pygame.K_t, pygame.K_b,
+                                            pygame.K_r):
         return False
-    if key == pygame.K_t:
+    if key == pygame.K_r:
+        if not BORDI:
+            return True
+        k = (BORDO_ORA[0] + 1) % len(BORDI)
+        BORDO_PROVA[0] = k
+        testo = "Frame: %s" % os.path.basename(BORDI[k][1]).rsplit(".", 1)[0]
+    elif key == pygame.K_t:
         k = 0 if TAV_PROVA[0] is None else (TAV_PROVA[0] + 1) % 6
         TAV_PROVA[0] = k
+        BORDO_PROVA[0] = None
         pa, le = TORNEO_SEI[k]
         testo = "Table %d: %s + %s" % (k + 1, pa.rsplit(".", 1)[0],
                                        le.rsplit(".", 1)[0])
@@ -10687,6 +10697,7 @@ def gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     """Una partita, e uscendo silenzio: qualunque strada si prenda per
     lasciare il tavolo, il pubblico e l'arbitro si fermano."""
     DENTRO_PARTITA[0] = True
+    TAV_PROVA[0] = BORDO_PROVA[0] = None    # le prove valgono una partita
     PALLE_VISTA[0] = None
     misura_palle(GIOCO[0])
     try:
@@ -11231,6 +11242,9 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
         if TAV_PROVA[0] is not None:
             i_panno, i_bordo = tavolo_fisso(0, TAV_PROVA[0] + 1) or \
                 (i_panno, i_bordo)
+        if BORDO_PROVA[0] is not None:
+            i_bordo = BORDO_PROVA[0]
+        BORDO_ORA[0] = i_bordo
         disegna_tavolo(sc, i_panno, i_bordo, gioco=partita.gioco)
 
         for bir in BIRILLI:
