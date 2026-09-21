@@ -5817,7 +5817,10 @@ def icona_gesso(lato, tipo="blu"):
 
 def stecca_di(chi):
     """La stecca di chi tira: il giocatore uno ha la sua, l'altro una
-    diversa, cosi' si vede subito chi ha in mano la stecca."""
+    diversa, cosi' si vede subito chi ha in mano la stecca. In due sullo
+    stesso computer si gioca alla buona: la stecca base per tutti e due."""
+    if GESSO_INF[0]:
+        return STECCHE[0]
     if chi == 1 and 0 <= STECCA_AVV[0] < len(STECCHE):
         return STECCHE[STECCA_AVV[0]]
     return stecca_scelta()
@@ -9307,7 +9310,8 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
     righe = []
     for gi in ((0,) if contro_cpu else (0, 1)):
         righe += [("nome", gi, gi), ("band", gi, gi)]
-        if libera:
+        if libera and contro_cpu:
+            # in due si gioca alla buona: la stecca base per tutti e due
             righe.append(("stecca", gi, gi))
     if contro_cpu and libera:
         righe.append(("liv", 1, 1))
