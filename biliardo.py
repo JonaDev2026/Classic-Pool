@@ -974,6 +974,13 @@ def scelta_palle(tipo):
         d = {"pool": int(d) if isinstance(d, int) else 0}
         CFG["palle"] = d
     elenco = elenco_set(tipo)
+    fisso = PALLE_TORNEO[0] if "PALLE_TORNEO" in globals() else None
+    if isinstance(fisso, dict):
+        fisso = fisso.get(tipo)
+    if fisso and DENTRO_PARTITA[0]:
+        for i, x in enumerate(elenco):
+            if x[0] == fisso:
+                return i
     k = d.get(tipo, 0)
     return k if isinstance(k, int) and 0 <= k < len(elenco) else 0
 
@@ -3291,6 +3298,20 @@ TORNEO_SEI = (
     ("antracite.png", "cocco.png"),
 )
 TORNEO_TAVOLI = {disc: TORNEO_SEI for disc in range(9)}
+# Le palle di ogni tavolo del torneo: il nome del set, uguale per tutti i
+# giochi, o un dizionario gioco -> set. Quelli che mancano: le sue.
+TORNEO_PALLE = {
+    1: "set_classico",
+}
+PALLE_TORNEO = [None]   # il set del tavolo del torneo di adesso
+
+
+def palle_del_tavolo(panno, bordo):
+    """Il set di palle del tavolo del torneo con quel panno e quel legno."""
+    for k in range(len(TORNEO_SEI)):
+        if tavolo_fisso(0, k + 1) == (panno, bordo):
+            return TORNEO_PALLE.get(k + 1)
+    return None
 
 
 def indice_di(elenco, nome_file):
@@ -4990,6 +5011,7 @@ def prova_tasto(key):
         tp = tipo_palle()
         elenco = elenco_set(tp)
         k = (scelta_palle(tp) + 1) % len(elenco)
+        PALLE_TORNEO[0] = None      # in prova comanda B
         d = dict(CFG.get("palle") or {})
         d[tp] = k
         CFG["palle"] = d
@@ -10687,6 +10709,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     musica_gioco()
 
     partita = Partita(GIOCO[0])
+    PALLE_TORNEO[0] = palle_del_tavolo(i_panno, i_bordo) if torneo else None
     applica_palle()             # le palle col set di questo gioco
     sorteggia_stecca_avv(cpu is not None)
     GESSO[:] = [1.0, 1.0]
