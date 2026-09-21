@@ -9217,30 +9217,31 @@ def _via_nomi(nomi, bandiere, livello, contro_cpu):
 
 
 def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
-    """Chi gioca. Per ognuno il nome, la bandiera e la stecca; contro il
-    computer si scrive un nome solo e sotto c'e' il livello. Nella partita
-    libera si sceglie anche quanti frame. Nel torneo solo nome e bandiera:
-    il resto lo decide il torneo. Tutto resta salvato, cosi' la volta
-    dopo basta premere invio."""
+    """Chi gioca, su due colonne: a sinistra il giocatore 1, a destra il
+    giocatore 2 (o il livello del computer). Sotto, in mezzo, quello che
+    vale per tutti e due: il gessetto e quanti frame. In fondo Comincia e
+    Indietro, uno accanto all'altro. Su e giu' passano da una riga
+    all'altra, anche da una colonna all'altra; destra e sinistra cambiano
+    la scelta. Nel torneo solo nome e bandiera: il resto lo decide lui."""
     nomi = [CFG["nomi"][0], CFG["nomi"][1]]
     paesi = list(CFG.get("bandiere", ["it", "gb"]))[:2]
     while len(paesi) < 2:
         paesi.append("")
     livello = max(0, min(len(LIVELLI) - 1, CFG.get("livello", 1)))
     tutte = elenco_bandiere()
-    scrivibili = 1 if contro_cpu else 2      # contro il computer, un nome solo
     libera = scegli_livello                  # partita libera, non torneo
+    # (tipo, giocatore, dove): dove e' 0 colonna sinistra, 1 destra,
+    # "c" in mezzo, "b" i bottoni in fondo
     righe = []
-    for gi in range(scrivibili):
-        righe += [("nome", gi), ("band", gi)]
+    for gi in ((0,) if contro_cpu else (0, 1)):
+        righe += [("nome", gi, gi), ("band", gi, gi)]
         if libera:
-            righe.append(("stecca", gi))
+            righe.append(("stecca", gi, gi))
     if contro_cpu and libera:
-        righe.append(("liv", 0))
+        righe.append(("liv", 1, 1))
     if libera:
-        righe.append(("gesso", 0))
-        righe.append(("match", 0))
-    righe += [("via", 0), ("indietro", 0)]
+        righe += [("gesso", 0, "c"), ("match", 0, "c")]
+    righe += [("via", 0, "b"), ("indietro", 0, "b")]
     n_voci = len(righe)
     sel = 0
     rett = []
@@ -9249,7 +9250,7 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
 
     def gira(riga, passo):
         nonlocal livello
-        tipo, gi = riga
+        tipo, gi, _ = riga
         if tipo == "band" and tutte:
             try:
                 k = tutte.index(paesi[gi])
@@ -9276,11 +9277,38 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
             return T("random")
         return "%d. %s" % (i + 1, T(STECCHE[i][0]))
 
+    def via():
+        return _via_nomi(nomi, paesi, livello, contro_cpu)
+
+    # dove stanno le cose
+    passo = s(52)
+    y_col = s(424)
+    larga = s(540)
+    x_col = (WIN_W // 2 - s(300), WIN_W // 2 + s(300))
+
+    def cella(i):
+        tipo, gi, dove = righe[i]
+        if dove in (0, 1):
+            k = [j for j, r in enumerate(righe) if r[2] == dove].index(i)
+            return pygame.Rect(x_col[dove] - larga // 2,
+                               y_col + k * passo - passo // 2 + s(3),
+                               larga, passo - s(6))
+        if dove == "c":
+            k = [j for j, r in enumerate(righe) if r[2] == "c"].index(i)
+            n_col = max(len([r for r in righe if r[2] == 0]),
+                        len([r for r in righe if r[2] == 1]))
+            y = y_col + n_col * passo + s(24) + k * passo
+            return pygame.Rect(WIN_W // 2 - s(320), y - passo // 2 + s(3),
+                               s(640), passo - s(6))
+        k = 0 if tipo == "via" else 1
+        return pygame.Rect(WIN_W // 2 - s(210) + k * s(220), s(744),
+                           s(200), s(42))
+
     while True:
         clock.tick(60)
         mouse = mouse_gioco()
-        font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
-        tipo_sel, gi_sel = righe[sel]
+        font, small = FONTS["font"], FONTS["small"]
+        tipo_sel, gi_sel, dove_sel = righe[sel]
         scrive = (tipo_sel == "nome")
 
         for ev in eventi():
@@ -9290,15 +9318,23 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                 if ev.key == pygame.K_ESCAPE:
                     return "menu"
                 if ev.key in (pygame.K_DOWN, pygame.K_TAB):
-                    sel = (sel + 1) % n_voci
+                    if dove_sel != "b":
+                        sel = min(n_voci - 2, sel + 1)
                 elif ev.key == pygame.K_UP:
-                    sel = (sel - 1) % n_voci
+                    if dove_sel == "b":
+                        sel = n_voci - 3
+                    else:
+                        sel = max(0, sel - 1)
                 elif ev.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                    gira(righe[sel], -1 if ev.key == pygame.K_LEFT else 1)
+                    passo_k = -1 if ev.key == pygame.K_LEFT else 1
+                    if dove_sel == "b":
+                        sel = n_voci - 2 if passo_k < 0 else n_voci - 1
+                    else:
+                        gira(righe[sel], passo_k)
                 elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     if tipo_sel == "indietro":
                         return "menu"
-                    return _via_nomi(nomi, paesi, livello, contro_cpu)
+                    return via()
                 elif ev.key == pygame.K_BACKSPACE and scrive:
                     nomi[gi_sel] = nomi[gi_sel][:-1]
                 elif scrive and ev.unicode and ev.unicode.isprintable():
@@ -9309,62 +9345,93 @@ def schermata_nomi(sc, clock, logo, contro_cpu=False, scegli_livello=True):
                     if not r.collidepoint(mouse):
                         continue
                     sel = i
-                    # a sinistra del valore si torna indietro, a destra avanti
-                    passo = -1 if mouse[0] < WIN_W // 2 + VALORE_X else 1
                     tipo = righe[i][0]
                     if tipo == "via":
-                        return _via_nomi(nomi, paesi, livello, contro_cpu)
+                        return via()
                     if tipo == "indietro":
                         return "menu"
-                    gira(righe[i], passo)
+                    gira(righe[i], -1 if mouse[0] < r.right - s(140) else 1)
 
         sfondo_menu(sc, logo)
-        tante = n_voci > 7
-        y_tit = s(310) if tante else s(320)
         t = FONTS["elegante"].render(tit_el(T("names")), True, (240, 240, 244))
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, y_tit)))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(318))))
         t = small.render(T("sub_cpu") if contro_cpu and libera
                          else T("sub_names"), True, ORO_SOTTO)
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, y_tit + s(46))))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(364))))
 
-        voci, ante = [], {}
-        for i, (tipo, gi) in enumerate(righe):
+        tic_menu(tuple(r[0] + str(r[1]) for r in righe), sel)
+        rett = []
+        for i, (tipo, gi, dove) in enumerate(righe):
+            r = cella(i)
+            rett.append(r)
+            acceso = (i == sel)
+            if dove == "b":
+                q = pygame.Surface(r.size, pygame.SRCALPHA)
+                q.fill((255, 255, 255, 26) if acceso else (255, 255, 255, 10))
+                sc.blit(q, r)
+                if acceso:
+                    pygame.draw.rect(sc, COL_GIOC[0], (r.x, r.y, 3, r.h))
+                col = (255, 255, 255) if acceso else (190, 196, 208)
+                tv = FONTS["elegante_voce"].render(
+                    tit_el(T("start") if tipo == "via" else T("back")),
+                    True, col)
+                sc.blit(tv, tv.get_rect(center=r.center))
+                continue
+            if acceso:
+                q = pygame.Surface(r.size, pygame.SRCALPHA)
+                q.fill((255, 255, 255, 18))
+                sc.blit(q, r)
+            # il colore del giocatore lungo la sua riga del nome, e sulla
+            # riga scelta
             if tipo == "nome":
-                scritto = nomi[gi]
-                if sel == i:
-                    scritto += ("_" if (pygame.time.get_ticks() // 400) % 2
-                                else " ")
-                elif not scritto:
-                    scritto = T("player") % (gi + 1)
-                voci.append((T("player") % (gi + 1), scritto))
-            elif tipo == "band":
-                voci.append((T("flag"), paesi[gi].upper()))
-                ante[i] = bandiera(paesi[gi], s(20))
-            elif tipo == "stecca":
-                voci.append((T("cue"), nome_stecca(gi)))
-            elif tipo == "liv":
-                voci.append((T("level"), T(LIVELLI[livello][0])))
-            elif tipo == "gesso":
-                voci.append((T("chalk_row"), nome_gesso_scelto()))
-            elif tipo == "match":
-                n = CFG.get("match", 1)
-                voci.append((T("match"), T("m_uno") if n <= 1
-                             else T("m_best") % n))
-            elif tipo == "via":
-                voci.append((T("start"), None))
-            else:
-                voci.append((T("back"), None))
-        passo_r = s(36) if n_voci > 9 else s(40) if tante else s(48)
-        rett = disegna_voci(sc, voci, sel, font, small,
-                            s(402) if tante else s(430),
-                            passo_r, frecce=True, ante=ante)
-        # il colore del giocatore sul suo campo, come in partita
-        for i, (tipo, gi) in enumerate(righe):
-            if tipo == "nome":
-                r = rett[i]
                 pygame.draw.rect(sc, COL_GIOC[gi],
-                                 (WIN_W // 2 - RIGA_MEZZO, r.y + s(4),
-                                  max(1, s(3)), r.h - s(8)))
+                                 (r.x, r.y, max(1, s(3)), r.h))
+            elif acceso:
+                pygame.draw.rect(sc, COL_GIOC[0],
+                                 (r.x, r.y, max(1, s(3)), r.h))
+            ante = None
+            if tipo == "nome":
+                et = T("player") % (gi + 1)
+                val = nomi[gi]
+                if acceso:
+                    val += ("_" if (pygame.time.get_ticks() // 400) % 2
+                            else " ")
+                elif not val:
+                    val = T("player") % (gi + 1)
+            elif tipo == "band":
+                et, val = T("flag"), paesi[gi].upper()
+                ante = bandiera(paesi[gi], s(20))
+            elif tipo == "stecca":
+                et, val = T("cue"), nome_stecca(gi)
+            elif tipo == "liv":
+                et, val = T("level"), T(LIVELLI[livello][0])
+            elif tipo == "gesso":
+                et, val = T("chalk_row"), nome_gesso_scelto()
+            else:
+                n = CFG.get("match", 1)
+                et = T("match")
+                val = T("m_uno") if n <= 1 else T("m_best") % n
+            col = (255, 255, 255) if acceso else (196, 200, 208)
+            tv = FONTS["elegante_voce"].render(tit_el(et), True, col)
+            sc.blit(tv, tv.get_rect(midleft=(r.x + s(22), r.centery)))
+            cv = ORO_SCELTA if acceso else ORO_SOTTO
+            xv = r.right - s(140)
+            v = small.render(val, True, cv)
+            if v.get_width() > s(170):
+                v = FONTS["mini"].render(val, True, cv)
+            sc.blit(v, v.get_rect(center=(xv, r.centery)))
+            if acceso and tipo != "nome":
+                for x, segno in ((xv - s(106), "<"), (xv + s(106), ">")):
+                    f = font.render(segno, True, cv)
+                    sc.blit(f, f.get_rect(center=(x, r.centery)))
+            if ante is not None:
+                qa = ante.get_rect(center=(xv - s(150), r.centery))
+                sc.blit(ante, qa)
+                pygame.draw.rect(sc, (70, 74, 84), qa.inflate(s(2), s(2)),
+                                 max(1, s(1)))
+        for i, r in enumerate(rett):
+            if MOUSE_VIVO[0] and r.collidepoint(mouse):
+                sel = i
         presenta()
 
 
