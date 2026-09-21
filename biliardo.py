@@ -1010,7 +1010,7 @@ def _leggi_asset(num):
     return ((k >> 16) & 255, (k >> 8) & 255, k & 255)
 
 
-def scrivi(s, num, font, u, colore=(26, 26, 30)):
+def scrivi(s, num, font, u, colore=(26, 26, 30), stretto=False):
     """Il numero sul tondino bianco. Non si usa quello disegnato dentro la
     PNG: li' e' un carattere pesante, che a questa misura si chiude e
     diventa una macchia. Meglio scriverlo noi con un carattere magro e
@@ -1018,7 +1018,9 @@ def scrivi(s, num, font, u, colore=(26, 26, 30)):
     tondino allo stesso modo."""
     t = font.render(str(num), True, colore)
     tw, th = t.get_size()
-    k = min(82.0 / th, 106.0 / tw)
+    # i numeri a due cifre restano dentro il tondino; con l'anello attorno
+    # (stretto) dentro l'anello
+    k = min(64.0 / th, 64.0 / tw) if stretto else min(82.0 / th, 78.0 / tw)
     t = pygame.transform.smoothscale(
         t, (max(1, int(tw * k)), max(1, int(th * k))))
     s.blit(t, t.get_rect(center=(u, TEX_H // 2)))
@@ -1264,7 +1266,7 @@ def _tessitura(num, font, asset=None):
             pygame.draw.circle(s, tondo, (u, TEX_H // 2), 46)
             if stile == "nere":     # l'anello scuro attorno al numero
                 pygame.draw.circle(s, cifra, (u, TEX_H // 2), 43, 3)
-            scrivi(s, num, font, u, cifra)
+            scrivi(s, num, font, u, cifra, stretto=(stile == "nere"))
     return pygame.surfarray.array3d(s).astype(np.float32)
 
 
