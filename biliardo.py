@@ -3301,7 +3301,9 @@ TORNEO_TAVOLI = {disc: TORNEO_SEI for disc in range(9)}
 # Le palle di ogni tavolo del torneo: il nome del set, uguale per tutti i
 # giochi, o un dizionario gioco -> set. Quelli che mancano: le sue.
 TORNEO_PALLE = {
-    1: "set_classico",
+    1: {"pool": "set_classico", "snooker": "set_classico",
+        "birilli": "set_classico", "piramide": "set_classico",
+        "blackball": "set_pro"},
     2: {"pool": "set_marmo_chiaro"},
     3: {"pool": "set_zigzag"},
     4: {"pool": "set_retro"},
