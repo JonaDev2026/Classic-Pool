@@ -3297,28 +3297,23 @@ TORNEO_SEI = (
     ("viola.png", "fibra-di-carbonio-1.png"),
     ("antracite.png", "cocco.png"),
 )
-TORNEO_TAVOLI = {disc: TORNEO_SEI for disc in range(9)}
+TORNEO_TAVOLI = {disc: list(TORNEO_SEI) for disc in range(9)}
+# blackball: stesso panno, qualche cornice diversa
+TORNEO_TAVOLI[4][1] = ("blu.png", "nero-1.png")
 # Le palle di ogni tavolo del torneo: il nome del set, uguale per tutti i
 # giochi, o un dizionario gioco -> set. Quelli che mancano: le sue.
 TORNEO_PALLE = {
     1: {"pool": "set_classico", "snooker": "set_classico",
         "birilli": "set_classico", "piramide": "set_classico",
         "blackball": "set_pro"},
-    2: {"pool": "set_marmo_chiaro"},
+    2: {"pool": "set_marmo_chiaro", "blackball": "set_club2"},
     3: {"pool": "set_zigzag"},
     4: {"pool": "set_retro"},
     5: {"pool": "set_scacchi"},
     6: {"pool": "set_bersaglio"},
 }
 PALLE_TORNEO = [None]   # il set del tavolo del torneo di adesso
-
-
-def palle_del_tavolo(panno, bordo):
-    """Il set di palle del tavolo del torneo con quel panno e quel legno."""
-    for k in range(len(TORNEO_SEI)):
-        if tavolo_fisso(0, k + 1) == (panno, bordo):
-            return TORNEO_PALLE.get(k + 1)
-    return None
+TURNO_ORA = [None]      # il turno del torneo che si sta giocando
 
 
 def indice_di(elenco, nome_file):
@@ -5022,7 +5017,7 @@ def prova_tasto(key):
         k = 0 if TAV_PROVA[0] is None else (TAV_PROVA[0] + 1) % 6
         TAV_PROVA[0] = k
         BORDO_PROVA[0] = None
-        pa, le = TORNEO_SEI[k]
+        pa, le = TORNEO_TAVOLI.get(GIOCO[0], TORNEO_SEI)[k]
         testo = "Table %d: %s + %s" % (k + 1, pa.rsplit(".", 1)[0],
                                        le.rsplit(".", 1)[0])
     else:
@@ -10611,6 +10606,7 @@ def _torneo(sc, clock, logo, disc_vera, k_t):
         BANDIERA[1] = PAESI.get(avv, "")
         i_panno, i_bordo = tavolo_del_turno(
             disc_vera, tab["vinte"] + 1, giri)
+        TURNO_ORA[0] = tab["vinte"] + 1
         record = CFG.get("torneo_record", 0)
         quanti = (frame_t + 1) // 2         # i frame da vincere
 
@@ -10743,7 +10739,8 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     musica_gioco()
 
     partita = Partita(GIOCO[0])
-    PALLE_TORNEO[0] = palle_del_tavolo(i_panno, i_bordo) if torneo else None
+    PALLE_TORNEO[0] = (TORNEO_PALLE.get(TURNO_ORA[0]) if torneo
+                       else None)
     applica_palle()             # le palle col set di questo gioco
     sorteggia_stecca_avv(cpu is not None)
     GESSO[:] = [1.0, 1.0]
@@ -11256,7 +11253,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
 
         # ------------------------------------------------------ disegno
         if TAV_PROVA[0] is not None:
-            i_panno, i_bordo = tavolo_fisso(0, TAV_PROVA[0] + 1) or \
+            i_panno, i_bordo = tavolo_fisso(GIOCO[0], TAV_PROVA[0] + 1) or \
                 (i_panno, i_bordo)
         if BORDO_PROVA[0] is not None:
             i_bordo = BORDO_PROVA[0]
