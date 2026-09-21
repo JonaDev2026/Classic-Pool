@@ -4755,6 +4755,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
     # quanto crescono le righe con la stecca
     f = max(0.0, min(1.0, (doti_di(partita.turno)[0] - 10) / 90.0))
     corta = PLAY.w * 80.0 / 950.0
+    gesso = GESSO[partita.turno] if partita.turno in (0, 1) else 1.0
 
     # Se la prima palla che prendi non e' delle tue, il cerchietto diventa
     # rosso: quel tiro sarebbe fallo.
@@ -4792,6 +4793,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
             diag = math.hypot(PLAY.w, PLAY.h)
             lunga = fino if f >= 1.0 else min(
                 fino, corta + (diag - corta) * f ** 1.3)
+            lunga *= gesso
             fascio(sc, colpita.pos + via * BALL_R, via, lunga - BALL_R,
                    luce_di(partita.turno), BALL_R * 0.36)
             # e dove va la bianca dopo il colpo: a novanta gradi dalla
@@ -4800,7 +4802,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
             tang = d - via * d.dot(via)
             if tang.length_squared() > 0.02:
                 tang = tang.normalize()
-                corta_b = corta * (0.5 + 0.5 * f)
+                corta_b = corta * (0.5 + 0.5 * f) * gesso
                 fascio(sc, fine + tang * BALL_R, tang, corta_b, col,
                        BALL_R * 0.26, 0.8)
     elif asse_sponda is not None:
@@ -4817,7 +4819,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                 if 1e-3 < t < fino:
                     fino = t
         fascio(sc, fine + rimb * BALL_R, rimb,
-               min(fino - BALL_R, corta * (0.5 + 1.5 * f)), col,
+               min(fino - BALL_R, corta * (0.5 + 1.5 * f) * gesso), col,
                BALL_R * 0.30, 0.8)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
@@ -5509,6 +5511,29 @@ def doti_di(chi):
     return DOTI[0]
 
 
+# Il gesso: ogni tre tiri la stecca ne perde un po' e le righe di mira si
+# accorciano del 2 per cento, fino a perdere al massimo il 10. Col tasto
+# del gesso torna piena.
+GESSO = [1.0, 1.0]
+GESSO_TIRI = [0, 0]
+GESSO_OGNI = 3
+GESSO_CALO = 0.02
+GESSO_MIN = 0.90
+
+
+def consuma_gesso(chi):
+    GESSO_TIRI[chi] += 1
+    if GESSO_TIRI[chi] % GESSO_OGNI == 0:
+        GESSO[chi] = max(GESSO_MIN, round(GESSO[chi] - GESSO_CALO, 3))
+
+
+def metti_gesso(chi):
+    GESSO[chi] = 1.0
+    GESSO_TIRI[chi] = 0
+    if SUONI.get("gesso"):
+        suona_fx("gesso")
+
+
 def stecca_di(chi):
     """La stecca di chi tira: il giocatore uno ha la sua, l'altro una
     diversa, cosi' si vede subito chi ha in mano la stecca."""
@@ -5913,6 +5938,13 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
     disegna_spin(sc, partita.spin, x_lato, y_spin, s(19))
     lab = mini.render(T("spin"), True, TESTO_OPACO)
     sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(32))))
+    # il gesso di chi tira
+    g = GESSO[partita.turno] if partita.turno in (0, 1) else 1.0
+    lab = mini.render(T("chalk"), True, TESTO_OPACO)
+    sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(64))))
+    q = mini.render("%d%%" % int(round(g * 100)), True,
+                    ORO_SCELTA if g >= 0.999 else (232, 146, 52))
+    sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(80))))
 
 
 # ------------------------------------------------------- musica ed effetti
@@ -6030,7 +6062,8 @@ def musica_gioco():
 # sbagliato. Il volume poi lo decide il gioco, non il file.
 
 TIPI_FX = ("cue", "ball", "rail", "pocket", "turno", "orologio", "pausa",
-           "triangolo", "bravo", "menu_tic", "menu_apri", "menu_chiudi")
+           "triangolo", "bravo", "menu_tic", "menu_apri", "menu_chiudi",
+           "gesso")
 TIC_DA = 10             # da quanti secondi comincia il tic dell'orologio
 
 # I suoni del pubblico non hanno un nome ordinato come gli altri: si
@@ -7976,7 +8009,8 @@ AZIONI = (("mira_sx", "k_aim_l", pygame.K_LEFT),
           ("eff_sx", "k_left", pygame.K_a),
           ("eff_dx", "k_right", pygame.K_d),
           ("eff_via", "k_clear", pygame.K_e),
-          ("cambia", "k_switch", pygame.K_c))
+          ("cambia", "k_switch", pygame.K_c),
+          ("gesso", "k_chalk", pygame.K_g))
 TASTI_BASE = dict((a, k) for a, _, k in AZIONI)
 VIETATI = (pygame.K_ESCAPE, pygame.K_F11, pygame.K_F3)
 CARICA_T = 1.4          # secondi per arrivare alla potenza piena
@@ -8147,6 +8181,8 @@ def pad_evento(ev, fuori):
         k = PAD_TASTI.get(ev.button)
         if ev.button == pygame.CONTROLLER_BUTTON_X:
             k = tasto("cambia")         # piramide: la palla dopo
+        if ev.button == pygame.CONTROLLER_BUTTON_RIGHTSHOULDER:
+            k = tasto("gesso")          # il gesso sulla stecca
         if k is not None:
             fuori.append(finto_tasto(k))
     elif ev.type == pygame.CONTROLLERAXISMOTION and ev.axis in (
@@ -8325,16 +8361,20 @@ for _l, _d in COMANDI_TESTI.items():
 for _l, _d in (
         ("en", {"unl_title": "New cue unlocked", "st_aim": "Aim",
                 "st_power": "Power", "st_spin": "Spin",
-                "st_count": "%d of %d cues"}),
+                "st_count": "%d of %d cues", "chalk": "CHALK",
+                "k_chalk": "Chalk the cue"}),
         ("it", {"unl_title": "Nuova stecca sbloccata", "st_aim": "Mira",
                 "st_power": "Potenza", "st_spin": "Effetto",
-                "st_count": "%d di %d stecche"}),
+                "st_count": "%d di %d stecche", "chalk": "GESSO",
+                "k_chalk": "Gesso sulla stecca"}),
         ("fr", {"unl_title": "Nouvelle queue debloquee", "st_aim": "Visee",
                 "st_power": "Puissance", "st_spin": "Effet",
-                "st_count": "%d sur %d queues"}),
+                "st_count": "%d sur %d queues", "chalk": "CRAIE",
+                "k_chalk": "Craie sur la queue"}),
         ("es", {"unl_title": "Nuevo taco desbloqueado",
                 "st_aim": "Punteria", "st_power": "Potencia",
-                "st_spin": "Efecto", "st_count": "%d de %d tacos"})):
+                "st_spin": "Efecto", "st_count": "%d de %d tacos",
+                "chalk": "TIZA", "k_chalk": "Tiza en el taco"})):
     TESTI.setdefault(_l, {}).update(_d)
 for _k, _en, _it, _fr, _es in NOMI_STECCHE_55:
     for _l, _v in (("en", _en), ("it", _it), ("fr", _fr), ("es", _es)):
@@ -8389,6 +8429,7 @@ def righe_setting(pagina, blocca_tavolo):
                     ("v_via", "k_clear", "Y"),
                     ("v_mano", "c_ball", "L STICK / D-PAD + A"),
                     ("v_cambia", "k_switch", "X"),
+                    ("v_gesso", "k_chalk", "RB"),
                     ("v_pausa", "c_pause", "START"),
                     ("v_scegli", "c_select", "A"),
                     ("v_torna", "c_back", "B")):
@@ -9369,6 +9410,8 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     partita = Partita(GIOCO[0])
     applica_palle()             # le palle col set di questo gioco
     sorteggia_stecca_avv(cpu is not None)
+    GESSO[:] = [1.0, 1.0]
+    GESSO_TIRI[:] = [0, 0]
     if partita.gioco not in (3, 7):          # ai birilli il triangolo non c'e'
         suona_triangolo()
     del CODA_VOCE[:]
@@ -9517,6 +9560,11 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                     if ev.key == tasto("eff_via"):
                         partita.spin.update(0, 0)
 
+            # il gesso: quando tocca a te e le palle sono ferme
+            if ev.type == pygame.KEYDOWN and ev.key == tasto("gesso") \
+                    and not (in_moto or suo or partita.finita or carico):
+                metti_gesso(partita.turno)
+
             # piramide: si sceglie la palla con cui tirare. Col mouse il
             # tasto destro sulla palla, da tastiera e joystick si scorre
             if partita.gioco == 8 and not (partita.finita or in_moto or suo
@@ -9564,6 +9612,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                     if potenza > 0.02:
                         partita.foto()
                         _, d_pot, d_eff = doti_di(partita.turno)
+                        consuma_gesso(partita.turno)
                         partita.cue().vel = dir_tiro * (
                             TIRO_MAX * spinta(potenza) * d_pot / 100.0)
                         for q in partita.palle:
@@ -9720,6 +9769,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                     if potenza > 0.02:
                         partita.foto()
                         _, d_pot, d_eff = doti_di(partita.turno)
+                        consuma_gesso(partita.turno)
                         partita.cue().vel = dir_tiro * (
                             TIRO_MAX * spinta(potenza) * d_pot / 100.0)
                         for q in partita.palle:
