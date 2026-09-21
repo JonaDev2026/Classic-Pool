@@ -10308,6 +10308,43 @@ def scelta_torneo(sc, clock, logo, disc):
         presenta()
 
 
+def disegna_orologio(sc, resta, totale):
+    """L'orologio del tiro in alto a destra, a specchio dello stemma: un
+    cerchio d'oro con le tacche, e una lancetta che scatta ogni secondo e
+    fa il giro in tutto il tempo del tiro. Negli ultimi secondi e' rossa."""
+    if not totale:
+        return
+    x_lato = max(s(30), int((TAV_POS[0] + TAV_VISTA[0] * SCALA) / 2.0))
+    lato = min(s(88), max(s(40), x_lato * 2 - s(8)))
+    cx, cy = WIN_W - x_lato, ALTO + s(10) + lato // 2
+    r = lato // 2 - s(2)
+    oro, oro_s = ORO_SCELTA, (150, 118, 52)
+    fondo = pygame.Surface((lato, lato), pygame.SRCALPHA)
+    pygame.draw.circle(fondo, (0, 0, 0, 90), (lato // 2, lato // 2), r)
+    sc.blit(fondo, (cx - lato // 2, cy - lato // 2))
+    pygame.draw.circle(sc, oro, (cx, cy), r, max(2, s(3)))
+    pygame.draw.circle(sc, oro_s, (cx, cy), r - s(5), 1)
+    # le tacche: una per secondo, piu' lunghe ogni cinque
+    n = int(totale)
+    for k in range(n):
+        a = 2 * math.pi * k / n - math.pi / 2
+        lunga = (k % 5 == 0)
+        r0 = r - s(8) - (s(6) if lunga else s(2))
+        r1 = r - s(8)
+        pygame.draw.line(sc, oro if lunga else oro_s,
+                         (cx + math.cos(a) * r0, cy + math.sin(a) * r0),
+                         (cx + math.cos(a) * r1, cy + math.sin(a) * r1),
+                         max(1, s(2)) if lunga else 1)
+    # la lancetta: scatta a ogni secondo che passa
+    passati = n - max(0, int(math.ceil(resta)))
+    a = 2 * math.pi * passati / n - math.pi / 2
+    col = (226, 64, 56) if resta <= TIC_DA else (244, 240, 230)
+    punta = (cx + math.cos(a) * (r - s(12)), cy + math.sin(a) * (r - s(12)))
+    coda = (cx - math.cos(a) * s(8), cy - math.sin(a) * s(8))
+    pygame.draw.line(sc, col, coda, punta, max(2, s(2)))
+    pygame.draw.circle(sc, oro, (cx, cy), max(3, s(4)))
+
+
 def disegna_stemma_gioco(sc, turno=None):
     """Lo stemma durante la partita, grande come sul tabellone: in alto a
     sinistra, sopra la barra della potenza e in colonna con lei."""
@@ -11441,14 +11478,14 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
         pot_vista = potenza
         if suo and cpu_tiro is not None:
             pot_vista = mira_cpu(cpu_da, cpu_tiro, cpu_attesa)[1]
-        pannello(sc, partita, pot_vista,
-                 resta_t if (orologio and not partita.finita)
-                 else None,
+        pannello(sc, partita, pot_vista, None,
                  torneo if isinstance(torneo, int) and torneo is not True
                  else 0,
                  vinti if serve > 1 else None, serve)
         if torneo:
             disegna_stemma_gioco(sc, torneo)
+        if orologio and not partita.finita:
+            disegna_orologio(sc, resta_t, orologio)
 
         if partita.finita:
             col_premio = bool(premio_ora and max(vinti) >= serve)
