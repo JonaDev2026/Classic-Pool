@@ -4756,6 +4756,8 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
     f = max(0.0, min(1.0, (doti_di(partita.turno)[0] - 10) / 90.0))
     corta = PLAY.w * 80.0 / 950.0
     gesso = GESSO[partita.turno] if partita.turno in (0, 1) else 1.0
+    # col gesso che cala le righe dopo il colpo sbiadiscono
+    opaco = 1.0 - 0.65 * (1.0 - gesso) / (1.0 - GESSO_MIN)
 
     # Se la prima palla che prendi non e' delle tue, il cerchietto diventa
     # rosso: quel tiro sarebbe fallo.
@@ -4795,7 +4797,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                 fino, corta + (diag - corta) * f ** 1.3)
             lunga *= gesso
             fascio(sc, colpita.pos + via * BALL_R, via, lunga - BALL_R,
-                   luce_di(partita.turno), BALL_R * 0.36)
+                   col, BALL_R * 0.36, opaco=opaco)
             # e dove va la bianca dopo il colpo: a novanta gradi dalla
             # palla colpita. Cresce poco: dalla meta' della riga corta
             # fino alla riga corta intera.
@@ -4804,7 +4806,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                 tang = tang.normalize()
                 corta_b = corta * (0.5 + 0.5 * f) * gesso
                 fascio(sc, fine + tang * BALL_R, tang, corta_b, col,
-                       BALL_R * 0.26, 0.8)
+                       BALL_R * 0.26, 0.8, opaco)
     elif asse_sponda is not None:
         # sulla sponda: l'angolo del rimbalzo, dalla meta' della riga corta
         # fino al doppio
@@ -4820,7 +4822,7 @@ def traccia_mira(sc, partita, mira, potenza, linea=True):
                     fino = t
         fascio(sc, fine + rimb * BALL_R, rimb,
                min(fino - BALL_R, corta * (0.5 + 1.5 * f) * gesso), col,
-               BALL_R * 0.30, 0.8)
+               BALL_R * 0.30, 0.8, opaco)
 
     disegna_stecca(sc, p, d, potenza, partita.turno)
 
@@ -5427,42 +5429,7 @@ def _doti_stecche():
 DOTI = _doti_stecche()
 
 
-def _luce_stecca(st):
-    """Il colore della riga di mira: il colore piu' vivo della stecca,
-    preso dal legno davanti, dal calcio, dalle punte e dagli intarsi.
-    Se e' tutta scura o tutta legno, oro chiaro."""
-    cand = [tr[2] for tr in st[1][3:-1]]     # senza cuoio, ghiera e fusto
-    if st[2]:
-        cand += [st[2][0], st[2][1]]
-    for d in (st[3] if len(st) > 3 else ()):
-        cand.append(d[2] if d[0] in ("strisce", "punti") else
-                    d[4] if d[0] == "spirale" else d[2])
-    meglio, voto = None, 0.0
-    for c in cand:
-        r, g, b = c[:3]
-        vivo = (max(r, g, b) - min(r, g, b)) / 255.0
-        chiaro = max(r, g, b) / 255.0
-        v = vivo * chiaro
-        if v > voto:
-            meglio, voto = c, v
-    if meglio is None or voto < 0.28:
-        return (250, 220, 150)
-    # un po' piu' chiaro, che sul panno si veda
-    return tuple(min(255, int(v + (255 - v) * 0.30)) for v in meglio[:3])
-
-
-LUCI_MIRA = [_luce_stecca(st) for st in STECCHE]
-
-
-def luce_di(chi):
-    st = stecca_di(chi)
-    for i, q in enumerate(STECCHE):
-        if q is st:
-            return LUCI_MIRA[i]
-    return LUCI_MIRA[0]
-
-
-def fascio(sc, da, verso, lung, colore, largo, sfuma=0.8):
+def fascio(sc, da, verso, lung, colore, largo, sfuma=0.8, opaco=1.0):
     """La riga della palla colpita: un fascio leggero che parte pieno e
     sfuma fino a sparire."""
     if lung < 2:
@@ -5482,7 +5449,7 @@ def fascio(sc, da, verso, lung, colore, largo, sfuma=0.8):
                                              (largo * 0.45, 0.85))):
         for k in range(pezzi):
             f0, f1 = k / float(pezzi), (k + 1) / float(pezzi)
-            a = int(135 * forza * (1.0 - sfuma * f0) ** 1.3)
+            a = int(135 * forza * opaco * (1.0 - sfuma * f0) ** 1.3)
             if a <= 0:
                 continue
             # si stringe un poco andando avanti
@@ -5527,11 +5494,38 @@ def consuma_gesso(chi):
         GESSO[chi] = max(GESSO_MIN, round(GESSO[chi] - GESSO_CALO, 3))
 
 
+# Il cubetto: ogni volta che dai il gesso ne consumi il 10 per cento.
+# Finito il cubetto non si da' piu' il gesso fino alla partita dopo.
+CUBETTO = [1.0, 1.0]
+CUBETTO_USO = 0.10
+GESSO_QUANDO = [0]      # quando si e' dato il gesso, per l'animazione
+GESSO_PNG = {}
+
+
 def metti_gesso(chi):
+    """Il gesso sulla stecca: la riga torna piena e il cubetto cala. Se la
+    riga e' gia' piena non si spreca niente."""
+    if CUBETTO[chi] <= 0.001 or GESSO[chi] >= 0.999:
+        return False
+    CUBETTO[chi] = max(0.0, round(CUBETTO[chi] - CUBETTO_USO, 3))
     GESSO[chi] = 1.0
     GESSO_TIRI[chi] = 0
+    GESSO_QUANDO[0] = pygame.time.get_ticks()
     if SUONI.get("gesso"):
         suona_fx("gesso")
+    return True
+
+
+def icona_gesso(lato):
+    """Il PNG del gessetto, alla misura che serve."""
+    if lato not in GESSO_PNG:
+        try:
+            im = pygame.image.load(os.path.join(GFX, "pool_chalk.png"))
+            GESSO_PNG[lato] = pygame.transform.smoothscale(
+                im.convert_alpha(), (lato, lato))
+        except (pygame.error, FileNotFoundError):
+            GESSO_PNG[lato] = None
+    return GESSO_PNG[lato]
 
 
 def stecca_di(chi):
@@ -5938,13 +5932,29 @@ def pannello(sc, partita, potenza, resta=None, livello=0, vinti=None,
     disegna_spin(sc, partita.spin, x_lato, y_spin, s(19))
     lab = mini.render(T("spin"), True, TESTO_OPACO)
     sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(32))))
-    # il gesso di chi tira
-    g = GESSO[partita.turno] if partita.turno in (0, 1) else 1.0
+    # il gessetto di chi tira: sotto, quanto resta del cubetto. Quando la
+    # riga ha perso meta' di quello che puo' perdere, pulsa piano; finito
+    # il cubetto resta spento.
+    chi = partita.turno if partita.turno in (0, 1) else 0
+    cubo, g = CUBETTO[chi], GESSO[chi]
+    ora = pygame.time.get_ticks()
+    lato = s(34)
+    passati = (ora - GESSO_QUANDO[0]) / 1000.0
+    if 0.0 <= passati < 0.5:
+        lato = int(lato * (1.0 + 0.35 * (1.0 - passati / 0.5)))
+    im = icona_gesso(lato)
+    if im is not None:
+        im = im.copy()
+        if cubo <= 0.001:
+            im.set_alpha(70)
+        elif g <= 1.0 - (1.0 - GESSO_MIN) / 2.0 + 1e-6:
+            im.set_alpha(int(110 + 145 * (0.5 + 0.5 * math.sin(ora / 250.0))))
+        sc.blit(im, im.get_rect(center=(x_lato, y_spin + s(66))))
     lab = mini.render(T("chalk"), True, TESTO_OPACO)
-    sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(64))))
-    q = mini.render("%d%%" % int(round(g * 100)), True,
-                    ORO_SCELTA if g >= 0.999 else (232, 146, 52))
-    sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(80))))
+    sc.blit(lab, lab.get_rect(center=(x_lato, y_spin + s(96))))
+    q = mini.render("%d%%" % int(round(cubo * 100)), True,
+                    ORO_SCELTA if cubo > 0.001 else (232, 96, 72))
+    sc.blit(q, q.get_rect(center=(x_lato, y_spin + s(112))))
 
 
 # ------------------------------------------------------- musica ed effetti
@@ -9412,6 +9422,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
     sorteggia_stecca_avv(cpu is not None)
     GESSO[:] = [1.0, 1.0]
     GESSO_TIRI[:] = [0, 0]
+    CUBETTO[:] = [1.0, 1.0]
     if partita.gioco not in (3, 7):          # ai birilli il triangolo non c'e'
         suona_triangolo()
     del CODA_VOCE[:]
