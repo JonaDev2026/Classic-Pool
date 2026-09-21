@@ -4865,8 +4865,15 @@ def tavolo_composto(i_panno, i_bordo=0, quale=None):
             base.blit(legno, (0, 0))
     if PANNI and 0 <= i_panno < len(PANNI):
         q = texture(PANNI[i_panno][1], (LATO_PANNO, LATO_PANNO))
+        campo = base.subsurface(PANNO_SU)
+        if "marmo" in os.path.basename(PANNI[i_panno][1]):
+            # il panno a marmo non si ripete a quadretti: uno solo, steso
+            steso = texture(PANNI[i_panno][1], campo.get_size())
+            if steso is not None:
+                campo.blit(steso, (0, 0))
+                luce_panno(base, quale != TAV_FILE_DI[3])
+                q = None
         if q is not None:
-            campo = base.subsurface(PANNO_SU)
             for x in range(0, campo.get_width(), LATO_PANNO):
                 for y in range(0, campo.get_height(), LATO_PANNO):
                     campo.blit(q, (x, y))
