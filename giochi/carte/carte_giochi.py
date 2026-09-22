@@ -23,6 +23,7 @@ TXT = {
            "need_fr": "French cards needed: coming soon",
            "card": "Card", "stand": "Stand", "leave": "Leave",
            "again": "Play again", "menu": "Menu", "next": "Next hand",
+           "cont": "Continue", "hand_won": "%s wins the hand",
            "bet": "Place your bet", "free": "Free play",
            "bust": "Bust!", "you_win": "You win %s",
            "you_lose": "You lose %s", "banker": "Banker",
@@ -103,6 +104,7 @@ TXT = {
            "need_fr": "Servono le carte francesi: presto",
            "card": "Carta", "stand": "Sto", "leave": "Esci",
            "again": "Rigioca", "menu": "Menu", "next": "Prossima mano",
+           "cont": "Continua", "hand_won": "%s vince la mano",
            "bet": "Fai la tua puntata", "free": "Gioco libero",
            "bust": "Sballato!", "you_win": "Vinci %s",
            "you_lose": "Perdi %s", "banker": "Banco",
@@ -183,6 +185,7 @@ TXT = {
            "need_fr": "Cartes francaises requises : bientot",
            "card": "Carte", "stand": "Reste", "leave": "Quitter",
            "again": "Rejouer", "menu": "Menu", "next": "Main suivante",
+           "cont": "Continuer", "hand_won": "%s gagne la main",
            "bet": "Placez votre mise", "free": "Jeu libre",
            "bust": "Perdu !", "you_win": "Vous gagnez %s",
            "you_lose": "Vous perdez %s", "banker": "Banque",
@@ -263,6 +266,7 @@ TXT = {
            "need_fr": "Faltan las cartas francesas: pronto",
            "card": "Carta", "stand": "Me planto", "leave": "Salir",
            "again": "Otra vez", "menu": "Menu", "next": "Otra mano",
+           "cont": "Continuar", "hand_won": "%s gana la mano",
            "bet": "Haz tu apuesta", "free": "Juego libre",
            "bust": "Te pasaste!", "you_win": "Ganas %s",
            "you_lose": "Pierdes %s", "banker": "Banca",
@@ -401,7 +405,8 @@ def seme(cod):
 VERDE = (104, 226, 132)
 ROSSO = (240, 96, 96)       # dove non si puo' fare niente
 GIALLO = (255, 206, 72)
-AZZURRO = (96, 168, 255)    # la carta che stai spostando in mano (tasto X)
+AZZURRO = (96, 168, 255)
+VIOLA = (190, 126, 255)   # la carta che ha chiuso la mano    # la carta che stai spostando in mano (tasto X)
 
 
 class Esci(Exception):
@@ -440,6 +445,7 @@ class Tavolo:
         self.evidenzia = []     # le carte della presa proposta
         self.cursore = None     # ramino: la carta dove sta il cursore
         self.selezionate = []   # ramino: le carte scelte
+        self.viola = []         # le carte da mostrare a fine mano
         self.in_mano = None     # ramino: la carta presa per spostarla
         self.mira = None        # ramino: il cursore sul mazzo o sullo scarto
         self.mira_col = VERDE   # verde se si puo' pescare, rosso se no
@@ -515,6 +521,23 @@ class Tavolo:
         c.vai(dove, ang, scoperta=scoperta, ritardo=ritardo, suono=suono,
               grande=self.g if grande is None else grande)
         self.in_cima(c)
+
+    def fine_mano(self, testo, tabella, opzioni, viola=None):
+        """Fine mano in due passi, per non avere carte e punteggi uno
+        sopra l'altro: prima chi ha vinto la mano col tavolo ancora in
+        vista e "Continua", poi le carte tornano nel mazzo e sul panno
+        libero si vedono i punti."""
+        self.viola = list(viola or [])
+        self.righe = [testo] if testo else []
+        yield from self.chiedi([T("cont")])
+        self.viola = []
+        self.righe = []
+        self.raccogli_tutto()
+        yield from self.fermi()
+        self.tabella = tabella
+        i = yield from self.chiedi(opzioni)
+        self.tabella = None
+        return i
 
     def raccogli_tutto(self):
         """Tutte le carte tornano nel mazzo, coperte."""
@@ -780,7 +803,7 @@ class Tavolo:
             dim = (max(1, int(t.get_width() * k)), max(1, int(t.get_height() * k)))
             t = pygame.transform.smoothscale(t, dim)
             o = pygame.transform.smoothscale(o, dim)
-        o.set_alpha(110)
+        o.fill((255, 255, 255, 110), special_flags=pygame.BLEND_RGBA_MULT)
         r = t.get_rect(center=(int(centro[0] * k), int(centro[1] * k)))
         sup.blit(o, r.move(max(1, int(B.s(2) * k)), max(1, int(B.s(2) * k))))
         sup.blit(t, r)
@@ -882,7 +905,9 @@ class Tavolo:
                                                  int(centro[1] * k))))
         scelta = self.scegli[self.sel_carta] if self.scegli else None
         for c in self.carte:
-            if c is self.in_mano:
+            if c in self.viola:
+                col = VIOLA                 # la carta che ha chiuso
+            elif c is self.in_mano:
                 col = AZZURRO               # la carta che stai spostando
             elif c in self.selezionate:
                 col = GIALLO                # scelte in mano per calare
@@ -1282,23 +1307,22 @@ def partita_scopa(tv):
         pt, righe = conta_scopa(prese[0], prese[1], scope)
         totali = [totali[0] + pt[0], totali[1] + pt[1]]
         tv.punti = list(totali)
-        tv.tabella = {"titolo": T("hand_over"), "righe": righe,
-                      "tot": list(totali)}
+        tab = {"titolo": T("hand_over"), "righe": righe,
+               "tot": list(totali)}
         fine = max(totali) >= 11 and totali[0] != totali[1]
+        vince = 0 if pt[0] > pt[1] else 1
         if fine:
             vince = 0 if totali[0] > totali[1] else 1
-            tv.tabella["fondo"] = T("win_match") % tv.nomi[vince]
+            tab["fondo"] = T("win_match") % tv.nomi[vince]
             C.suona("levelup" if vince == 0 else "gameover")
-            i = yield from tv.chiedi([T("again"), T("menu")])
-            tv.tabella = None
+            opz = [T("again"), T("menu")]
+        else:
+            opz = [T("next")]
+        i = yield from tv.fine_mano(T("hand_won") % tv.nomi[vince], tab, opz)
+        if fine:
             if i == 1:
                 return "menu"
             totali = [0, 0]
-        else:
-            yield from tv.chiedi([T("next")])
-            tv.tabella = None
-        tv.raccogli_tutto()
-        yield from tv.fermi()
         chi_inizia = 1 - chi_inizia
 
 
@@ -1426,15 +1450,12 @@ def partita_briscola(tv):
             C.suona("gameover")
         else:
             esito = T("draw")
-        tv.tabella = {"titolo": T("hand_over"), "tot": [a, b],
-                      "righe": [(T("p_cards"), len(prese[0]), len(prese[1]))],
-                      "fondo": esito}
-        i = yield from tv.chiedi([T("again"), T("menu")])
-        tv.tabella = None
+        tab = {"titolo": T("hand_over"), "tot": [a, b],
+               "righe": [(T("p_cards"), len(prese[0]), len(prese[1]))],
+               "fondo": esito}
+        i = yield from tv.fine_mano(esito, tab, [T("again"), T("menu")])
         if i == 1:
             return "menu"
-        tv.raccogli_tutto()
-        yield from tv.fermi()
         chi_inizia = 1 - chi_inizia
 
 
@@ -2073,6 +2094,7 @@ def partita_ramino(tv):
                     mani[chi].remove(c)
                 tavola.append(ordinate)
                 messi.append(ordinate)
+                ultima[0] = ordinate[-1]
             C.suona("cattura")
             rifai_tavola()
             rifai_mano(chi)
@@ -2119,6 +2141,7 @@ def partita_ramino(tv):
                                  and y not in ordinate)
                         ordinate.append(x)
                     tavola[i] = ordinate
+                    ultima[0] = c
                     return True
             return False
 
@@ -2139,6 +2162,7 @@ def partita_ramino(tv):
 
         turno = chi_inizia
         chiude = None
+        ultima = [None]         # l'ultima carta messa in tavola
         in_mano = [False]       # chi chiude ha aperto e chiuso in un turno
         while chiude is None:
             tv.attivo = turno
@@ -2263,23 +2287,25 @@ def partita_ramino(tv):
                   paga_messa if perde == 1 else 0)]
         if in_mano[0]:
             righe.append((T("r_in_mano"), "", ""))
-        tv.tabella = {"titolo": T("hand_over"), "tot": list(totali),
-                      "righe": righe}
+        tab = {"titolo": T("hand_over"), "tot": list(totali),
+               "righe": righe}
         fine = max(totali) >= punti_partita()
         if fine:
             vince = 0 if totali[0] < totali[1] else 1
-            tv.tabella["fondo"] = T("win_match") % tv.nomi[vince]
-            i = yield from tv.chiedi([T("again"), T("menu")])
-            tv.tabella = None
+            tab["fondo"] = T("win_match") % tv.nomi[vince]
+            opz = [T("again"), T("menu")]
+        else:
+            opz = [T("next")]
+        # l'alone viola sull'ultima carta giocata da chi ha chiuso: si
+        # vede subito con che gioco e' uscito
+        viola = [ultima[0]] if ultima[0] is not None else []
+        i = yield from tv.fine_mano(T("hand_won") % tv.nomi[chiude], tab,
+                                    opz, viola)
+        if fine:
             if i == 1:
                 return "menu"
             totali = [0, 0]
             messa[0] = MESSA
-        else:
-            yield from tv.chiedi([T("next")])
-            tv.tabella = None
-        tv.raccogli_tutto()
-        yield from tv.fermi()
         chi_inizia = 1 - chi_inizia
 
 
