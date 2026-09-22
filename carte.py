@@ -324,22 +324,22 @@ def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
                                              (xf + verso * B.s(9), y),
                                              (xf, y + m)])
     t = carattere.render(nome, True, B.AVORIO)
-    filo = B.s(34)
     box = pygame.Rect(0, 0, B.s(64), alto)
     if sinistra:
-        q = t.get_rect(midleft=(xd + B.s(18), y))
-        da = q.right + B.s(12)
-        a = da + filo
-        box.midleft = (a + B.s(10), y)
+        q = t.get_rect(midleft=(xd + B.s(18), y - B.s(2)))
+        box.midleft = (q.right + B.s(14), y)
+        da, a = xd - B.s(6), box.left - B.s(6)
     else:
-        q = t.get_rect(midright=(xd - B.s(18), y))
-        da = q.left - B.s(12)
-        a = da - filo
-        box.midright = (a - B.s(10), y)
+        q = t.get_rect(midright=(xd - B.s(18), y - B.s(2)))
+        box.midright = (q.left - B.s(14), y)
+        da, a = xd + B.s(6), box.right + B.s(6)
     sc.blit(t, q)
-    pygame.draw.line(sc, B.ORO_LOGO, (da, y), (a, y), max(1, B.s(1)))
-    pygame.draw.circle(sc, B.ORO_LOGO, (da, y), max(2, B.s(2)))
-    pygame.draw.circle(sc, B.ORO_LUCE, (a, y), max(2, B.s(3)))
+    # sotto il nome, dal diamantino al punteggio, un filo d'oro che lo
+    # sottolinea, con la perlina ai due capi come nel logo
+    yl = q.bottom + B.s(3)
+    pygame.draw.line(sc, B.ORO_LOGO, (da, yl), (a, yl), max(1, B.s(1)))
+    pygame.draw.circle(sc, B.ORO_LOGO, (da, yl), max(2, B.s(2)))
+    pygame.draw.circle(sc, B.ORO_LUCE, (a, yl), max(2, B.s(2)))
     pygame.draw.rect(sc, B.VERDONE, box)
     t = font.render(str(punti), True, (255, 255, 255))
     sc.blit(t, t.get_rect(center=box.center))
@@ -356,6 +356,8 @@ def fila_targhette(sc, nomi, punti, attivo=0):
     meta = sotto.w // 2
     posto = {0: (sotto, True), 3: (sotto, False),
              2: (sopra, True), 1: (sopra, False)}
+    # il nome del gioco in mezzo alla fascia di sopra
+    B.scritta_logo(sc, sopra.centerx, sopra.centery - B.s(4), 0.55)
     for chi in range(len(nomi)):
         fascia, sinistra = posto[chi]
         r = pygame.Rect(fascia.x + (0 if sinistra else meta), fascia.y,
