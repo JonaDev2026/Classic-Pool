@@ -284,6 +284,51 @@ for _l, _d in (
         ("es", {"sl_move": "elegir", "sl_ok": "ok"})):
     B.TESTI.setdefault(_l, {}).update(_d)
 
+SUONI = {}
+DURATE = {}
+
+
+def carica_suoni():
+    """I suoni della slot, da audio/slot/fx."""
+    if SUONI or not B.MUSICA_OK:
+        return
+    cartella = os.path.join(B.SUONI_DIR, "slot", "fx")
+    if not os.path.isdir(cartella):
+        return
+    for f in sorted(os.listdir(cartella)):
+        if not f.lower().endswith((".ogg", ".wav", ".mp3")):
+            continue
+        nome = os.path.splitext(f)[0].lower()
+        try:
+            s = pygame.mixer.Sound(os.path.join(cartella, f))
+            SUONI[nome] = s
+            DURATE[nome] = s.get_length()
+        except pygame.error:
+            pass
+
+
+def suona(nome, quanto=0.9):
+    s = SUONI.get(nome)
+    v = B.CFG.get("effetti", 100) / 100.0
+    if not s or v <= 0:
+        return None
+    s.stop()                # se stava ancora suonando, ricomincia
+    s.set_volume(min(1.0, v * quanto))
+    s.play()
+    return s
+
+
+def ferma_suono(nome):
+    s = SUONI.get(nome)
+    if s:
+        s.stop()
+
+
+def quanto_dura(nome, se_manca):
+    """Quanto dura quel suono; se non c'e', il tempo di riserva."""
+    return DURATE.get(nome, se_manca)
+
+
 _FONT = {}
 
 
@@ -416,7 +461,12 @@ class Macchina:
             giri = 4 + c
             avanti = (p - self.da[c]) % s
             self.a.append(self.da[c] + giri * s + avanti)
-        self.durata = [0.9 + c * 0.28 for c in range(COLONNE)]
+        # l'ultimo rullo si ferma esattamente quando finisce il suono del
+        # giro; gli altri arrivano prima, a distanza uguale
+        giro = quanto_dura("spin", 2.0)
+        primo = giro * 0.45
+        passo = (giro - primo) / max(1, COLONNE - 1)
+        self.durata = [primo + c * passo for c in range(COLONNE)]
         self.t = 0.0
         self.gira = True
         self.vinte, self.mostra, self.vinto = [], -1, 0
@@ -432,7 +482,7 @@ class Macchina:
             if self.t >= d:
                 if self.pos[c] != self.a[c]:
                     self.pos[c] = self.a[c]
-                    B.suona_fx("menu_tic", 0.7)
+                    B.suona_fx("menu_tic", 0.5)
                 finiti += 1
             else:
                 k = self.t / d
@@ -660,6 +710,7 @@ def pagina_pagamenti(sc, clock):
 
 def gioca_slot(sc, clock, logo):
     """La macchina: si punta, si gira, si paga."""
+    carica_suoni()
     m = Macchina(sc, clock)
     punta = B.CFG.get("slot_punta", PUNTATE[0])
     if punta not in PUNTATE:
@@ -691,7 +742,7 @@ def gioca_slot(sc, clock, logo):
         jackpot(max(1, int(punta * JACKPOT_FETTA)))
         B.salva_config()
         m.parti()
-        B.suona_fx("menu_apri", 0.6)
+        suona("spin", 0.9)
 
     while True:
         m.frame()
@@ -701,6 +752,8 @@ def gioca_slot(sc, clock, logo):
                 return "quit"
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
+                    for n in ("spin", "jackpot", "bonus", "level", "gift"):
+                        ferma_suono(n)
                     return "su"
                 if ev.key in (pygame.K_DOWN, pygame.K_s):
                     sel = (sel + 1) % 4
@@ -750,22 +803,28 @@ def gioca_slot(sc, clock, logo):
             # i rulli si sono fermati: si conta
             tot, vinte = vincite(m.griglia, per_linea())
             m.vinte, m.vinto = vinte, tot
-            if fa_jackpot(vinte):
+            jack = fa_jackpot(vinte)
+            if jack:
                 premio = jackpot()
                 azzera_jackpot()
                 tot += premio
                 m.vinto = tot
-                m.lampo = 6.0
-                m.msg = T("won_jack") % B.dollari(premio)
+                m.lampo = 8.0
                 B.soldi(premio)
                 B.salva_config()
-                B.suona_fx("menu_apri", 1.0)
             if tot:
                 B.soldi(tot)
                 B.salva_config()
                 m.msg = T("win") % B.dollari(tot)
                 m.mostra, aspetta[0], m.t_vinta = 0, 1.2, 0.0
-                B.suona_fx("menu_apri", 0.9)
+                if jack:
+                    suona("jackpot", 1.0)
+                elif any(v[1] == BONUS for v in vinte):
+                    suona("bonus", 0.9)
+                elif tot >= punta * 10:
+                    suona("level", 0.9)
+                else:
+                    suona("gift", 0.9)
             else:
                 m.msg = T("no_win")
                 m.mostra = -1

@@ -135,6 +135,22 @@ keyboard the same things are a click or ENTER, and the keys set in the
 controls page (C, G and E by default); the help line at the bottom always
 shows the keys you are actually using.
 
+## Slots
+
+Five reels by four rows, twenty fixed lines, paid left to right. Nine
+symbols, with a wild that stands for any of them and a bonus that pays
+anywhere on the total bet. You pick the bet per spin (20 to 400) and the
+game spreads it over the lines. Every spin feeds a progressive jackpot
+that lives in your profile and keeps growing until someone lands five
+jackpot symbols on a line or you restart your career. Each machine keeps
+its own symbols and its own paytable; for now there is one, the test
+machine.
+
+Symbols are drawn as placeholders until a theme is added: drop nine PNGs
+named after the symbols in `immagini/slot/<theme>/` and the game picks
+them up. Sounds live in `audio/slot/fx`, and the reels are timed to stop
+exactly when the spin sound ends.
+
 **Languages**
 
 English, Italian, French and Spanish, switchable at any time, even during a
