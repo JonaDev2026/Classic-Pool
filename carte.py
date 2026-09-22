@@ -306,49 +306,64 @@ def diamanti_posti(base):
         rombo(base, (x, y), COL_POSTI[chi], rx, ry)
 
 
-def fila_targhette(sc, nomi, punti, attivo=0):
-    """La fascia del punteggio come nel biliardo, larga quanto la
-    finestra e divisa in quattro: per ognuno il diamantino del suo posto,
-    il nome in avorio e il riquadro verde col punteggio. Fra un posto e
-    l'altro un filo d'oro; davanti a chi gioca la freccia d'oro."""
-    r = B.BANDA_PUNTI
+def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
+    """Meta' fascia per un giocatore, come nel biliardo: diamantino e
+    nome verso il bordo, riquadro verde col punteggio verso il centro.
+    A destra tutto a specchio."""
     carattere = B.FONTS.get("nomi_hud") or B.FONTS["font"]
     font = B.FONTS["font"]
-    n = len(nomi)
-    largo = r.w // n
     alto = r.h - B.s(8)
-    for chi in range(n):
-        cella = pygame.Rect(r.x + chi * largo, r.y, largo, r.h)
-        # il punteggio: riquadro verde a destra della cella
-        box = pygame.Rect(0, 0, B.s(64), alto)
-        box.midright = (cella.right - B.s(14), cella.centery)
-        pygame.draw.rect(sc, B.VERDONE, box)
-        t = font.render(str(punti[chi]), True, (255, 255, 255))
-        sc.blit(t, t.get_rect(center=box.center))
-        # diamantino e nome a sinistra
-        x = cella.left + B.s(26)
-        if chi == attivo:
-            m = B.s(7)
-            pygame.draw.polygon(sc, B.ORO_LUCE,
-                                [(x - B.s(12), cella.centery - m),
-                                 (x - B.s(12) + B.s(9), cella.centery),
-                                 (x - B.s(12), cella.centery + m)])
-        rombo(sc, (x + B.s(8), cella.centery), COL_POSTI[chi],
-              B.s(6), B.s(10))
-        x += B.s(24)
-        spazio = box.left - B.s(12) - x
-        testo = nomi[chi]
-        while testo and carattere.size(testo)[0] > spazio:
-            testo = testo[:-1]
-        if testo != nomi[chi]:
-            testo = testo[:-1] + "."
-        t = carattere.render(testo, True, B.AVORIO)
-        sc.blit(t, t.get_rect(midleft=(x, cella.centery)))
-        # il filo d'oro che separa i posti
-        if chi > 0:
-            pygame.draw.line(sc, B.ORO_LOGO, (cella.left, cella.top + B.s(8)),
-                             (cella.left, cella.bottom - B.s(8)),
-                             max(1, B.s(1)))
+    box = pygame.Rect(0, 0, B.s(64), alto)
+    if sinistra:
+        box.midright = (r.right - B.s(40), r.centery)
+        xd = r.left + B.s(26)
+    else:
+        box.midleft = (r.left + B.s(40), r.centery)
+        xd = r.right - B.s(26)
+    pygame.draw.rect(sc, B.VERDONE, box)
+    t = font.render(str(punti), True, (255, 255, 255))
+    sc.blit(t, t.get_rect(center=box.center))
+    y = r.centery
+    rombo(sc, (xd, y), col, B.s(6), B.s(10))
+    if attivo:
+        m, d = B.s(7), B.s(18)
+        xf = xd - d if sinistra else xd + d
+        verso = 1 if sinistra else -1
+        pygame.draw.polygon(sc, B.ORO_LUCE, [(xf, y - m),
+                                             (xf + verso * B.s(9), y),
+                                             (xf, y + m)])
+    t = carattere.render(nome, True, B.AVORIO)
+    if sinistra:
+        q = t.get_rect(midleft=(xd + B.s(18), y))
+        da, a = q.right + B.s(16), box.left - B.s(16)
+    else:
+        q = t.get_rect(midright=(xd - B.s(18), y))
+        da, a = q.left - B.s(16), box.right + B.s(16)
+    sc.blit(t, q)
+    # il filo d'oro dal nome al punteggio, come nel logo
+    if (a - da) * (1 if sinistra else -1) > B.s(20):
+        pygame.draw.line(sc, B.ORO_LOGO, (da, y), (a, y), max(1, B.s(1)))
+        pygame.draw.circle(sc, B.ORO_LOGO, (da, y), max(2, B.s(2)))
+        pygame.draw.circle(sc, B.ORO_LUCE, (a, y), max(2, B.s(3)))
+
+
+def fila_targhette(sc, nomi, punti, attivo=0):
+    """La fascia del punteggio divisa fra sopra e sotto il tavolo, ognuno
+    dalla parte del suo diamantino: sotto tu (oro) a sinistra e il verde
+    a destra, sopra il rosso a sinistra e il blu a destra."""
+    sotto = B.BANDA_PUNTI
+    sopra = pygame.Rect(0, 0, sotto.w, sotto.h)
+    tav_top = B.TAV_POS[1] + B.TAV_VISTA[1] * B.SCALA
+    sopra.centery = int(tav_top / 2 + B.s(4))
+    meta = sotto.w // 2
+    posto = {0: (sotto, True), 3: (sotto, False),
+             2: (sopra, True), 1: (sopra, False)}
+    for chi in range(len(nomi)):
+        fascia, sinistra = posto[chi]
+        r = pygame.Rect(fascia.x + (0 if sinistra else meta), fascia.y,
+                        meta, fascia.h)
+        cella_giocatore(sc, r, nomi[chi], punti[chi], COL_POSTI[chi],
+                        sinistra, chi == attivo)
 
 
 def schermata_carte(sc, clock, logo):
