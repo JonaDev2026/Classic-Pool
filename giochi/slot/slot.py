@@ -856,8 +856,8 @@ def gruppi_pagamenti():
 
 
 def pagina_pagamenti(sc, clock):
-    """Il tabellone: i simboli in gruppi, con quanto pagano da due a
-    cinque rulli per ogni unita' di puntata."""
+    """Il tabellone: i ventidue simboli in due colonne, con quanto pagano
+    da due a cinque rulli in soldi veri, alla puntata scelta."""
     while True:
         clock.tick(60)
         for ev in B.eventi():
@@ -871,62 +871,66 @@ def pagina_pagamenti(sc, clock):
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button in (1, 3):
                 return "su"
         sc.blit(fondo_slot(), (0, 0))
-        f_t = B.FONTS.get("elegante") or B.FONTS["grande"]
-        t = f_t.render(B.tit_el(T("pt_title")), True, (240, 240, 244))
-        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(34))))
-        small, font = B.FONTS["small"], B.FONTS["font"]
+        small, mini = B.FONTS["small"], B.FONTS.get("mini", B.FONTS["small"])
         punta = B.CFG.get("slot_punta", PUNTATE[0])
         if punta not in PUNTATE:
             punta = PUNTATE[0]
         unita = punta / float(MODI_UNITA)
-        t = small.render(T("pt_bet") % B.dollari(punta), True, B.ORO_SOTTO)
-        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(74))))
-        gruppi = gruppi_pagamenti()
-        lato = B.s(38)
-        y = B.ALTO + B.s(100)
-        passo = lato + B.s(6)
-        x0 = B.s(90)
-        for nomi, (p2, p3, p4, p5) in gruppi:
-            x = x0
-            for nome in nomi:
+        t = small.render("%s  -  %s" % (T("pt_title"),
+                                        T("pt_bet") % B.dollari(punta)),
+                         True, B.ORO_SCELTA)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(12))))
+
+        elenco = paganti()
+        meta = (len(elenco) + 1) // 2
+        lato = B.s(30)
+        passo = lato + B.s(12)
+        y0 = B.ALTO + B.s(56)
+        largo = (B.WIN_W - B.s(60)) // 2
+        for col in range(2):
+            gruppo = elenco[col * meta:(col + 1) * meta]
+            x = B.s(30) + col * largo
+            for i, nome in enumerate(gruppo):
+                y = y0 + i * passo
                 img = figura(nome, (lato, lato))
                 sc.blit(img, img.get_rect(midleft=(x, y)))
-                x += lato + B.s(5)
-            pezzi = []
-            if p2:
-                pezzi.append("2 - %d" % round(p2 * unita))
-            pezzi += ["3 - %d" % round(p3 * unita),
-                      "4 - %d" % round(p4 * unita),
-                      "5 - %d" % round(p5 * unita)]
-            t = font.render("      ".join(pezzi), True, (230, 232, 238))
-            sc.blit(t, t.get_rect(midright=(B.WIN_W - B.s(90), y)))
-            y += passo
-        # i simboli speciali, in fondo
-        y += B.s(10)
-        for nome, testo in ((JOLLY, T("pt_wild")),
-                            (REGALO, T("pt_gift")),
-                            (DADI, T("pt_dice") % GIRI_GRATIS),
-                            (SIMBOLO_JACKPOT,
-                             T("pt_jack") % B.dollari(jackpot()))):
+                t = small.render(nome_simbolo(nome), True, (215, 218, 226))
+                sc.blit(t, t.get_rect(midleft=(x + lato + B.s(8), y)))
+                p2, p3, p4, p5 = PAGA[nome]
+                # le quattro colonne dei numeri, incolonnate
+                for k, v in enumerate((p2, p3, p4, p5)):
+                    if not v:
+                        continue
+                    q = small.render("%d" % round(v * unita), True,
+                                     (255, 255, 255))
+                    sc.blit(q, q.get_rect(
+                        midright=(x + largo - B.s(20) - (3 - k) * B.s(74), y)))
+            # le intestazioni dei numeri
+            for k, testo in enumerate(("2", "3", "4", "5")):
+                q = mini.render(testo, True, B.ORO_SOTTO)
+                sc.blit(q, q.get_rect(midright=(
+                    x + largo - B.s(20) - (3 - k) * B.s(74), y0 - B.s(22))))
+
+        # i quattro speciali, in fondo, due per riga
+        y = y0 + meta * passo + B.s(6)
+        speciali = ((JOLLY, T("pt_wild")), (REGALO, T("pt_gift")),
+                    (DADI, T("pt_dice") % GIRI_GRATIS),
+                    (SIMBOLO_JACKPOT, T("pt_jack") % B.dollari(jackpot())))
+        for i, (nome, testo) in enumerate(speciali):
+            x = B.s(30) + (i % 2) * largo
+            yy = y + (i // 2) * (lato + B.s(8))
             img = figura(nome, (lato, lato))
-            sc.blit(img, img.get_rect(midleft=(x0, y)))
-            t = small.render(testo, True, (230, 232, 238))
-            sc.blit(t, t.get_rect(midleft=(x0 + lato + B.s(12), y)))
-            if nome == REGALO:
-                t = small.render("3 - %d/%d    4 - %d/%d    5 - %d/%d"
-                                 % tuple(int(x * punta) for coppia in
-                                         (PREMIO_REGALO[3], PREMIO_REGALO[4],
-                                          PREMIO_REGALO[5]) for x in coppia),
-                                 True, B.ORO_SOTTO)
-                sc.blit(t, t.get_rect(midright=(B.WIN_W - B.s(90), y)))
-            y += lato + B.s(4)
-        t = small.render(T("pt_line") % MODI, True, B.ORO_SOTTO)
-        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(66))))
+            sc.blit(img, img.get_rect(midleft=(x, yy)))
+            q = mini.render(testo, True, (200, 206, 216))
+            sc.blit(q, q.get_rect(midleft=(x + lato + B.s(8), yy)))
+        y += 2 * (lato + B.s(8)) + B.s(4)
+        t = mini.render(T("pt_line") % MODI, True, B.ORO_SOTTO)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, y)))
         if B.modo_comandi() == "pad" and B.ICONE_TASTI_OK():
             r = B.riga_pad(small, B.RIGA_MENU)
         else:
-            r = small.render(T("help_pt"), True, (150, 156, 168))
-        sc.blit(r, r.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(34))))
+            r = mini.render(T("help_pt"), True, (150, 156, 168))
+        sc.blit(r, r.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(24))))
         B.presenta()
 
 
