@@ -127,7 +127,7 @@ def scelta_tavolo():
 import math
 import random
 
-CARTA_W, CARTA_H = 92, 132      # alla misura del disegno, poi s()
+CARTA_W, CARTA_H = 61, 88       # alla misura del disegno, poi s()
 TEMPO_VOLO = 0.32               # secondi per andare da un posto all'altro
 TEMPO_GIRO = 0.22               # secondi per girarla
 FACCIA = {}
@@ -252,7 +252,11 @@ def schermata_carte(sc, clock, logo):
     torna al menu."""
     ip, ib = scelta_tavolo()
     z = zona_panno()
-    mazzo_pos = (z.centerx - B.s(250), z.centery)
+    # il mazzo fuori dal tavolo, a sinistra: dove nel biliardo ci sono
+    # potenza e precisione
+    x_lato = max(B.s(30), int((B.TAV_POS[0] + B.TAV_VISTA[0] * B.SCALA)
+                              / 2.0))
+    mazzo_pos = (x_lato, z.centery)
     carte = []
     mani = {0: [], 1: [], 2: [], 3: []}
     centro = []
