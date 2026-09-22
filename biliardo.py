@@ -11839,7 +11839,7 @@ def portafoglio(sc):
     if f is None:
         return
     try:
-        t = f.render(T("wallet") % dollari(soldi()), True, VERDE_SOLDI)
+        t = f.render(dollari(soldi()), True, VERDE_SOLDI)   # solo i soldi
     except (KeyError, TypeError, ValueError):
         return
     sc.blit(t, t.get_rect(topright=(WIN_W - s(24), s(12))))

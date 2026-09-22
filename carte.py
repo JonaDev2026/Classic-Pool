@@ -352,7 +352,7 @@ def fila_targhette(sc, nomi, punti, attivo=0):
     dalla parte del suo diamantino: sotto tu (oro) a sinistra e il verde
     a destra, sopra il rosso a sinistra e il blu a destra."""
     sotto = B.BANDA_PUNTI
-    sopra = pygame.Rect(0, 0, sotto.w, sotto.h)
+    sopra = sotto.copy()        # stessa larghezza e stesso inizio di sotto
     tav_top = B.TAV_POS[1] + B.TAV_VISTA[1] * B.SCALA
     sopra.centery = int(tav_top / 2 + B.s(4))
     meta = sotto.w // 2
