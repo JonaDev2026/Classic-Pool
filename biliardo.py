@@ -8118,7 +8118,7 @@ def logo_elegante(alto):
 
 
 def scritta_logo(sc, cx, cy, k=1.0):
-    """Il nome del gioco sotto lo stemma: "Classic" in corsivo d'oro e
+    """Il nome del gioco sotto lo stemma: "Golden" in corsivo d'oro e
     POOL in maiuscole con le grazie, larghe, fra due fili d'oro. Con k
     si rimpicciolisce tutto insieme, per la riga in cima al tavolo."""
     def m(v):
@@ -8135,7 +8135,7 @@ def scritta_logo(sc, cx, cy, k=1.0):
     if corsivo is None:
         corsivo = carattere_elegante(m(42)) or FONTS["titolo"]
         FONTS[chiave] = corsivo
-    lettere = [serif.render(ch, True, AVORIO) for ch in "POOL"]
+    lettere = [serif.render(ch, True, AVORIO) for ch in "BREAK"]
     spazio = m(16)
     largo = sum(l.get_width() for l in lettere) + spazio * (len(lettere) - 1)
     x = cx - largo // 2
@@ -8149,7 +8149,7 @@ def scritta_logo(sc, cx, cy, k=1.0):
         pygame.draw.line(sc, ORO_LOGO, (x0, cy + m(18)), (x1, cy + m(18)),
                          max(1, m(1)))
         pygame.draw.circle(sc, ORO_LOGO, (x1, cy + m(18)), max(2, m(3)))
-    c = corsivo.render("Classic", True, ORO_LUCE)
+    c = corsivo.render("Golden", True, ORO_LUCE)
     sc.blit(c, c.get_rect(center=(cx, cy - m(22))))
 
 
@@ -11910,7 +11910,7 @@ def main():
     # ancora quello di partenza.
     carica_config()
     sc = apri_finestra(CFG.get("pieno", False))
-    pygame.display.set_caption("Classic Pool")
+    pygame.display.set_caption("Golden Break")
     clock = pygame.time.Clock()
     # magro di proposito: il grassetto a questa misura si impasta.
     # Il primo nome che esiste vince: Arial su Windows, Liberation su Linux
