@@ -31,6 +31,7 @@ B = _base()
 TAVOLO_CARTE = "table_cards.png"
 # il panno: dentro la linea della PNG, fin dove arriva il legno
 PANNO_CARTE = pygame.Rect(120, 117, 1277, 662)
+LEGNO_FUORI = pygame.Rect(95, 88, 1327, 720)    # il bordo esterno del legno
 OMBRA_LEGNO = 14        # quanto si allarga l'ombra del panno sul legno
 OMBRA_SUL_LEGNO = 120   # quanto scurisce il legno contro il panno (0-255)
 LUCE_MEZZO = 26         # quanto schiarisce il centro del panno
@@ -246,13 +247,29 @@ def posti(n_mano):
     return out
 
 
-def targhetta(sc, nome, punti, centro, attivo=False):
-    """Nome e punteggio di un giocatore, in una targhetta scura."""
+# i colori dei quattro posti: il pallino sul legno e quello nella
+# targhetta sono dello stesso colore, cosi' si capisce chi e' chi
+COL_POSTI = ((236, 186, 64), (72, 142, 232), (222, 72, 72), (86, 190, 112))
+
+
+def pallino(sc, centro, col, r):
+    """Un pallino colorato col bordo scuro e un punto di luce."""
+    x, y = int(centro[0]), int(centro[1])
+    pygame.draw.circle(sc, (20, 16, 12), (x + 1, y + 2), r + 1)
+    pygame.draw.circle(sc, col, (x, y), r)
+    pygame.draw.circle(sc, (30, 24, 18), (x, y), r, max(1, r // 5))
+    pygame.draw.circle(sc, (255, 255, 255), (x - r // 3, y - r // 3),
+                       max(1, r // 4))
+
+
+def targhetta(sc, nome, punti, centro, col, attivo=False):
+    """Pallino, nome e punteggio di un giocatore, in una targhetta scura.
+    Ritorna quanto e' larga, per metterle in fila."""
     f = B.FONTS["small"]
     tn = f.render(nome, True, (240, 240, 244))
     tp = f.render(str(punti), True, B.ORO_SCELTA)
-    pad, gap = B.s(12), B.s(14)
-    w = tn.get_width() + gap + tp.get_width() + pad * 2
+    pad, gap, rp = B.s(12), B.s(14), B.s(7)
+    w = pad + rp * 2 + B.s(10) + tn.get_width() + gap + tp.get_width() + pad
     h = max(tn.get_height(), tp.get_height()) + B.s(8)
     r = pygame.Rect(0, 0, w, h)
     r.center = (int(centro[0]), int(centro[1]))
@@ -263,21 +280,45 @@ def targhetta(sc, nome, punti, centro, attivo=False):
     if attivo:
         pygame.draw.rect(sc, B.ORO_SCELTA, r, max(1, B.s(2)),
                          border_radius=h // 2)
-    sc.blit(tn, tn.get_rect(midleft=(r.x + pad, r.centery)))
+    pallino(sc, (r.x + pad + rp, r.centery), col, rp)
+    x = r.x + pad + rp * 2 + B.s(10)
+    sc.blit(tn, tn.get_rect(midleft=(x, r.centery)))
     sc.blit(tp, tp.get_rect(midright=(r.right - pad, r.centery)))
+    return w
 
 
-def posti_nomi():
-    """Dove vanno le targhette: tu sotto il tavolo, chi e' di fronte
-    sopra il tavolo, gli altri due sul panno sopra le loro carte."""
-    z = zona_panno()
-    tav_top = B.TAV_POS[1] + B.TAV_VISTA[1] * B.SCALA
+def larga_targhetta(nome, punti):
+    f = B.FONTS["small"]
+    return (B.s(12) * 2 + B.s(14) * 2 + B.s(10) + f.size(nome)[0] +
+            B.s(14) + f.size(str(punti))[0])
+
+
+def pallini_posti(sc):
+    """Un pallino a meta' di ogni lato del tavolo, sul legno: di chi e'
+    quel posto."""
+    k, (x0, y0) = B.SCALA, B.TAV_POS
+    p = PANNO_CARTE
+    # a meta' del legno: fra il bordo del panno e quello esterno
+    e = LEGNO_FUORI
+    dove = {0: (p.centerx, (p.bottom + e.bottom) / 2.0),
+            1: (p.centerx, (e.top + p.top) / 2.0),
+            2: ((e.left + p.left) / 2.0, p.centery),
+            3: ((p.right + e.right) / 2.0, p.centery)}
+    for chi, (x, y) in dove.items():
+        pallino(sc, (x0 + x * k, y0 + y * k), COL_POSTI[chi], B.s(8))
+
+
+def fila_targhette(sc, nomi, punti, attivo=0):
+    """Le quattro targhette in fila sotto il tavolo, centrate."""
     tav_bot = B.TAV_POS[1] + (B.TAV_VISTA[1] + B.TAV_VISTA[3]) * B.SCALA
-    alto_m = B.s(CARTA_H) * 0.35 + B.s(CARTA_W) * 0.62 * 0.7 * 2 + B.s(26)
-    return {0: (z.centerx, tav_bot + B.s(22)),
-            1: (z.centerx, tav_top - B.s(20)),
-            2: (z.left + B.s(CARTA_H) * 0.6, z.centery - alto_m),
-            3: (z.right - B.s(CARTA_H) * 0.6, z.centery - alto_m)}
+    y = tav_bot + B.s(36)
+    stacco = B.s(18)
+    larghe = [larga_targhetta(n, p) for n, p in zip(nomi, punti)]
+    x = B.WIN_W // 2 - (sum(larghe) + stacco * (len(larghe) - 1)) // 2
+    for chi, w in enumerate(larghe):
+        targhetta(sc, nomi[chi], punti[chi], (x + w // 2, y),
+                  COL_POSTI[chi], attivo=(chi == attivo))
+        x += w + stacco
 
 
 def schermata_carte(sc, clock, logo):
@@ -392,8 +433,8 @@ def schermata_carte(sc, clock, logo):
         for chi in (1, 2, 3, 0):
             for c in mani[chi]:
                 c.disegna(sc)
-        for chi, dove in posti_nomi().items():
-            targhetta(sc, nomi[chi], punti[chi], dove, attivo=(chi == 0))
+        pallini_posti(sc)
+        fila_targhette(sc, nomi, punti)
         aiuto = FONT_AIUTO()
         if aiuto is not None:
             t = aiuto.render("D  deal     click  play a card     R  collect"
