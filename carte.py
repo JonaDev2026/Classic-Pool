@@ -112,15 +112,10 @@ def tavolo_carte(i_panno, i_bordo):
 
 
 def scelta_tavolo():
-    """Panno e cornice: per ora quelli scelti per il biliardo, o quelli
-    di casa se non ce n'e' uno."""
-    ip = B.CFG.get("panno", -1)
-    ib = B.CFG.get("bordo", -1)
-    if not 0 <= ip < len(B.PANNI):
-        ip = B._quale(B.PANNI, B.TAVOLO_CASA[0])
-    if not 0 <= ib < len(B.BORDI):
-        ib = B._quale(B.BORDI, B.TAVOLO_CASA[1])
-    return ip, ib
+    """Il tavolo standard delle carte: panno verde e cornice di ciliegio,
+    il tavolo di casa. Non segue quello scelto per il biliardo."""
+    return (B._quale(B.PANNI, B.TAVOLO_CASA[0]),
+            B._quale(B.BORDI, B.TAVOLO_CASA[1]))
 
 
 def schermata_carte(sc, clock, logo):
