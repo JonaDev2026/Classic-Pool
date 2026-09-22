@@ -130,6 +130,40 @@ import math
 import random
 
 CARTA_W, CARTA_H = 61, 88       # alla misura del disegno, poi s()
+
+# I suoni delle carte, nella cartella carte_fx accanto al gioco:
+# servi (una carta dal mazzo), giocata1/2 (una carta giocata), giocate
+# (piu' carte calate insieme), togli (una carta tolta), pulisci1/2 (il
+# tavolo che si svuota). Se mancano, silenzio.
+import os
+SUONI_CARTE = {}
+
+
+def carica_suoni():
+    if SUONI_CARTE or not B.MUSICA_OK:
+        return
+    cartella = os.path.join(B.CARTELLA, "carte_fx")
+    if not os.path.isdir(cartella):
+        return
+    for f in sorted(os.listdir(cartella)):
+        if not f.lower().endswith((".mp3", ".ogg", ".wav")):
+            continue
+        nome = os.path.splitext(f)[0].lower().rstrip("0123456789")
+        try:
+            SUONI_CARTE.setdefault(nome, []).append(
+                pygame.mixer.Sound(os.path.join(cartella, f)))
+        except pygame.error:
+            pass
+
+
+def suona(nome, quanto=0.9):
+    gruppo = SUONI_CARTE.get(nome)
+    v = B.CFG.get("effetti", 100) / 100.0
+    if not gruppo or v <= 0:
+        return
+    s_ = random.choice(gruppo)
+    s_.set_volume(min(1.0, v * quanto))
+    s_.play()
 TEMPO_VOLO = 0.32               # secondi per andare da un posto all'altro
 TEMPO_GIRO = 0.22               # secondi per girarla
 FACCIA = {}
@@ -177,8 +211,10 @@ class Carta:
         self.t = 1.0                    # 1 = arrivata
         self.ritardo = 0.0
         self.su = 0.0                   # quanto si alza sotto il mouse
+        self.suono = None               # da suonare quando parte
 
-    def vai(self, dove, angolo=None, scoperta=None, ritardo=0.0):
+    def vai(self, dove, angolo=None, scoperta=None, ritardo=0.0,
+            suono=None):
         self.da = pygame.Vector2(self.pos)
         self.a = pygame.Vector2(dove)
         self.ang_da = self.ang
@@ -187,11 +223,15 @@ class Carta:
             self.gira_a = scoperta
         self.t = 0.0
         self.ritardo = ritardo
+        self.suono = suono
 
     def passo(self, dt):
         if self.ritardo > 0:
             self.ritardo -= dt
             return
+        if self.suono:
+            suona(self.suono)
+            self.suono = None
         if self.t < 1.0:
             self.t = min(1.0, self.t + dt / TEMPO_VOLO)
             k = morbido(self.t)
@@ -404,7 +444,8 @@ def schermata_carte(sc, clock, logo):
                 c = carte.pop()
                 mani[chi].append(c)
                 dove, ang = pos[chi][i]
-                c.vai(dove, ang, scoperta=(chi == 0), ritardo=rit)
+                c.vai(dove, ang, scoperta=(chi == 0), ritardo=rit,
+                      suono="servi")
                 rit += 0.07
 
     def rimetti_mano():
@@ -420,12 +461,14 @@ def schermata_carte(sc, clock, logo):
         c.su = 0.0
         c.vai((z.centerx + (n - 1) * B.s(18) - B.s(20),
                z.centery + random.uniform(-4, 4)),
-              random.uniform(-8, 8), scoperta=True)
+              random.uniform(-8, 8), scoperta=True, suono="giocata")
         rimetti_mano()
 
     def raccogli():
         rit = 0.0
         tutte = centro + mani[0] + mani[1] + mani[2] + mani[3]
+        if tutte:
+            suona("pulisci")
         for c in tutte:
             c.vai(mazzo_pos, 0.0, scoperta=False, ritardo=rit)
             rit += 0.02
@@ -437,6 +480,7 @@ def schermata_carte(sc, clock, logo):
 
     nomi = [B.NOMI[0] or "Player 1"] + random.sample(B.AVVERSARI, 3)
     punti = [0, 0, 0, 0]
+    carica_suoni()
     nuovo_mazzo()
     while True:
         dt = clock.tick(60) / 1000.0
