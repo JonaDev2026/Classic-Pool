@@ -7985,6 +7985,11 @@ def carica_config():
         for k in CFG:
             if k in d:
                 CFG[k] = d[k]
+        # le scelte delle carte (mazzi, panno, ramino) nascono dopo, e
+        # non stanno nell'elenco di partenza: si rileggono lo stesso
+        for k, v in d.items():
+            if k.startswith(("mazzo_", "ramino_", "panno_carte")):
+                CFG[k] = v
         PRIMA_VOLTA[0] = False
     except (IOError, ValueError):
         pass
@@ -9274,8 +9279,10 @@ def pad_evento(ev, fuori):
         k = PAD_TASTI.get(ev.button)
         if ev.button == pygame.CONTROLLER_BUTTON_X:
             k = tasto("gesso")          # il gesso sulla stecca
+        if ev.button == pygame.CONTROLLER_BUTTON_Y:
+            k = tasto("cambia")         # carte: scegli per calare
         if ev.button == pygame.CONTROLLER_BUTTON_RIGHTSHOULDER:
-            k = tasto("cambia")         # piramide: la palla dopo
+            k = tasto("eff_via")        # carte: ordina la mano da sola
         if k is not None:
             fuori.append(finto_tasto(k))
     elif ev.type == pygame.CONTROLLERAXISMOTION and ev.axis in (

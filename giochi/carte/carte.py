@@ -118,10 +118,15 @@ def tavolo_carte(i_panno, i_bordo):
 
 
 def scelta_tavolo():
-    """Il tavolo standard delle carte: panno verde e cornice di ciliegio,
-    il tavolo di casa. Non segue quello scelto per il biliardo."""
-    return (B._quale(B.PANNI, B.TAVOLO_CASA[0]),
-            B._quale(B.BORDI, B.TAVOLO_CASA[1]))
+    """Il tavolo delle carte: la cornice e' sempre quella di ciliegio, il
+    panno si sceglie dal menu delle carte (le stesse texture del
+    biliardo). Non segue il tavolo scelto per il biliardo."""
+    i = B.CFG.get("panno_carte", -1)
+    if i == -1 and B.PANNI:
+        i = random.randrange(len(B.PANNI))      # a caso, a ogni partita
+    if not isinstance(i, int) or not (0 <= i < len(B.PANNI)):
+        i = B._quale(B.PANNI, B.TAVOLO_CASA[0])
+    return i, B._quale(B.BORDI, B.TAVOLO_CASA[1])
 
 
 # ------------------------------------------------------------ le carte
@@ -292,11 +297,13 @@ def _solo_pieno(img):
     return img
 
 
-def immagine_mazzo(che):
-    """dorso o scatola del mazzo scelto. Il dorso senza bordo vuoto."""
-    if MAZZO_ORA[0] is None:
+def immagine_mazzo(che, cartella=None):
+    """dorso o scatola del mazzo scelto (o di quello dato: nel ramino si
+    gioca con due mazzi, rosso e blu). Il dorso senza bordo vuoto."""
+    cartella = cartella or MAZZO_ORA[0]
+    if cartella is None:
         return None
-    f = os.path.join(cartella_carte(), "mazzi", MAZZO_ORA[0], che + ".png")
+    f = os.path.join(cartella_carte(), "mazzi", cartella, che + ".png")
     if not os.path.exists(f):
         return None
     if che != "dorso":
@@ -336,6 +343,20 @@ def _riduci(img, w, h):
         return pygame.transform.smoothscale(img, (w, h))
 
 
+def _dentro(img, w, h, fondo=(255, 255, 255)):
+    """Ci sta tutta: l'immagine si rimpicciolisce finche' entra in w x h
+    senza tagliare niente, e quello che avanza resta bianco come il bordo
+    della carta. Serve ai dorsi, che non hanno sempre la stessa forma
+    delle facce."""
+    iw, ih = img.get_size()
+    k = min(w / float(iw), h / float(ih))
+    q = _riduci(img, max(1, int(round(iw * k))), max(1, int(round(ih * k))))
+    sup = pygame.Surface((w, h), pygame.SRCALPHA)
+    sup.fill(fondo)
+    sup.blit(q, q.get_rect(center=(w // 2, h // 2)))
+    return sup
+
+
 def _copri(img, w, h):
     """Porta l'immagine a w x h senza stirarla: si ingrandisce in modo
     uguale nei due sensi e si taglia quello che avanza, in mezzo."""
@@ -360,11 +381,11 @@ def _arrotonda(img, r):
     return out
 
 
-def faccia_carta(scoperta, codice=None, k=1.0):
+def faccia_carta(scoperta, codice=None, k=1.0, dorso=None):
     """La superficie della carta, dritta, con la sua ombra. k: quanto
     e' ingrandito lo schermo, la carta nasce gia' a quella misura."""
     k = round(k, 3)
-    chiave = (scoperta, codice if scoperta else None, k)
+    chiave = (scoperta, codice if scoperta else dorso, k)
     if chiave in FACCIA:
         return FACCIA[chiave]
     w, h = misura_carta()
@@ -376,9 +397,13 @@ def faccia_carta(scoperta, codice=None, k=1.0):
     pygame.draw.rect(sup, (0, 0, 0, 28), pygame.Rect(q(2), q(3), w, h),
                      border_radius=r)
     corpo = pygame.Rect(0, 0, w, h)
-    img = immagine_carta(codice) if scoperta else immagine_mazzo("dorso")
+    img = immagine_carta(codice) if scoperta else \
+        immagine_mazzo("dorso", dorso)
     if img is not None:
-        img = _arrotonda(_copri(img, w, h), r)
+        # le facce danno la forma alla carta, quindi ci stanno esatte; i
+        # dorsi possono avere proporzioni diverse e non si tagliano mai
+        img = _arrotonda(_copri(img, w, h) if scoperta
+                         else _dentro(img, w, h), r)
         sup.blit(img, (0, 0))
     elif scoperta:
         pygame.draw.rect(sup, (250, 250, 246), corpo, border_radius=r)
@@ -393,28 +418,84 @@ def faccia_carta(scoperta, codice=None, k=1.0):
     return sup
 
 
-def disegna_scatola(sc, centro, alto, z=1.0):
-    """La scatolina del mazzo, accanto al mazzo. z: l'ingrandimento."""
-    img = immagine_mazzo("scatola")
-    if img is None or alto <= 0:
+def scatola_doppia(cartelle):
+    """La confezione doppia, quella rettangolare da due mazzi: si cerca
+    scatola_doppia.png nelle cartelle dei due mazzi. Se non c'e' si
+    disegnano le due scatole singole nello stesso spazio."""
+    for cartella in cartelle:
+        img = immagine_mazzo("scatola_doppia", cartella)
+        if img is not None:
+            return img
+    return None
+
+
+def disegna_scatola(sc, centro, alto, z=1.0, cartelle=None):
+    """La scatola accanto al mazzo. Con due mazzi (ramino): la confezione
+    doppia se c'e', se no le due scatoline affiancate nello stesso posto.
+    z: l'ingrandimento dello schermo."""
+    if alto <= 0:
         return
     alto = max(1, int(alto * z))
-    k = alto / float(img.get_height())
-    chiave = ("scatola", MAZZO_ORA[0], alto)
-    if chiave not in FACCIA:
-        FACCIA[chiave] = _riduci(img, int(img.get_width() * k), alto)
-    q = FACCIA[chiave]
+    cartelle = [x for x in (cartelle or []) if x]
+    doppia = scatola_doppia(cartelle) if len(cartelle) > 1 else None
+    if doppia is not None or len(cartelle) < 2:
+        imgs = [doppia if doppia is not None
+                else immagine_mazzo("scatola", cartelle[0] if cartelle
+                                    else None)]
+        nomi = [cartelle[0] if cartelle else MAZZO_ORA[0]]
+        if doppia is not None:
+            nomi = ["doppia+" + "+".join(cartelle)]
+    else:
+        imgs = [immagine_mazzo("scatola", x) for x in cartelle]
+        nomi = list(cartelle)
+        alto = max(1, int(alto * 0.72))     # due scatole nello stesso spazio
+    imgs = [(n, i) for n, i in zip(nomi, imgs) if i is not None]
+    if not imgs:
+        return
+    pezzi = []
+    for nome, img in imgs:
+        k = alto / float(img.get_height())
+        chiave = ("scatola", nome, alto)
+        if chiave not in FACCIA:
+            FACCIA[chiave] = _riduci(img, max(1, int(img.get_width() * k)),
+                                     alto)
+        pezzi.append(FACCIA[chiave])
+    gap = max(2, int(B.s(4) * z))
+    largo = sum(p.get_width() for p in pezzi) + gap * (len(pezzi) - 1)
     c = (int(centro[0] * z), int(centro[1] * z))
-    om = pygame.Surface(q.get_size(), pygame.SRCALPHA)
-    om.fill((0, 0, 0, 40))
-    sc.blit(om, q.get_rect(center=(c[0] + int(B.s(2) * z),
-                                   c[1] + int(B.s(3) * z))))
-    sc.blit(q, q.get_rect(center=c))
+    x = c[0] - largo // 2
+    for q in pezzi:
+        r = q.get_rect(midleft=(x, c[1]))
+        om = pygame.Surface(q.get_size(), pygame.SRCALPHA)
+        om.fill((0, 0, 0, 40))
+        sc.blit(om, r.move(int(B.s(2) * z), int(B.s(3) * z)))
+        sc.blit(q, r)
+        x += q.get_width() + gap
 
 
 def morbido(t):
     t = max(0.0, min(1.0, t))
     return t * t * (3 - 2 * t)
+
+
+ALONI = {}
+
+
+def alone(w, h, m, col, r):
+    """Un alone di luce attorno a un rettangolo w x h: pieno sul bordo
+    della carta, sempre piu' trasparente man mano che si allontana."""
+    chiave = (w, h, m, col, r)
+    if chiave not in ALONI:
+        s = pygame.Surface((w + 2 * m, h + 2 * m), pygame.SRCALPHA)
+        for i in range(m, 0, -1):
+            a = int(150 * (1.0 - i / float(m + 1)) ** 2) + 6
+            q = pygame.Surface(s.get_size(), pygame.SRCALPHA)
+            pygame.draw.rect(q, col + (a,), pygame.Rect(m - i, m - i,
+                                                        w + 2 * i, h + 2 * i),
+                             border_radius=r + i)
+            s.blit(q, (0, 0))
+        ALONI[chiave] = s
+    return ALONI[chiave]
 
 
 class Carta:
@@ -432,9 +513,12 @@ class Carta:
         self.ritardo = 0.0
         self.su = 0.0                   # quanto si alza sotto il mouse
         self.suono = None               # da suonare quando parte
+        # quanto e' grande rispetto al mazzo: in volo cresce o cala piano
+        self.g = self.g_da = self.g_a = 1.0
+        self.dorso = None               # il mazzo del dorso, se non e' quello scelto
 
     def vai(self, dove, angolo=None, scoperta=None, ritardo=0.0,
-            suono=None):
+            suono=None, grande=None):
         self.da = pygame.Vector2(self.pos)
         self.a = pygame.Vector2(dove)
         self.ang_da = self.ang
@@ -444,6 +528,8 @@ class Carta:
         self.t = 0.0
         self.ritardo = ritardo
         self.suono = suono
+        self.g_da = self.g
+        self.g_a = self.g if grande is None else grande
 
     def passo(self, dt):
         if self.ritardo > 0:
@@ -457,8 +543,9 @@ class Carta:
             k = morbido(self.t)
             self.pos = self.da.lerp(self.a, k)
             self.ang = self.ang_da + (self.ang_a - self.ang_da) * k
+            self.g = self.g_da + (self.g_a - self.g_da) * k
 
-    def disegna(self, sc, z=1.0):
+    def disegna(self, sc, z=1.0, bordo=None):
         # la girata: a meta' volo si stringe fino a sparire e rinasce
         # dall'altra parte, come una carta che ruota
         k = 1.0
@@ -470,7 +557,25 @@ class Carta:
             else:
                 k = abs(math.cos(math.pi * max(0.0, self.t)))
                 scoperta = self.gira_a if self.t > 0.5 else self.scoperta
-        img = faccia_carta(scoperta, self.codice, z)
+        # la misura va a scatti piccoli: in volo non si rifa' la carta
+        # a ogni fotogramma
+        g = self.g_a if self.t >= 1.0 else round(self.g * 20) / 20.0
+        img = faccia_carta(scoperta, self.codice, z * g, self.dorso)
+        if bordo is not None:
+            # la carta scelta: un alone di luce dorata tutto intorno, che
+            # sfuma verso fuori
+            w, h = misura_carta()
+            w, h = max(1, int(w * z * g)), max(1, int(h * z * g))
+            al = alone(w, h, max(4, int(B.s(12) * z)), bordo,
+                       max(3, int(B.s(6) * z * g)))
+            m = (al.get_width() - w) // 2
+            tutto = pygame.Surface((max(al.get_width(), img.get_width() + m),
+                                    max(al.get_height(),
+                                        img.get_height() + m)),
+                                   pygame.SRCALPHA)
+            tutto.blit(al, (0, 0))
+            tutto.blit(img, (m, m))
+            img = tutto
         if k < 0.999:
             img = pygame.transform.smoothscale(
                 img, (max(1, int(img.get_width() * k)), img.get_height()))
@@ -488,22 +593,23 @@ def zona_panno():
                        int(PANNO_CARTE.w * k), int(PANNO_CARTE.h * k))
 
 
-def posti(n_mano):
+def posti(n_mano, g=1.0):
     """Dove vanno le carte di ognuno: tu in basso a ventaglio, uno sopra,
     uno a sinistra e uno a destra, girati verso il centro."""
     z = zona_panno()
-    passo = B.s(CARTA_W) * 0.62
+    passo = B.s(CARTA_W) * 0.62 * g
+    ch = B.s(CARTA_H) * g
     out = {0: [], 1: [], 2: [], 3: []}
     for i in range(n_mano):
         off = (i - (n_mano - 1) / 2.0)
         out[0].append(((z.centerx + off * passo * 1.25,
-                        z.bottom - B.s(CARTA_H) * 0.62 + abs(off) * B.s(3)),
+                        z.bottom - ch * 0.62 + abs(off) * B.s(3)),
                        -off * 3.0))
         out[1].append(((z.centerx + off * passo * 0.7,
-                        z.top + B.s(CARTA_H) * 0.55), 180.0))
-        out[2].append(((z.left + B.s(CARTA_H) * 0.6,
+                        z.top + ch * 0.55), 180.0))
+        out[2].append(((z.left + ch * 0.6,
                         z.centery + off * passo * 0.7), -90.0))
-        out[3].append(((z.right - B.s(CARTA_H) * 0.6,
+        out[3].append(((z.right - ch * 0.6,
                         z.centery + off * passo * 0.7), 90.0))
     return out
 

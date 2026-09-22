@@ -1,8 +1,8 @@
-# Classic Pool
+# Golden Break
 
-A billiards game for Mac, Windows and Linux, written in Python with pygame.
-Nine disciplines, a computer opponent with six levels, tournaments, 55 cues
-and a full set of tables, cloths and ball sets.
+A casino game for Mac, Windows and Linux, written in Python with pygame.
+Billiards with nine disciplines, tournaments and 55 cues, plus six card
+games on a real card table. Roulette and slots are on the way.
 
 ## Requirements
 
@@ -70,6 +70,8 @@ Menus work with the D-pad, A to select and B to go back.
 
 ## What's in the game
 
+### Billiards
+
 **Disciplines**, grouped by category:
 
 - Pool: 8-Ball, 9-Ball, 10-Ball, Blackball, Russian Pyramid
@@ -103,6 +105,36 @@ discipline.
 - Background music in the menu and during play
 - Shot clock with countdown ticks in the last ten seconds
 
+### Card games
+
+Six games, all one against one or against the house, on a card table with
+its own cloth and real decks.
+
+| Game | Cards | How it goes |
+|---|---|---|
+| Blackjack | French, two decks | Bets from your wallet, blackjack pays 3 to 2, double on the first two cards, the dealer draws to 17 |
+| Sette e Mezzo | Italian 40 | Bets from your wallet, the King of Coins is wild, sette e mezzo reale pays double, a tie replays the hand |
+| Scopa | Italian 40 | Up to 11 points: cards, coins, settebello, primiera and scope. When a card can be taken in more than one way you choose, and the cards light up |
+| Briscola | Italian 40 | 120 points, the trump lies across under the deck |
+| Rummy | French, two decks and four jokers | Opening at 50, laying off after you open, jokers worth the card they stand for, stake of 50 and the "closed in one turn" rule |
+| Texas Hold'em | French | Heads-up against the dealer, blinds, flop, turn and river, fixed limit betting |
+
+**Decks**: 43 of them, Italian (Napoletane, Toscane) and French (Poker 98,
+Texas, Jumbo, Bridge, Club, Golden Trophy, Bike Trophy). Each game
+remembers its own deck; Rummy plays with two decks of the same design and
+you pick which two colours, with the double box when the pack has one.
+
+**Table**: the cloth is chosen in the Cards menu, from the same textures as
+the billiards tables, or left on random.
+
+**Controls in Rummy**: one cursor for everything, deck, discard, your hand
+and the melds on the table. With the pad: A draws, discards or melds, Y
+picks cards for melding, X moves a card in your hand or lays it off, RB
+sorts your hand by the best combinations it can find. With mouse and
+keyboard the same things are a click or ENTER, and the keys set in the
+controls page (C, G and E by default); the help line at the bottom always
+shows the keys you are actually using.
+
 **Languages**
 
 English, Italian, French and Spanish, switchable at any time, even during a
@@ -114,7 +146,7 @@ game.
 |---|---|
 | `golden_break.py` | Start the game from here |
 | `giochi/biliardo` | Casino menu and billiards code, referee voice generator |
-| `giochi/carte` | Card games code |
+| `giochi/carte` | Card games code (table, cards, games) |
 | `immagini/comune` | Fonts, controller icons, flags, background |
 | `immagini/biliardo` | Tables, cloths, rails, crests, trophies, clock |
 | `immagini/carte` | Card table, card faces and decks |
@@ -124,3 +156,15 @@ game.
 
 `giochi/biliardo/arbitro.py` regenerates the referee voice files (needs `edge-tts` and an
 internet connection).
+
+The card faces and decks under `immagini/carte/facce` and
+`immagini/carte/mazzi` are not in the repository: put your own images
+there, one folder per deck with `dorso.png`, `scatola.png` and, for a two
+deck pack, `scatola_doppia.png`. A deck folder is named
+`<type>_<design>_<colour>`, for example `francesi_texas_rosso` or
+`napoletane_rosso_150`, and the type picks which set of faces it uses.
+
+## Credits
+
+The French card faces come from [xCards](https://github.com/Xadeck/xCards)
+(LGPL 3).
