@@ -116,7 +116,7 @@ QUANTI = {
     "jackpot":      (5, 5, 5, 5, 5),
 }
 
-PUNTATE = (20, 40, 100, 200, 400)   # per giro, divisi sulle venti linee
+PUNTATE = (20, 50, 100, 250, 500, 1000)    # quanto si gioca a giro
 
 # il jackpot: parte da qui, cresce di una fetta di ogni puntata e si
 # vince con cinque simboli del jackpot in fila su una linea. Sta nel
@@ -237,7 +237,7 @@ def vincite(griglia, unita):
         quanto = PAGA[nome][min(lung, 5) - 2]
         if not quanto:
             continue
-        paga = quanto * strade * unita
+        paga = int(round(quanto * strade * unita))
         celle = [x for c in range(lung) for x in dove[c]]
         fuori.append((nome, lung, strade, paga, celle))
     return sum(v[3] for v in fuori), fuori
@@ -254,7 +254,7 @@ TXT = {
            "ways_win": "%d x %s  on %d ways", "credit": "Credit",
            "jackpot": "Jackpot", "won_jack": "JACKPOT!  %s",
            "pt_jack": "One on each of the five reels wins the jackpot: %s",
-           "pt_title": "Paytable", "pt_wild": "Wild: stands for any symbol",
+           "pt_title": "Paytable", "pt_bet": "prizes at a bet of %s", "pt_wild": "Wild: stands for any symbol",
            "pt_gift": "Gift: three or more anywhere, with a random prize inside",
            "pt_dice": "Dice: three or more anywhere win %d free spins",
            "pt_bonus": "Bonus: pays anywhere, on the total bet",
@@ -271,7 +271,7 @@ TXT = {
            "credit": "Credito", "jackpot": "Jackpot",
            "won_jack": "JACKPOT!  %s",
            "pt_jack": "Uno su ognuno dei cinque rulli vince il jackpot: %s",
-           "pt_title": "Pagamenti",
+           "pt_title": "Pagamenti", "pt_bet": "premi alla puntata di %s",
            "pt_wild": "Jolly: vale per tutti i simboli",
            "pt_gift": "Regalo: tre o piu' dovunque siano, e dentro c'e' un premio a caso",
            "pt_dice": "Dadi: tre o piu' dovunque siano vincono %d giri gratis",
@@ -289,7 +289,7 @@ TXT = {
            "credit": "Credit", "jackpot": "Jackpot",
            "won_jack": "JACKPOT !  %s",
            "pt_jack": "Un sur chacun des cinq rouleaux gagne le jackpot : %s",
-           "pt_title": "Table des gains",
+           "pt_title": "Table des gains", "pt_bet": "gains pour une mise de %s",
            "pt_wild": "Joker : remplace tous les symboles",
            "pt_gift": "Cadeau : trois ou plus n'importe ou, avec un prix au hasard",
            "pt_dice": "Des : trois ou plus n'importe ou gagnent %d tours gratuits",
@@ -307,7 +307,7 @@ TXT = {
            "credit": "Credito", "jackpot": "Jackpot",
            "won_jack": "JACKPOT!  %s",
            "pt_jack": "Uno en cada uno de los cinco rodillos gana el jackpot: %s",
-           "pt_title": "Tabla de premios",
+           "pt_title": "Tabla de premios", "pt_bet": "premios con apuesta de %s",
            "pt_wild": "Comodin: vale por todos los simbolos",
            "pt_gift": "Regalo: tres o mas donde sea, con un premio al azar",
            "pt_dice": "Dados: tres o mas donde sea ganan %d giros gratis",
@@ -798,8 +798,7 @@ class Macchina:
         f = B.FONTS["small"]
         passo = f.get_height() + B.s(10)
         y = r.bottom + B.s(24)
-        righe = [(T("tot_bet"), B.dollari(per_linea * MODI_UNITA)),
-                 (T("per_line"), B.dollari(per_linea))]
+        righe = [(T("tot_bet"), B.dollari(round(per_linea * MODI_UNITA)))]
         if self.gratis:
             righe.append((T("free_spins"), str(self.gratis)))
         for et, val in righe:
@@ -874,11 +873,17 @@ def pagina_pagamenti(sc, clock):
         sc.blit(fondo_slot(), (0, 0))
         f_t = B.FONTS.get("elegante") or B.FONTS["grande"]
         t = f_t.render(B.tit_el(T("pt_title")), True, (240, 240, 244))
-        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(40))))
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(34))))
         small, font = B.FONTS["small"], B.FONTS["font"]
+        punta = B.CFG.get("slot_punta", PUNTATE[0])
+        if punta not in PUNTATE:
+            punta = PUNTATE[0]
+        unita = punta / float(MODI_UNITA)
+        t = small.render(T("pt_bet") % B.dollari(punta), True, B.ORO_SOTTO)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(74))))
         gruppi = gruppi_pagamenti()
         lato = B.s(38)
-        y = B.ALTO + B.s(84)
+        y = B.ALTO + B.s(100)
         passo = lato + B.s(6)
         x0 = B.s(90)
         for nomi, (p2, p3, p4, p5) in gruppi:
@@ -889,8 +894,10 @@ def pagina_pagamenti(sc, clock):
                 x += lato + B.s(5)
             pezzi = []
             if p2:
-                pezzi.append("2 - %d" % p2)
-            pezzi += ["3 - %d" % p3, "4 - %d" % p4, "5 - %d" % p5]
+                pezzi.append("2 - %d" % round(p2 * unita))
+            pezzi += ["3 - %d" % round(p3 * unita),
+                      "4 - %d" % round(p4 * unita),
+                      "5 - %d" % round(p5 * unita)]
             t = font.render("      ".join(pezzi), True, (230, 232, 238))
             sc.blit(t, t.get_rect(midright=(B.WIN_W - B.s(90), y)))
             y += passo
@@ -906,9 +913,11 @@ def pagina_pagamenti(sc, clock):
             t = small.render(testo, True, (230, 232, 238))
             sc.blit(t, t.get_rect(midleft=(x0 + lato + B.s(12), y)))
             if nome == REGALO:
-                t = small.render("3 - %d/%dx    4 - %d/%dx    5 - %d/%dx"
-                                 % (PREMIO_REGALO[3] + PREMIO_REGALO[4]
-                                    + PREMIO_REGALO[5]), True, B.ORO_SOTTO)
+                t = small.render("3 - %d/%d    4 - %d/%d    5 - %d/%d"
+                                 % tuple(int(x * punta) for coppia in
+                                         (PREMIO_REGALO[3], PREMIO_REGALO[4],
+                                          PREMIO_REGALO[5]) for x in coppia),
+                                 True, B.ORO_SOTTO)
                 sc.blit(t, t.get_rect(midright=(B.WIN_W - B.s(90), y)))
             y += lato + B.s(4)
         t = small.render(T("pt_line") % MODI, True, B.ORO_SOTTO)
@@ -937,7 +946,9 @@ def gioca_slot(sc, clock, logo):
                 T("pays"), T("back")]
 
     def per_linea():
-        return max(1, punta // MODI_UNITA)
+        """L'unita': i premi del tabellone sono per unita', e la puntata
+        vale venti unita'."""
+        return punta / float(MODI_UNITA)
 
     def cambia_punta(verso):
         nonlocal punta
