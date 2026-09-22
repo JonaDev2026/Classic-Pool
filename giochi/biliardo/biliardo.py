@@ -7967,7 +7967,7 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "stecche_vinte": 0,
        "stecca2": -1,                    # quella del giocatore 2
        "avversario": "",                 # contro il computer: chi, o a caso
-       "soldi": 500,                     # il portafoglio: si parte con 500
+       "soldi": 1000,                    # il portafoglio: si parte con 1000
        "stecche_mie": [0],               # le stecche comprate
        "gessi": {"blu": 1},              # i cubetti ancora da aprire
        "gesso_tipo": "blu",              # il gessetto che si usa
@@ -9606,7 +9606,7 @@ def azzera_carriera():
     """Ricomincia da capo: portafoglio ai 500 di partenza, una sola
     stecca, il gessetto blu, nessun torneo salvato e record a zero. Le
     impostazioni (lingua, audio, comandi, nome) restano come sono."""
-    CFG["soldi"] = 500
+    CFG["soldi"] = 1000
     CFG["stecca"], CFG["stecca2"] = 0, -1
     CFG["stecche_mie"] = [0]
     CFG["stecche_vinte"] = 0
