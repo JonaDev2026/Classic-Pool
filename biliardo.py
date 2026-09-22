@@ -5388,16 +5388,7 @@ def disegna_stecca(sc, p, d, potenza, chi=0):
     # col gesso la stecca va via dal tavolo, si passa il gesso sul cuoio
     # e poi torna: tira indietro, resta fuori un attimo, rientra
     if chi in (0, 1):
-        t = (pygame.time.get_ticks() - GESSO_QUANDO[chi]) / 1000.0
-        if 0.0 <= t < 1.6:
-            if t < 0.35:
-                via = t / 0.35
-            elif t < 1.25:
-                via = 1.0
-            else:
-                via = 1.0 - (t - 1.25) / 0.35
-            via = via * via * (3 - 2 * via)         # morbido
-            indietro += via * PLAY.w * 0.9
+        indietro += tempo_gesso(chi) * PLAY.w * 0.9
     p0 = Vector2(p) - d * indietro          # il cuoio
     lung = PLAY.w * 145.0 / 254.0           # stecca da 145 cm
     # i 13 mm della ghiera, i 20 della giunzione e i 30 del fondello
@@ -6179,6 +6170,37 @@ def consuma_gesso(chi):
 # cubetto se ne apre un altro dei tuoi; se non ne hai piu', niente gesso
 # finche' non li ricompri al negozio. In due si usa la stessa scorta.
 GESSO_QUANDO = [0, 0]   # quando si e' dato il gesso, per l'animazione
+GESSO_SUONO = [False, False]    # il suono aspetta che la stecca sia fuori
+GESSO_ESCE = 0.35       # secondi per portare via la stecca, e per riportarla
+
+
+def durata_gesso():
+    """Quanto dura il suono del gesso: la stecca resta fuori tutto quel
+    tempo e torna solo quando e' finito."""
+    try:
+        return max(0.5, SUONI["gesso"][0].get_length())
+    except Exception:
+        return 2.8
+
+
+def tempo_gesso(chi):
+    """A che punto e' il gesso: il suono parte quando la stecca e' uscita;
+    ritorna quanto e' fuori la stecca, da 0 a 1."""
+    t = (pygame.time.get_ticks() - GESSO_QUANDO[chi]) / 1000.0
+    if GESSO_SUONO[chi] and t >= GESSO_ESCE:
+        GESSO_SUONO[chi] = False
+        if SUONI.get("gesso"):
+            suona_fx("gesso")
+    dur = durata_gesso()
+    if t < 0.0 or t >= GESSO_ESCE * 2 + dur:
+        return 0.0
+    if t < GESSO_ESCE:
+        via = t / GESSO_ESCE
+    elif t < GESSO_ESCE + dur:
+        via = 1.0
+    else:
+        via = 1.0 - (t - GESSO_ESCE - dur) / GESSO_ESCE
+    return via * via * (3 - 2 * via)
 GESSO_PNG = {}
 # Ognuno ha il suo cubetto aperto, come il serbatoio di ogni macchina; i
 # cubetti nuovi escono tutti dalla stessa scorta, quella del giocatore 1.
@@ -6250,8 +6272,7 @@ def gesso_del_computer():
         GESSO[1] = 1.0
         GESSO_TIRI[1] = 0
         GESSO_QUANDO[1] = pygame.time.get_ticks()
-        if SUONI.get("gesso"):
-            suona_fx("gesso")
+        GESSO_SUONO[1] = True
 
 
 def metti_gesso(chi):
@@ -6263,8 +6284,7 @@ def metti_gesso(chi):
         GESSO[chi] = 1.0
         GESSO_TIRI[chi] = 0
         GESSO_QUANDO[chi] = pygame.time.get_ticks()
-        if SUONI.get("gesso"):
-            suona_fx("gesso")
+        GESSO_SUONO[chi] = True
         return True
     k = CUBO_K[chi][0]
     if int(CFG.get(k, 0)) <= 0 and not apri_cubetto(chi):
@@ -6274,8 +6294,7 @@ def metti_gesso(chi):
     GESSO[chi] = 1.0
     GESSO_TIRI[chi] = 0
     GESSO_QUANDO[chi] = pygame.time.get_ticks()
-    if SUONI.get("gesso"):
-        suona_fx("gesso")
+    GESSO_SUONO[chi] = True
     return True
 
 
@@ -6794,6 +6813,7 @@ def infinito(sc, cx, cy, a, col):
 
 
 def fianco(sc, partita, gi, x_lato, potenza, mini):
+    tempo_gesso(gi)         # fa partire il suono del gesso al momento giusto
     attivo = (partita.turno == gi and not partita.finita)
     col_et = TESTO_OPACO
     alto_barra = s(190)
