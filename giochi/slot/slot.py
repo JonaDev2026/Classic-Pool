@@ -642,8 +642,8 @@ class Macchina:
             d = self.durata[c]
             if self.t >= d:
                 if self.pos[c] != self.a[c]:
-                    # il rullo si ferma in silenzio: c'e' solo lo spin
                     self.pos[c] = self.a[c]
+                    suona("stop", 0.7)
                 finiti += 1
             else:
                 k = self.t / d
@@ -917,6 +917,7 @@ def gioca_slot(sc, clock, logo):
         jackpot(max(1, int(punta * JACKPOT_FETTA)))
         B.salva_config()
         m.parti()
+        suona("bottone", 0.9)
         suona("spin", 0.9)
 
     while True:
