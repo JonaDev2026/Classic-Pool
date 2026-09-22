@@ -200,18 +200,114 @@ TEMPO_GIRO = 0.22               # secondi per girarla
 FACCIA = {}
 
 
-def faccia_carta(scoperta):
+# Le carte vere: le facce stanno in biliardo_gfx/carte/facce/<tipo>/,
+# un file per carta col suo codice (1d = asso di denari, 10s = re di
+# spade: d denari, c coppe, s spade, b bastoni). Ogni mazzo ha la sua
+# cartella in carte/mazzi/<nome>/ con dorso.png e scatola.png; il tipo
+# di facce si capisce dal nome della cartella (napoletane, toscane,
+# francesi). Se una carta manca si disegna la sagoma bianca.
+SEMI_IT = ("d", "c", "s", "b")
+IMG_CARTE = {}
+
+
+def cartella_carte():
+    return os.path.join(B.GFX, "carte")
+
+
+def mazzi_disponibili():
+    """I mazzi che ci sono: (nome della cartella, tipo di facce)."""
+    base = os.path.join(cartella_carte(), "mazzi")
+    fuori = []
+    if os.path.isdir(base):
+        for nome in sorted(os.listdir(base)):
+            if not os.path.isdir(os.path.join(base, nome)):
+                continue
+            tipo = next((t for t in ("napoletane", "toscane", "francesi")
+                         if t in nome.lower()), "napoletane")
+            fuori.append((nome, tipo))
+    return fuori
+
+
+MAZZO_ORA = [None, "napoletane"]    # la cartella del mazzo e il tipo
+
+
+def scegli_mazzo(i=0):
+    m = mazzi_disponibili()
+    if m:
+        MAZZO_ORA[0], MAZZO_ORA[1] = m[i % len(m)]
+    FACCIA.clear()
+
+
+def mazzo_codici():
+    """I codici delle 40 carte italiane."""
+    return ["%d%s" % (n, sm) for sm in SEMI_IT for n in range(1, 11)]
+
+
+def _immagine(percorso):
+    if percorso not in IMG_CARTE:
+        try:
+            IMG_CARTE[percorso] = pygame.image.load(percorso).convert_alpha()
+        except (pygame.error, FileNotFoundError, IOError):
+            IMG_CARTE[percorso] = None
+    return IMG_CARTE[percorso]
+
+
+def immagine_carta(codice):
+    if codice is None:
+        return None
+    base = os.path.join(cartella_carte(), "facce", MAZZO_ORA[1])
+    for est in (".png", ".jpg", ".jpeg", ".webp"):
+        f = os.path.join(base, codice + est)
+        if os.path.exists(f):
+            return _immagine(f)
+    return None
+
+
+def immagine_mazzo(che):
+    """dorso o scatola del mazzo scelto."""
+    if MAZZO_ORA[0] is None:
+        return None
+    f = os.path.join(cartella_carte(), "mazzi", MAZZO_ORA[0], che + ".png")
+    return _immagine(f) if os.path.exists(f) else None
+
+
+def misura_carta():
+    """Alta sempre uguale; larga come le carte del mazzo scelto (le
+    napoletane sono piu' strette delle francesi)."""
+    h = B.s(CARTA_H)
+    img = immagine_carta("1d") or immagine_mazzo("dorso")
+    if img is not None:
+        return max(1, int(h * img.get_width() / float(img.get_height()))), h
+    return B.s(CARTA_W), h
+
+
+def _arrotonda(img, r):
+    """Gli angoli tondi di una carta vera."""
+    m = pygame.Surface(img.get_size(), pygame.SRCALPHA)
+    pygame.draw.rect(m, (255, 255, 255, 255), m.get_rect(), border_radius=r)
+    out = img.copy().convert_alpha()
+    out.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    return out
+
+
+def faccia_carta(scoperta, codice=None):
     """La superficie della carta, dritta, con la sua ombra."""
-    if scoperta in FACCIA:
-        return FACCIA[scoperta]
-    w, h = B.s(CARTA_W), B.s(CARTA_H)
-    r = max(3, B.s(9))
+    chiave = (scoperta, codice if scoperta else None)
+    if chiave in FACCIA:
+        return FACCIA[chiave]
+    w, h = misura_carta()
+    r = max(3, B.s(6))
     sup = pygame.Surface((w + B.s(6), h + B.s(6)), pygame.SRCALPHA)
     # l'ombra, spostata in basso a destra
     pygame.draw.rect(sup, (0, 0, 0, 28), pygame.Rect(B.s(2), B.s(3), w, h),
                      border_radius=r)
     corpo = pygame.Rect(0, 0, w, h)
-    if scoperta:
+    img = immagine_carta(codice) if scoperta else immagine_mazzo("dorso")
+    if img is not None:
+        img = _arrotonda(pygame.transform.smoothscale(img, (w, h)), r)
+        sup.blit(img, (0, 0))
+        pygame.draw.rect(sup, (120, 120, 126), corpo, 1, border_radius=r)
+    elif scoperta:
         pygame.draw.rect(sup, (250, 250, 246), corpo, border_radius=r)
         pygame.draw.rect(sup, (170, 170, 176), corpo, 1, border_radius=r)
     else:
@@ -220,8 +316,25 @@ def faccia_carta(scoperta):
         pygame.draw.rect(sup, (186, 190, 200), dentro, max(1, B.s(2)),
                          border_radius=max(2, r - B.s(4)))
         pygame.draw.rect(sup, (150, 152, 160), corpo, 1, border_radius=r)
-    FACCIA[scoperta] = sup
+    FACCIA[chiave] = sup
     return sup
+
+
+def disegna_scatola(sc, centro, alto):
+    """La scatolina del mazzo, accanto al mazzo."""
+    img = immagine_mazzo("scatola")
+    if img is None:
+        return
+    k = alto / float(img.get_height())
+    chiave = ("scatola", MAZZO_ORA[0], alto)
+    if chiave not in FACCIA:
+        FACCIA[chiave] = pygame.transform.smoothscale(
+            img, (int(img.get_width() * k), alto))
+    q = FACCIA[chiave]
+    om = pygame.Surface(q.get_size(), pygame.SRCALPHA)
+    om.fill((0, 0, 0, 40))
+    sc.blit(om, q.get_rect(center=(centro[0] + B.s(2), centro[1] + B.s(3))))
+    sc.blit(q, q.get_rect(center=centro))
 
 
 def morbido(t):
@@ -232,7 +345,8 @@ def morbido(t):
 class Carta:
     """Una carta sul tavolo: dove sta, dove va, com'e' girata."""
 
-    def __init__(self, pos, angolo=0.0, scoperta=False):
+    def __init__(self, pos, angolo=0.0, scoperta=False, codice=None):
+        self.codice = codice
         self.pos = pygame.Vector2(pos)
         self.da = pygame.Vector2(pos)
         self.a = pygame.Vector2(pos)
@@ -281,7 +395,7 @@ class Carta:
             else:
                 k = abs(math.cos(math.pi * max(0.0, self.t)))
                 scoperta = self.gira_a if self.t > 0.5 else self.scoperta
-        img = faccia_carta(scoperta)
+        img = faccia_carta(scoperta, self.codice)
         if k < 0.999:
             img = pygame.transform.smoothscale(
                 img, (max(1, int(img.get_width() * k)), img.get_height()))
@@ -451,15 +565,20 @@ def schermata_carte(sc, clock, logo):
     # potenza e precisione
     x_lato = max(B.s(30), int((B.TAV_POS[0] + B.TAV_VISTA[0] * B.SCALA)
                               / 2.0))
-    mazzo_pos = (x_lato, z.centery)
+    mazzo_pos = (x_lato, z.centery + B.s(56))
+    scatola_pos = (x_lato, z.centery - B.s(70))
+    scegli_mazzo(0)
     carte = []
     mani = {0: [], 1: [], 2: [], 3: []}
     centro = []
 
     def nuovo_mazzo():
         del carte[:]
-        for k in range(40):
-            c = Carta((mazzo_pos[0] - k * 0.25, mazzo_pos[1] - k * 0.35))
+        codici = mazzo_codici()
+        random.shuffle(codici)
+        for k, cod in enumerate(codici):
+            c = Carta((mazzo_pos[0] - k * 0.25, mazzo_pos[1] - k * 0.35),
+                      codice=cod)
             carte.append(c)
         for m in mani.values():
             del m[:]
@@ -519,7 +638,7 @@ def schermata_carte(sc, clock, logo):
         mouse = B.mouse_gioco()
         sopra = None
         for c in reversed(mani[0]):
-            w, h = B.s(CARTA_W), B.s(CARTA_H)
+            w, h = misura_carta()
             if pygame.Rect(c.pos.x - w / 2, c.pos.y - h / 2 - c.su, w,
                            h).collidepoint(mouse) and c.t >= 1.0:
                 sopra = c
@@ -551,6 +670,7 @@ def schermata_carte(sc, clock, logo):
         tav = tavolo_carte(ip, ib)
         if tav is not None:
             sc.blit(tav, B.TAV_POS)
+        disegna_scatola(sc, scatola_pos, B.s(96))
         # prima quelle ferme nel mazzo, poi il centro, poi le mani: e fra
         # quelle in volo, prima chi e' partito prima
         for c in carte:
