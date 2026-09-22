@@ -2304,7 +2304,9 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
     tasto_ord = B.tasto("eff_via")      # RB sul joystick: ordina la mano
     sel = []
     sposta = [None]
-    pos = [2]               # dove sta il cursore, nell'elenco dei posti
+    # a ogni turno tuo il cursore parte dal mazzo: devi sempre pescare,
+    # se vuoi lo scarto ti sposti tu
+    pos = [0]               # dove sta il cursore, nell'elenco dei posti
     tieni = [0.0]           # da quanto tieni premuto Y
     dove_va = [None]        # dove sta andando la carta presa con X
     attacchi = []           # le carte attaccate in questo turno
