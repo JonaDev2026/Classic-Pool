@@ -707,7 +707,7 @@ class Tavolo:
             t = B.riga_pad(small, self.aiuto_pad or RIGA_PAD_CARTE)
         elif self.aiuto:
             testo = self.aiuto() if callable(self.aiuto) else self.aiuto
-            t = font_carte(17).render(testo, True, (150, 156, 168))
+            t = small.render(testo, True, (150, 156, 168))
         else:
             t = small.render(T("help_game"), True, (150, 156, 168))
         sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(40))))
