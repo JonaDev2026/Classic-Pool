@@ -85,7 +85,7 @@ def tavolo_carte(i_panno, i_bordo):
     chiave = (i_panno, i_bordo)
     if chiave in COMPOSTO:
         return COMPOSTO[chiave]
-    vero = B.tavolo_vero(TAVOLO_CARTE)
+    vero = B.tavolo_vero(os.path.join(cartella_carte(), TAVOLO_CARTE))
     if not vero:
         return None
     base = pygame.Surface(vero.get_size(), pygame.SRCALPHA)
@@ -148,7 +148,7 @@ SUONI_CARTE = {}
 def carica_suoni():
     if SUONI_CARTE or not B.MUSICA_OK:
         return
-    cartella = os.path.join(B.CARTELLA, "carte_fx")
+    cartella = os.path.join(B.SUONI_DIR, "carte", "fx")
     if not os.path.isdir(cartella):
         return
     for f in sorted(os.listdir(cartella)):
@@ -167,7 +167,7 @@ def musica_carte():
     gioco. Uscendo sfuma e il menu rimette la sua."""
     if not B.MUSICA_OK:
         return
-    cartella = os.path.join(B.CARTELLA, "carte_audio")
+    cartella = os.path.join(B.SUONI_DIR, "carte", "musica")
     if not os.path.isdir(cartella):
         return
     tracce = [f for f in os.listdir(cartella)
@@ -215,7 +215,7 @@ IMG_CARTE = {}
 
 
 def cartella_carte():
-    return os.path.join(B.GFX, "carte")
+    return os.path.join(B.IMMAGINI, "carte")
 
 
 def mazzi_disponibili():
@@ -311,7 +311,8 @@ def misura_carta():
     """Alta sempre uguale; larga come le carte del mazzo scelto (le
     napoletane sono piu' strette delle francesi)."""
     h = B.s(CARTA_H)
-    img = immagine_carta("1d") or immagine_mazzo("dorso")
+    prima = "AS" if MAZZO_ORA[1] == "francesi" else "1d"
+    img = immagine_carta(prima) or immagine_mazzo("dorso")
     if img is not None:
         return max(1, int(h * img.get_width() / float(img.get_height()))), h
     return B.s(CARTA_W), h
@@ -629,7 +630,7 @@ def fila_targhette(sc, nomi, punti, attivo=0):
                         sinistra, chi == attivo)
 
 
-def schermata_carte(sc, clock, logo):
+def prova_carte(sc, clock, logo):
     """La prova delle carte: D distribuisce, clic su una tua carta la
     gioca al centro, R raccoglie tutto nel mazzo e lo rimescola. ESC
     torna al menu."""
@@ -827,3 +828,9 @@ def _giro_carte(sc, clock, carte, mani, centro, nuovo_mazzo, distribuisci,
 
 def FONT_AIUTO():
     return B.FONTS.get("small")
+
+
+def schermata_carte(sc, clock, logo):
+    """Dal menu del casino': il menu dei giochi di carte."""
+    import carte_giochi
+    return carte_giochi.menu_carte(sc, clock, logo)

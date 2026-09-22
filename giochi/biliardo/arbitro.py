@@ -17,8 +17,8 @@ import edge_tts
 
 VOCE = "en-GB-RyanNeural"
 QUI = os.path.dirname(os.path.abspath(__file__))
-POOL = os.path.join(QUI, "biliardo_voce", "pool")
-SNOOKER = os.path.join(QUI, "biliardo_voce", "snooker")
+POOL = os.path.join(QUI, "..", "..", "audio", "biliardo", "voce", "pool")
+SNOOKER = os.path.join(QUI, "..", "..", "audio", "biliardo", "voce", "snooker")
 
 FRASI = [
     ("break", "Break"),

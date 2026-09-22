@@ -33,6 +33,15 @@ import shutil
 import sys
 
 import pygame
+
+# Sui Mac con il processore Apple il rimpicciolimento veloce di pygame
+# (la via SSE tradotta) lascia righe verticali e buchi nella trasparenza:
+# le carte venivano rigate e si vedeva attraverso. La via semplice e'
+# giusta ovunque.
+try:
+    pygame.transform.set_smoothscale_backend("GENERIC")
+except (AttributeError, ValueError, pygame.error):
+    pass
 from pygame import gfxdraw
 from pygame.math import Vector2
 
@@ -558,10 +567,10 @@ BAND_TAGLIA = {}        # le bandiere gia' portate a misura
 
 
 def prepara_bandiere():
-    """Le bandiere che stanno in biliardo_gfx/bandiere: il nome del file
+    """Le bandiere che stanno in immagini/comune/bandiere: il nome del file
     e' il codice del paese, due lettere come "it", o quelle britanniche
     che hanno il codice lungo tipo "gb-sct"."""
-    d = os.path.join(GFX, "bandiere")
+    d = os.path.join(GFX_COMUNE, "bandiere")
     if not os.path.isdir(d):
         return
     for nome_f in sorted(os.listdir(d)):
@@ -696,7 +705,32 @@ def _fai_fondo(SFONDO, SFONDO_BORDO):
         del px
     else:
         s.fill(SFONDO)
-    return s
+    return _con_foto(s)
+
+
+FONDO_FOTO = "bk.jpg"   # la foto sotto il fondo, in immagini/comune
+FONDO_VELO = 0.70       # quanto la copre il colore del fondo (0..1)
+
+
+def _con_foto(s):
+    """Se c'e' la foto, va sotto: riempie tutto senza stirarsi e il
+    fondo di sempre ci passa sopra al FONDO_VELO, cosi' si intravede."""
+    f = os.path.join(GFX_COMUNE, FONDO_FOTO)
+    if not os.path.exists(f):
+        return s
+    try:
+        foto = pygame.image.load(f).convert()
+    except (pygame.error, IOError):
+        return s
+    k = max(WIN_W / float(foto.get_width()), WIN_H / float(foto.get_height()))
+    foto = pygame.transform.smoothscale(
+        foto, (int(foto.get_width() * k + 1), int(foto.get_height() * k + 1)))
+    out = pygame.Surface((WIN_W, WIN_H)).convert()
+    out.blit(foto, foto.get_rect(center=(WIN_W // 2, WIN_H // 2)))
+    velo = s.copy()
+    velo.set_alpha(int(255 * FONDO_VELO))
+    out.blit(velo, (0, 0))
+    return out
 
 
 TESTO = (232, 232, 236)
@@ -1054,10 +1088,18 @@ def _rot_casuale():
     return _rot((0.0, 1.0, 0.0), random.uniform(0, math.tau)) @ m
 
 
-CARTELLA = os.path.dirname(os.path.abspath(__file__))
-GFX = os.path.join(CARTELLA, "biliardo_gfx")
-AUDIO = os.path.join(CARTELLA, "biliardo_audio")
-FX = os.path.join(CARTELLA, "biliardo_fx")
+# Le cartelle del gioco: il codice sta in giochi/<gioco>, le immagini in
+# immagini/<gioco> e i suoni in audio/<gioco>; quello che usano tutti
+# (caratteri, icone dei tasti, bandiere, suoni dei menu) in "comune".
+CARTELLA = os.path.dirname(os.path.abspath(__file__))       # giochi/biliardo
+RADICE = os.path.dirname(os.path.dirname(CARTELLA))           # Golden Break
+IMMAGINI = os.path.join(RADICE, "immagini")
+SUONI_DIR = os.path.join(RADICE, "audio")
+GFX = os.path.join(IMMAGINI, "biliardo")
+GFX_COMUNE = os.path.join(IMMAGINI, "comune")
+AUDIO = os.path.join(SUONI_DIR, "biliardo", "musica")
+FX = os.path.join(SUONI_DIR, "biliardo", "fx")
+FX_COMUNE = os.path.join(SUONI_DIR, "comune", "fx")
 STECCA_IMG = None
 
 
@@ -7029,7 +7071,10 @@ def carica_fx():
         CANALE_FESTA = pygame.mixer.Channel(0)
     except pygame.error:
         CANALE_FESTA = None
-    for f in sorted(os.listdir(FX)):
+    tutti = [(FX, f) for f in sorted(os.listdir(FX))]
+    if os.path.isdir(FX_COMUNE):
+        tutti += [(FX_COMUNE, f) for f in sorted(os.listdir(FX_COMUNE))]
+    for cart, f in tutti:
         if not f.lower().endswith((".ogg", ".wav", ".mp3", ".flac")):
             continue
         nome = os.path.splitext(f)[0].lower()
@@ -7048,7 +7093,7 @@ def carica_fx():
         if chiave is not None:
             try:
                 SUONI.setdefault(chiave, []).append(
-                    (peso, pygame.mixer.Sound(os.path.join(FX, f))))
+                    (peso, pygame.mixer.Sound(os.path.join(cart, f))))
             except pygame.error:
                 pass
     for chiave in SUONI:
@@ -7116,15 +7161,15 @@ def varianti_piano(suono):
     return fuori
 
 
-ARBITRO = os.path.join(CARTELLA, "biliardo_voce", "pool")
-ARBITRO_SN = os.path.join(CARTELLA, "biliardo_voce", "snooker")
+ARBITRO = os.path.join(SUONI_DIR, "biliardo", "voce", "pool")
+ARBITRO_SN = os.path.join(SUONI_DIR, "biliardo", "voce", "snooker")
 VOCI = {}               # le frasi dell'arbitro gia' caricate
 CANALE_VOCE = None
 CODA_VOCE = []          # quello che deve ancora dire, una alla volta
 
 
 def carica_voce():
-    """Le frasi dell'arbitro, quelle che stanno in biliardo_voce/pool.
+    """Le frasi dell'arbitro, quelle che stanno in audio/biliardo/voce/pool.
     Se la cartella non c'e' il gioco va uguale, muto."""
     global CANALE_VOCE
     if not MUSICA_OK:
@@ -7757,7 +7802,7 @@ def tit_el(testo):
 
 
 def carattere_elegante(misura):
-    cartella = os.path.join(GFX, "font")
+    cartella = os.path.join(GFX_COMUNE, "font")
     if not os.path.isdir(cartella):
         return None
     for f in sorted(os.listdir(cartella)):
@@ -8558,12 +8603,13 @@ def _a_capo(testo, font, largo):
     return righe
 
 
-def pagina_regole(sc, clock, logo, disc):
+def pagina_regole(sc, clock, logo, disc, titolo=None, testo=None):
     """Una disciplina: il nome in alto e le regole sotto, da scorrere
     con le frecce o la rotella se non ci stanno."""
     font, small = FONTS["font"], FONTS["small"]
     largo = s(820)
-    righe = _a_capo(testo_regole(disc), small, largo)
+    righe = _a_capo(testo if testo is not None else testo_regole(disc),
+                    small, largo)
     passo = small.get_height() + s(6)
     alto_vista = WIN_H - s(260)
     massimo = max(0, len(righe) * passo - alto_vista)
@@ -8587,7 +8633,8 @@ def pagina_regole(sc, clock, logo, disc):
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 return "su"
         sfondo_menu(sc, None)
-        t = FONTS["elegante"].render(tit_el(nome_gioco(disc)), True, (236, 216, 164))
+        t = FONTS["elegante"].render(tit_el(titolo or nome_gioco(disc)), True,
+                                     (236, 216, 164))
         sc.blit(t, t.get_rect(center=(WIN_W // 2, s(90))))
         area = pygame.Rect(WIN_W // 2 - largo // 2, s(160), largo,
                            alto_vista)
@@ -9287,7 +9334,7 @@ def cambia_tasto(azione, k):
 # Le icone dei tasti del joystick, disegnate bianche: qui si tingono coi
 # colori del pad, A verde, B rosso, X blu, Y giallo, e il resto grigio
 # come la scritta.
-TASTI_GFX = os.path.join(GFX, "tasti")
+TASTI_GFX = os.path.join(GFX_COMUNE, "tasti")
 TINTE_TASTI = {"a": (96, 186, 70), "b": (222, 64, 56), "x": (48, 128, 224),
                "y": (240, 190, 40)}
 GRIGIO_AIUTO = (150, 156, 168)
@@ -10481,7 +10528,7 @@ def arco_quadrante(lato):
 
 
 def quadrante(lato):
-    """Il quadrante dell'orologio in PNG (biliardo_gfx/orologio.png),
+    """Il quadrante dell'orologio in PNG (immagini/biliardo/orologio.png),
     portato a misura. Se non c'e' si disegna quello d'oro."""
     if lato not in QUADRANTE:
         f = os.path.join(GFX, "orologio.png")
@@ -11766,14 +11813,113 @@ VISTA = [1.0, 0, 0]             # scala, spostamento x, spostamento y
 PIENO = False
 
 
+# Sul Mac con lo schermo Retina pygame apre la finestra "in punti" e il
+# sistema raddoppia ogni pixel: bordi a scalini e immagini morbide, a
+# qualunque risoluzione. Li' si apre invece una finestra SDL con i pixel
+# veri: la scena ci arriva con la scheda video, e quello che vuole la
+# nitidezza vera (le carte) si disegna sopra, ai pixel dello schermo.
+# Se qualcosa non va si torna al modo di sempre.
+USA_RETINA = sys.platform == "darwin"
+RETINA = {"win": None, "rend": None, "tex": None, "fondo": None,
+          "sx": 1.0, "sy": 1.0, "misura": None, "mouse": (0, 0)}
+os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "1")   # ingrandire liscio
+# il joystick deve arrivare anche se il sistema crede che la finestra
+# attiva sia quella nascosta
+os.environ.setdefault("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
+
+
+def _apri_retina(pieno):
+    from pygame._sdl2 import video
+    if RETINA["win"] is None:
+        # una finestrina nascosta: serve a pygame per convert() e font
+        pygame.display.set_mode((1, 1), pygame.HIDDEN)
+        w = video.Window("Golden Break", size=(WIN_W, WIN_H),
+                         resizable=True, allow_highdpi=True)
+        RETINA["win"] = w
+        RETINA["rend"] = video.Renderer(w)
+    w = RETINA["win"]
+    if pieno:
+        w.set_fullscreen(desktop=True)
+    else:
+        w.set_windowed()
+    RETINA["misura"] = None
+
+
+class _FoglioRetina:
+    """Quello che si disegna sopra la scena, direttamente sui pixel dello
+    schermo: ogni blit diventa una texture al suo posto."""
+
+    def __init__(self, rend, ox, oy):
+        self.rend, self.ox, self.oy = rend, ox, oy
+
+    def blit(self, img, dove, area=None, special_flags=0):
+        from pygame._sdl2 import video
+        if hasattr(dove, "x"):
+            x, y = dove.x, dove.y
+        else:
+            x, y = dove[0], dove[1]
+        t = video.Texture.from_surface(self.rend, img)
+        self.rend.blit(t, pygame.Rect(int(x) + self.ox, int(y) + self.oy,
+                                      img.get_width(), img.get_height()))
+
+
+def _presenta_retina():
+    from pygame._sdl2 import video
+    r = RETINA["rend"]
+    vp = r.get_viewport()
+    if (vp.w, vp.h) != RETINA["misura"]:
+        misura_vista()
+    pw, ph = vp.w, vp.h
+    k, ox, oy = VISTA
+    tinta = TINTA_ORA[0]
+    if RETINA["fondo"] is None or RETINA["fondo"][0] != tinta:
+        RETINA["fondo"] = (tinta, video.Texture.from_surface(r, fondo(tinta)))
+    r.blit(RETINA["fondo"][1], pygame.Rect(0, 0, pw, ph))
+    if FOOTER_ORA[0] is not None:
+        alto, col_f, vis = FOOTER_ORA[0]
+        t = FONDI_TINTE[tinta][1] if tinta in FONDI_TINTE else SFONDO_BORDO
+        a = vis * col_f[3] / 255.0
+        pieno = tuple(int(col_f[c] * a + t[c] * (1.0 - a)) for c in range(3))
+        y = int(oy + (WIN_H - alto) * k)
+        r.draw_color = pieno + (255,)
+        r.fill_rect(pygame.Rect(0, y, pw, ph - y))
+    tex = RETINA["tex"]
+    try:
+        if tex is None:
+            tex = RETINA["tex"] = video.Texture(r, (WIN_W, WIN_H),
+                                                streaming=True)
+        tex.update(SCENA)
+    except Exception:
+        tex = video.Texture.from_surface(r, SCENA)
+    r.blit(tex, pygame.Rect(ox, oy, int(WIN_W * k), int(WIN_H * k)))
+    if SOPRA_SCENA[0] is not None:
+        SOPRA_SCENA[0](_FoglioRetina(r, ox, oy), k)
+    r.present()
+
+
 def apri_finestra(pieno=False):
     """A schermo intero si chiede proprio la risoluzione scelta, non
     "quella che c'e'": cosi' su uno schermo fitto i pixel che disegniamo
     finiscono uno sopra l'altro con quelli veri e le scritte restano
     nitide. Se il monitor non sa fare quella misura, SDL prende la piu'
     vicina e ci pensa misura_vista a centrare il disegno."""
-    global SCHERMO, SCENA, PIENO
+    global SCHERMO, SCENA, PIENO, USA_RETINA
     PIENO = pieno
+    if USA_RETINA:
+        try:
+            _apri_retina(pieno)
+            if SCENA is None:
+                SCENA = pygame.Surface((WIN_W, WIN_H)).convert()
+            misura_vista()
+            return SCENA
+        except Exception:
+            USA_RETINA = False          # non va: il modo di sempre
+            if RETINA["win"] is not None:
+                try:
+                    RETINA["win"].destroy()
+                except Exception:
+                    pass
+                RETINA["win"] = None
     if pieno:
         try:
             SCHERMO = pygame.display.set_mode((WIN_W, WIN_H),
@@ -11791,7 +11937,15 @@ def apri_finestra(pieno=False):
 def misura_vista():
     global BORDI_VISTA
     BORDI_VISTA = None
-    w, h = SCHERMO.get_size()
+    if USA_RETINA and RETINA["rend"] is not None:
+        vp = RETINA["rend"].get_viewport()
+        w, h = vp.w, vp.h
+        RETINA["misura"] = (w, h)
+        pw, ph = RETINA["win"].size
+        RETINA["sx"] = w / float(max(1, pw))
+        RETINA["sy"] = h / float(max(1, ph))
+    else:
+        w, h = SCHERMO.get_size()
     k = min(w / float(WIN_W), h / float(WIN_H))
     VISTA[0] = k
     VISTA[1] = int((w - WIN_W * k) / 2)
@@ -11809,6 +11963,10 @@ def presenta():
     superfici piene: quelle trasparenti sul Mac si rovinano."""
     global BORDI_VISTA
     portafoglio(SCENA)
+    if USA_RETINA and RETINA["rend"] is not None:
+        _presenta_retina()
+        FOOTER_ORA[0] = None
+        return
     k, ox, oy = VISTA
     if abs(k - 1.0) < 0.001 and ox == 0 and oy == 0:
         if SOPRA_SCENA[0] is not None:
@@ -11854,6 +12012,16 @@ def portafoglio(sc):
 def mouse_gioco():
     """Dove sta il mouse in coordinate della scena, non dello schermo."""
     mx, my = pygame.mouse.get_pos()
+    if USA_RETINA and RETINA["win"] is not None:
+        # get_pos guarda la finestrina nascosta e da' sempre 0, 0: il
+        # mouse si prende dagli eventi della finestra vera
+        # punti -> pixel, rifatto ogni volta: a schermo intero la misura
+        # della finestra in punti arriva dopo quella in pixel
+        mx, my = RETINA["mouse"]
+        vp = RETINA["rend"].get_viewport()
+        pw, ph = RETINA["win"].size
+        mx = mx * vp.w / float(max(1, pw))
+        my = my * vp.h / float(max(1, ph))
     k, ox, oy = VISTA
     return ((mx - ox) / k, (my - oy) / k)
 
@@ -11873,6 +12041,16 @@ def eventi():
             pad_evento(ev, fuori)
             continue
         segna_input(ev)
+        if USA_RETINA and RETINA["win"] is not None:
+            if hasattr(ev, "pos") and ev.type in (
+                    pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN,
+                    pygame.MOUSEBUTTONUP):
+                RETINA["mouse"] = ev.pos
+            if ev.type == getattr(pygame, "WINDOWCLOSE", -1):
+                fuori.append(pygame.event.Event(pygame.QUIT))
+                continue
+            if ev.type == pygame.VIDEORESIZE:
+                continue
         if ev.type == pygame.VIDEORESIZE and not PIENO:
             pygame.display.set_mode(ev.size, pygame.RESIZABLE)
             misura_vista()
@@ -11910,6 +12088,60 @@ def barra_scura():
         pass
 
 
+for _l, _d in (("en", {"nm_title": "Welcome", "nm_ask": "What's your name?",
+                       "nm_help": "type your name  -  ENTER to confirm"}),
+               ("it", {"nm_title": "Benvenuto", "nm_ask": "Come ti chiami?",
+                       "nm_help": "scrivi il tuo nome  -  INVIO per confermare"}),
+               ("fr", {"nm_title": "Bienvenue", "nm_ask": "Comment vous appelez-vous ?",
+                       "nm_help": "tapez votre nom  -  ENTREE pour confirmer"}),
+               ("es", {"nm_title": "Bienvenido", "nm_ask": "Como te llamas?",
+                       "nm_help": "escribe tu nombre  -  INTRO para confirmar"})):
+    TESTI.setdefault(_l, {}).update(_d)
+
+
+def schermata_nome(sc, clock, logo):
+    """Il nome del giocatore, chiesto una volta sola all'inizio: poi vale
+    nel biliardo e nelle carte (si cambia sempre dalla scelta dei
+    giocatori). Col joystick, INVIO a vuoto lascia Player 1."""
+    nome = ""
+    MAX = 14
+    while True:
+        clock.tick(60)
+        for ev in eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            if ev.type == pygame.KEYDOWN:
+                if ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    nome = nome.strip() or "Player 1"
+                    vecchi = list(CFG.get("nomi") or []) + ["", ""]
+                    CFG["nomi"] = [nome, vecchi[1]]
+                    NOMI[0] = nome
+                    salva_config()
+                    return "menu"
+                if ev.key == pygame.K_BACKSPACE:
+                    nome = nome[:-1]
+                elif ev.key == pygame.K_ESCAPE:
+                    continue
+                elif getattr(ev, "unicode", "") and ev.unicode.isprintable() \
+                        and len(nome) < MAX:
+                    nome += ev.unicode
+        sfondo_menu(sc, logo)
+        t = FONTS["small"].render(T("nm_ask"), True, ORO_SOTTO)
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(270))))
+        r = pygame.Rect(0, 0, s(420), s(56))
+        r.center = (WIN_W // 2, s(360))
+        q = pygame.Surface(r.size, pygame.SRCALPHA)
+        q.fill((255, 255, 255, 18))
+        sc.blit(q, r)
+        pygame.draw.rect(sc, ORO_SCELTA, r, max(1, s(2)))
+        cursore = "|" if (pygame.time.get_ticks() // 500) % 2 else " "
+        t = FONTS["font"].render(nome + cursore, True, (255, 255, 255))
+        sc.blit(t, t.get_rect(midleft=(r.left + s(18), r.centery)))
+        t = FONTS["small"].render(T("nm_help"), True, GRIGIO_AIUTO)
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(430))))
+        presenta()
+
+
 def main():
     pygame.init()
     # Le impostazioni si leggono prima di aprire la finestra: se no
@@ -11940,13 +12172,20 @@ def main():
     logo = logo_elegante(s(190))
 
     dove = "menu"
+    if not (CFG.get("nomi") or [""])[0]:
+        # la prima volta: come ti chiami, e vale per tutti i giochi
+        if schermata_nome(sc, clock, logo) == "quit":
+            dove = "quit"
     while dove != "quit":
         if dove == "menu":
             dove = schermata_menu(sc, clock, logo)
         elif dove == "biliardo":
             dove = schermata_menu(sc, clock, logo, "bil")
         elif dove == "carte":
-            import carte            # le carte stanno nel loro file
+            # le carte stanno nella loro cartella, giochi/carte
+            if os.path.join(RADICE, "giochi", "carte") not in sys.path:
+                sys.path.insert(0, os.path.join(RADICE, "giochi", "carte"))
+            import carte
             dove = carte.schermata_carte(sc, clock, logo)
         elif dove == "discipline":
             dove = schermata_menu(sc, clock, logo, "gioco")

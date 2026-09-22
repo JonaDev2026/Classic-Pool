@@ -23,7 +23,7 @@ On Windows use `py` instead of `python3`.
 ## Play
 
 ```
-python3 biliardo.py
+python3 golden_break.py
 ```
 
 Your settings, wallet, cues and the tournament in progress are saved in
@@ -112,10 +112,15 @@ game.
 
 | Folder | Content |
 |---|---|
-| `biliardo_gfx` | Tables, cloths, rails, crests, trophies, flags, fonts, controller icons |
-| `biliardo_fx` | Sound effects |
-| `biliardo_audio` | Music tracks |
-| `biliardo_voce` | Referee voice |
+| `golden_break.py` | Start the game from here |
+| `giochi/biliardo` | Casino menu and billiards code, referee voice generator |
+| `giochi/carte` | Card games code |
+| `immagini/comune` | Fonts, controller icons, flags, background |
+| `immagini/biliardo` | Tables, cloths, rails, crests, trophies, clock |
+| `immagini/carte` | Card table, card faces and decks |
+| `audio/comune` | Menu sounds |
+| `audio/biliardo` | Music, sound effects, referee voice |
+| `audio/carte` | Music and card sounds |
 
-`arbitro.py` regenerates the referee voice files (needs `edge-tts` and an
+`giochi/biliardo/arbitro.py` regenerates the referee voice files (needs `edge-tts` and an
 internet connection).
