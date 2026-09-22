@@ -889,11 +889,14 @@ def pagina_pagamenti(sc, clock):
                 for k, v in enumerate((p2, p3, p4, p5)):
                     if not v:
                         continue
-                    q = small.render("%d = %s" % (k + 2,
-                                                  B.dollari(round(v * unita))),
-                                     True, (255, 255, 255))
-                    sc.blit(q, q.get_rect(midright=(x_val - (3 - k) * cella,
-                                                    y)))
+                    # "x2" in oro, il premio nel verde del portafoglio
+                    per = small.render("x%d" % (k + 2), True, B.ORO_SCELTA)
+                    soldi = small.render(B.dollari(round(v * unita)), True,
+                                         B.VERDE_SOLDI)
+                    destra = x_val - (3 - k) * cella
+                    sc.blit(soldi, soldi.get_rect(midright=(destra, y)))
+                    sc.blit(per, per.get_rect(
+                        midright=(destra - soldi.get_width() - B.s(6), y)))
 
         # i quattro speciali, in fondo, due per riga
         y = y0 + meta * passo + B.s(6)
