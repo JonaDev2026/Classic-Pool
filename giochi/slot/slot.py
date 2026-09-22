@@ -13,6 +13,7 @@ import colorsys
 import math
 import os
 import random
+import re
 import sys
 
 import pygame
@@ -383,7 +384,9 @@ DURATE = {}
 
 
 def carica_suoni():
-    """I suoni della slot, da audio/slot/fx."""
+    """I suoni della slot, da audio/slot/fx. I file col trattino e un
+    numero stanno insieme: vinci1-1, vinci1-2... sono tutti "vinci1", e
+    a ogni vincita se ne sente uno a caso."""
     if SUONI or not B.MUSICA_OK:
         return
     cartella = os.path.join(B.SUONI_DIR, "slot", "fx")
@@ -392,10 +395,10 @@ def carica_suoni():
     for f in sorted(os.listdir(cartella)):
         if not f.lower().endswith((".ogg", ".wav", ".mp3")):
             continue
-        nome = os.path.splitext(f)[0].lower()
+        nome = re.sub(r"-\d+$", "", os.path.splitext(f)[0].lower())
         try:
             s = pygame.mixer.Sound(os.path.join(cartella, f))
-            SUONI[nome] = s
+            SUONI.setdefault(nome, []).append(s)
             DURATE[nome] = s.get_length()
         except pygame.error:
             pass
@@ -404,15 +407,16 @@ def carica_suoni():
 # a chi tocca quale suono: il regalo usa "bonus", il jolly dentro una
 # vincita usa "transform", la vincita piccola "gift". Vinci2 e vinci3
 # arrivano quando ci saranno i file, per ora suona quello piccolo.
-RIPIEGO = {"vinci1": "gift", "vinci2": "gift", "vinci3": "gift",
-           "regalo": "bonus", "jolly": "transform"}
+RIPIEGO = {"regalo": "bonus", "jolly": "transform", "dadi": "transform",
+           "vinci2": "vinci1", "vinci3": "vinci2"}
 
 
 def suona(nome, quanto=0.9):
-    s = SUONI.get(nome) or SUONI.get(RIPIEGO.get(nome, ""))
+    gruppo = SUONI.get(nome) or SUONI.get(RIPIEGO.get(nome, ""))
     v = B.CFG.get("effetti", 100) / 100.0
-    if not s or v <= 0:
+    if not gruppo or v <= 0:
         return None
+    s = random.choice(gruppo)
     s.stop()                # se stava ancora suonando, ricomincia
     s.set_volume(min(1.0, v * quanto))
     s.play()
@@ -420,8 +424,7 @@ def suona(nome, quanto=0.9):
 
 
 def ferma_suono(nome):
-    s = SUONI.get(nome)
-    if s:
+    for s in SUONI.get(nome, []):
         s.stop()
 
 
