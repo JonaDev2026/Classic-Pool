@@ -1693,6 +1693,7 @@ REGOLE_CARTE = {
 - Draw from the deck or take the top of the discard pile, then discard one card to end your turn.
 - Sets are three or four of a kind in different suits, runs are three or more cards of the same suit; the Ace goes below the 2 or above the King.
 - Jokers stand for any card, but every combination needs at least two real cards.
+- If you hold the real card a joker on the table stands for, you can put it in its place and take the joker into your hand.
 - Your first meld must be worth at least 50 points, and cards you lay off on melds already on the table count towards it.
 - If you do not reach 50 before discarding, everything you put down this turn comes back to your hand, and a card taken from the discard pile goes back too.
 - Card values: figures 10, Ace 11 (1 when it is below the 2), joker 25 in hand or the value of the card it replaces.
@@ -1737,6 +1738,7 @@ REGOLE_CARTE = {
 - Peschi dal mazzo o prendi lo scarto, poi scarti una carta e il turno finisce.
 - I tris sono tre o quattro carte uguali di semi diversi, le scale tre o piu' carte dello stesso seme; l'asso va sotto il 2 o sopra il re.
 - I jolly sostituiscono qualsiasi carta, ma in ogni combinazione servono almeno due carte vere.
+- Se hai la carta vera che un jolly in tavola sta facendo, la metti al suo posto e il jolly va in mano a te.
 - La prima calata deve valere almeno 50 punti, e ci contano anche le carte che attacchi alle combinazioni gia' in tavola, tue o del computer.
 - Se prima di scartare non arrivi a 50, tutto quello che hai messo giu' in quel turno torna in mano, e anche la carta presa dallo scarto torna al suo posto.
 - Valori: figure 10, asso 11 (1 quando sta sotto il 2), jolly 25 se resta in mano o il valore della carta che sostituisce.
@@ -1781,6 +1783,7 @@ REGOLE_CARTE = {
 - Piochez ou prenez la defausse, puis defaussez une carte pour finir le tour.
 - Les brelans sont trois ou quatre cartes de meme rang et de couleurs differentes, les suites au moins trois cartes de la meme couleur ; l'As se place sous le 2 ou au-dessus du Roi.
 - Les jokers remplacent n'importe quelle carte, mais chaque combinaison demande au moins deux vraies cartes.
+- Si vous avez la vraie carte qu'un joker represente, vous la mettez a sa place et prenez le joker en main.
 - La premiere pose doit valoir au moins 50 points, et les cartes ajoutees aux combinaisons deja sur la table comptent aussi.
 - Si vous n'atteignez pas 50 avant de defausser, tout ce que vous avez pose revient en main, et la carte prise a la defausse y retourne.
 - Valeurs : figures 10, As 11 (1 sous le 2), joker 25 en main ou la valeur de la carte remplacee.
@@ -1825,6 +1828,7 @@ REGOLE_CARTE = {
 - Roba del mazo o toma el descarte, luego descarta una carta y acaba el turno.
 - Los trios son tres o cuatro cartas iguales de palos distintos, las escaleras tres o mas cartas del mismo palo; el As va bajo el 2 o sobre el Rey.
 - Los comodines sustituyen cualquier carta, pero cada combinacion necesita al menos dos cartas reales.
+- Si tienes la carta real que hace un comodin en la mesa, la pones en su lugar y te llevas el comodin a la mano.
 - La primera bajada debe valer al menos 50 puntos, y cuentan tambien las cartas que anades a las combinaciones ya en la mesa.
 - Si no llegas a 50 antes de descartar, todo lo que has bajado vuelve a tu mano, y la carta tomada del descarte vuelve a su sitio.
 - Valores: figuras 10, As 11 (1 cuando va bajo el 2), comodin 25 en mano o el valor de la carta que sustituye.
@@ -1917,6 +1921,58 @@ def valida_meld(codici):
         if meglio is None or v > meglio[1]:
             meglio = ("scala", v, ordine)
     return meglio
+
+
+def _ranghi_scala(ordine):
+    """I ranghi, posto per posto, di una scala gia' ordinata: serve a
+    sapere che carta sta facendo un jolly. L'asso puo' stare sotto il 2 o
+    sopra il re."""
+    for alto in (False, True):
+        base, buona = None, True
+        for i, c in enumerate(ordine):
+            if jolly(c):
+                continue
+            r = 14 if (rango(c) == 1 and alto) else rango(c)
+            if base is None:
+                base = r - i
+            elif r - i != base:
+                buona = False
+                break
+        if buona and base is not None:
+            return [base + i for i in range(len(ordine))]
+    return None
+
+
+def jolly_da_prendere(codici, codice):
+    """Nel ramino il jolly si compra: chi ha la carta vera che il jolly
+    sta facendo la mette al suo posto e si prende il jolly in mano.
+    Torna il posto del jolly nella combinazione, o None."""
+    if jolly(codice):
+        return None
+    # si guarda la combinazione com'e' messa in tavola: il jolly fa la
+    # carta del posto che occupa li', non un'altra
+    ordine = list(codici)
+    posti = [i for i, c in enumerate(ordine) if jolly(c)]
+    if not posti:
+        return None
+    veri = [c for c in ordine if not jolly(c)]
+    if not veri or valida_meld(ordine) is None:
+        return None
+    if len(set(rango(c) for c in veri)) == 1 and len(ordine) <= 4:
+        semi = set(seme(c) for c in veri)
+        if rango(codice) == rango(veri[0]) and seme(codice) not in semi:
+            return posti[0]
+        return None
+    ranghi = _ranghi_scala(ordine)
+    if ranghi is None:
+        return None
+    sm = seme(veri[0])
+    for i in posti:
+        r = ranghi[i]
+        cod = ("A" if r == 14 else RANGHI[r - 1]) + sm
+        if cod == codice:
+            return i
+    return None
 
 
 def dividi_in_meld(codici):
@@ -2189,7 +2245,27 @@ def partita_ramino(tv):
                 rifai_tavola()
             return bool(via)
 
+        def prendi_jolly(chi, c, quale=None):
+            """La carta vera prende il posto del jolly e il jolly va in
+            mano a chi l'ha messa: e' la regola del ramino."""
+            quali = [quale] if quale is not None else range(len(tavola))
+            for i in quali:
+                meld = tavola[i]
+                dove = jolly_da_prendere([x.codice for x in meld], c.codice)
+                if dove is None:
+                    continue
+                jk = meld[dove] if jolly(meld[dove].codice) else \
+                    next(x for x in meld if jolly(x.codice))
+                mani[chi].remove(c)
+                meld[meld.index(jk)] = c
+                mani[chi].append(jk)
+                ultima[0] = c
+                return True
+            return False
+
         def attacca(chi, c, quale=None):
+            if prendi_jolly(chi, c, quale):
+                return True
             quali = [quale] if quale is not None else range(len(tavola))
             for i in quali:
                 meld = tavola[i]

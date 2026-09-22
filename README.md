@@ -116,7 +116,7 @@ its own cloth and real decks.
 | Sette e Mezzo | Italian 40 | Bets from your wallet, the King of Coins is wild, sette e mezzo reale pays double, a tie replays the hand |
 | Scopa | Italian 40 | Up to 11 points: cards, coins, settebello, primiera and scope. When a card can be taken in more than one way you choose, and the cards light up |
 | Briscola | Italian 40 | 120 points, the trump lies across under the deck |
-| Rummy | French, two decks and four jokers | Opening at 50, laying off after you open, jokers worth the card they stand for, stake of 50 and the "closed in one turn" rule |
+| Rummy | French, two decks and four jokers | Opening at 50, laying off after you open, buying a joker with the card it stands for, stake of 50 and the "closed in one turn" rule |
 | Texas Hold'em | French | Heads-up against the dealer, blinds, flop, turn and river, fixed limit betting |
 
 **Decks**: 43 of them, Italian (Napoletane, Toscane) and French (Poker 98,
