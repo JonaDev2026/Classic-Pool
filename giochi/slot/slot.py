@@ -606,8 +606,8 @@ class Macchina:
         # la cassa: a sinistra il vetro coi rulli, a destra la fascia
         # delle scelte, come al tavolo da carte
         largo = B.WIN_W - B.s(300)
-        self.cassa = pygame.Rect(B.s(40), B.ALTO + B.s(56),
-                                 largo - B.s(60), B.WIN_H - B.ALTO - B.s(170))
+        self.cassa = pygame.Rect(B.s(40), B.ALTO + B.s(70),
+                                 largo - B.s(60), B.WIN_H - B.ALTO - B.s(184))
         m = B.s(16)
         self.vetro = self.cassa.inflate(-m * 2, -m * 2)
         self.cella = (self.vetro.w // COLONNE, self.vetro.h // RIGHE)
@@ -673,6 +673,7 @@ class Macchina:
         pygame.draw.rect(sc, (13, 15, 21), self.cassa,
                          border_radius=B.s(14))
         cornice_neon(sc, self.cassa, self.t_neon)
+        self.disegna_jackpot()
         self.disegna_rulli()
         self.disegna_scelte(voci, sel)
         self.disegna_pannello(per_linea)
@@ -759,30 +760,36 @@ class Macchina:
             self.rett.append(fondo)
             y += passo
 
+    def disegna_jackpot(self):
+        """Il jackpot in cima, sopra la macchina, nel suo riquadro col
+        filo di luce che gira: e' della casa e vale per tutte le slot."""
+        sc = self.sc
+        f_n, f_v = B.FONTS["small"], B.FONTS["font"]
+        nome = f_n.render(T("jackpot").upper(), True, (190, 196, 208))
+        soldi = f_v.render(B.dollari(jackpot()), True, (255, 255, 255))
+        largo = nome.get_width() + soldi.get_width() + B.s(46)
+        r = pygame.Rect(0, 0, max(B.s(260), largo), B.s(44))
+        r.center = (self.cassa.centerx, self.cassa.top - B.s(30))
+        pygame.draw.rect(sc, (13, 15, 21), r, border_radius=B.s(8))
+        if self.lampo > 0:
+            k = 0.5 + 0.5 * math.sin(self.t_vinta * 9.0)
+            col = tuple(int(c * (0.45 + 0.55 * k)) for c in (255, 236, 150))
+            pygame.draw.rect(sc, col, r, max(1, B.s(2)),
+                             border_radius=B.s(8))
+        else:
+            cornice_neon(sc, r, self.t_neon + 0.5, B.s(8))
+        sc.blit(nome, nome.get_rect(midleft=(r.left + B.s(16), r.centery)))
+        sc.blit(soldi, soldi.get_rect(midright=(r.right - B.s(16),
+                                                r.centery)))
+
     def disegna_pannello(self, per_linea):
         """La colonna a destra: in cima il jackpot, che e' della casa e
         vale per tutte le macchine, poi la puntata."""
         sc = self.sc
         x0, x1 = self.cassa.right + B.s(16), B.WIN_W - B.s(14)
-        y = self.cassa.top + B.s(6)
-        # il riquadro del jackpot, col suo filo di luce
-        r = pygame.Rect(x0 - B.s(6), y, x1 - x0 + B.s(12), B.s(62))
-        pygame.draw.rect(sc, (13, 15, 21), r, border_radius=B.s(8))
-        col = colore_neon(self.t_neon + 0.5)
-        if self.lampo > 0:
-            k = 0.5 + 0.5 * math.sin(self.t_vinta * 9.0)
-            col = tuple(int(c * (0.45 + 0.55 * k)) for c in (255, 236, 150))
-        pygame.draw.rect(sc, col, r, max(1, B.s(2)), border_radius=B.s(8))
-        f = B.FONTS["small"]
-        t = f.render(T("jackpot").upper(), True, (170, 176, 188))
-        sc.blit(t, t.get_rect(midtop=(r.centerx, r.top + B.s(8))))
-        f = B.FONTS["font"]
-        t = f.render(B.dollari(jackpot()), True, (255, 255, 255))
-        sc.blit(t, t.get_rect(midbottom=(r.centerx, r.bottom - B.s(8))))
-        # i dati della puntata, in carattere normale
         f = B.FONTS["small"]
         passo = f.get_height() + B.s(10)
-        y = r.bottom + B.s(24)
+        y = self.cassa.top + B.s(16)
         righe = [(T("tot_bet"), B.dollari(round(per_linea * MODI_UNITA)))]
         if self.gratis:
             righe.append((T("free_spins"), str(self.gratis)))
