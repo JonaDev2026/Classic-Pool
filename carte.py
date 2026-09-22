@@ -104,6 +104,7 @@ def tavolo_carte(i_panno, i_bordo):
                 for y in range(0, campo.get_height(), B.LATO_PANNO):
                     campo.blit(q, (x, y))
     ombra_tavolo(base, PANNO_CARTE)
+    diamanti_posti(base)
     base.blit(vero, (0, 0))
     if len(COMPOSTO) > 3:
         COMPOSTO.clear()
@@ -252,14 +253,11 @@ def posti(n_mano):
 COL_POSTI = ((236, 186, 64), (72, 142, 232), (222, 72, 72), (86, 190, 112))
 
 
-def pallino(sc, centro, col, r):
-    """Un pallino colorato col bordo scuro e un punto di luce."""
-    x, y = int(centro[0]), int(centro[1])
-    pygame.draw.circle(sc, (20, 16, 12), (x + 1, y + 2), r + 1)
-    pygame.draw.circle(sc, col, (x, y), r)
-    pygame.draw.circle(sc, (30, 24, 18), (x, y), r, max(1, r // 5))
-    pygame.draw.circle(sc, (255, 255, 255), (x - r // 3, y - r // 3),
-                       max(1, r // 4))
+def rombo(sc, centro, col, rx, ry):
+    """Un diamantino piatto, intarsiato: niente luci, solo il colore."""
+    x, y = centro
+    pygame.draw.polygon(sc, col, [(x, y - ry), (x + rx, y), (x, y + ry),
+                                  (x - rx, y)])
 
 
 def targhetta(sc, nome, punti, centro, col, attivo=False):
@@ -280,7 +278,7 @@ def targhetta(sc, nome, punti, centro, col, attivo=False):
     if attivo:
         pygame.draw.rect(sc, B.ORO_SCELTA, r, max(1, B.s(2)),
                          border_radius=h // 2)
-    pallino(sc, (r.x + pad + rp, r.centery), col, rp)
+    rombo(sc, (r.x + pad + rp, r.centery), col, rp * 0.7, rp)
     x = r.x + pad + rp * 2 + B.s(10)
     sc.blit(tn, tn.get_rect(midleft=(x, r.centery)))
     sc.blit(tp, tp.get_rect(midright=(r.right - pad, r.centery)))
@@ -293,19 +291,19 @@ def larga_targhetta(nome, punti):
             B.s(14) + f.size(str(punti))[0])
 
 
-def pallini_posti(sc):
-    """Un pallino a meta' di ogni lato del tavolo, sul legno: di chi e'
-    quel posto."""
-    k, (x0, y0) = B.SCALA, B.TAV_POS
-    p = PANNO_CARTE
-    # a meta' del legno: fra il bordo del panno e quello esterno
-    e = LEGNO_FUORI
-    dove = {0: (p.centerx, (p.bottom + e.bottom) / 2.0),
-            1: (p.centerx, (e.top + p.top) / 2.0),
-            2: ((e.left + p.left) / 2.0, p.centery),
-            3: ((p.right + e.right) / 2.0, p.centery)}
-    for chi, (x, y) in dove.items():
-        pallino(sc, (x0 + x * k, y0 + y * k), COL_POSTI[chi], B.s(8))
+def diamanti_posti(base):
+    """Un diamantino colorato a meta' di ogni lato, intarsiato nel legno
+    come i segni del biliardo: di chi e' quel posto. Si disegna sulla PNG
+    a misura piena, prima di ridurre."""
+    p, e = PANNO_CARTE, LEGNO_FUORI
+    a, b = B.DIAMANTE_LARGO * 0.8, B.DIAMANTE_LUNGO * 0.8
+    dove = {0: (p.centerx, (p.bottom + e.bottom) / 2.0, True),
+            1: (p.centerx, (e.top + p.top) / 2.0, True),
+            2: ((e.left + p.left) / 2.0, p.centery, False),
+            3: ((p.right + e.right) / 2.0, p.centery, False)}
+    for chi, (x, y, in_piedi) in dove.items():
+        rx, ry = (a, b) if in_piedi else (b, a)
+        rombo(base, (x, y), COL_POSTI[chi], rx, ry)
 
 
 def fila_targhette(sc, nomi, punti, attivo=0):
@@ -433,7 +431,6 @@ def schermata_carte(sc, clock, logo):
         for chi in (1, 2, 3, 0):
             for c in mani[chi]:
                 c.disegna(sc)
-        pallini_posti(sc)
         fila_targhette(sc, nomi, punti)
         aiuto = FONT_AIUTO()
         if aiuto is not None:
