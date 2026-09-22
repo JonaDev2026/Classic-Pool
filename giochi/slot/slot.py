@@ -401,9 +401,11 @@ def carica_suoni():
             pass
 
 
-# finche' non ci sono i file nuovi, questi suoni ne fanno le veci
-RIPIEGO = {"vinci1": "gift", "vinci2": "level", "vinci3": "bonus",
-           "dadi": "transform", "regalo": "gift"}
+# a chi tocca quale suono: il regalo usa "bonus", il jolly dentro una
+# vincita usa "transform", la vincita piccola "gift". Vinci2 e vinci3
+# arrivano quando ci saranno i file, per ora suona quello piccolo.
+RIPIEGO = {"vinci1": "gift", "vinci2": "gift", "vinci3": "gift",
+           "regalo": "bonus", "jolly": "transform"}
 
 
 def suona(nome, quanto=0.9):
@@ -1036,6 +1038,10 @@ def gioca_slot(sc, clock, logo):
             B.salva_config()
             m.totale = tot
             m.mostra, aspetta[0], m.t_vinta = (0 if vinte else -1), 1.4, 0.0
+            # il jolly che ha aiutato una vincita ha il suo suono
+            con_jolly = any(m.griglia[c][r] == JOLLY
+                            for _n, _l, _s, pa, celle in vinte if pa
+                            for c, r in celle)
             if jack:
                 suona("jackpot", 1.0)
             elif vinti_gratis:
@@ -1046,6 +1052,8 @@ def gioca_slot(sc, clock, logo):
                 suona("vinci3", 0.9)
             elif tot >= punta * 5:
                 suona("vinci2", 0.9)
+            elif con_jolly:
+                suona("jolly", 0.9)
             elif tot:
                 suona("vinci1", 0.9)
             m.msg = (T("win") % B.dollari(tot)) if tot else (
