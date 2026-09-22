@@ -11761,6 +11761,7 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
 # e tutte le coordinate restano quelle di sempre.
 SCENA = None
 SCHERMO = None
+SOPRA_SCENA = [None]    # chi disegna sopra la scena gia' ingrandita
 VISTA = [1.0, 0, 0]             # scala, spostamento x, spostamento y
 PIENO = False
 
@@ -11810,6 +11811,8 @@ def presenta():
     portafoglio(SCENA)
     k, ox, oy = VISTA
     if abs(k - 1.0) < 0.001 and ox == 0 and oy == 0:
+        if SOPRA_SCENA[0] is not None:
+            SOPRA_SCENA[0](SCENA, 1.0)
         SCHERMO.blit(SCENA, (0, 0))
     else:
         misura = SCHERMO.get_size()
@@ -11827,8 +11830,11 @@ def presenta():
                           for c in range(3))
             y = int(oy + (WIN_H - alto) * k)
             SCHERMO.fill(pieno, pygame.Rect(0, y, misura[0], misura[1] - y))
-        SCHERMO.blit(pygame.transform.smoothscale(
-            SCENA, (int(WIN_W * k), int(WIN_H * k))), (ox, oy))
+        grande = pygame.transform.smoothscale(
+            SCENA, (int(WIN_W * k), int(WIN_H * k)))
+        if SOPRA_SCENA[0] is not None:
+            SOPRA_SCENA[0](grande, k)
+        SCHERMO.blit(grande, (ox, oy))
     FOOTER_ORA[0] = None
     pygame.display.flip()
 
