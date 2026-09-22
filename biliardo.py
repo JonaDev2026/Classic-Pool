@@ -8305,7 +8305,7 @@ def schermata_menu(sc, clock, logo, inizio=None):
 
     def voci_ora():
         if categoria is None:
-            return [T("billiards"), "%s  (%s)" % (T("cards"), T("soon")),
+            return [T("billiards"), T("cards"),
                     "%s  (%s)" % (T("roulette"), T("soon")),
                     "%s  (%s)" % (T("slots"), T("soon")),
                     T("settings"), T("quit")]
@@ -8332,7 +8332,9 @@ def schermata_menu(sc, clock, logo, inizio=None):
             if i == 0:
                 categoria, sel = "bil", 0
                 return None
-            if i in (1, 2, 3):
+            if i == 1:
+                return "carte"
+            if i in (2, 3):
                 avviso[0] = pygame.time.get_ticks()     # non c'e' ancora
                 return None
             return ("settings", "quit")[i - 4]
@@ -11937,6 +11939,9 @@ def main():
             dove = schermata_menu(sc, clock, logo)
         elif dove == "biliardo":
             dove = schermata_menu(sc, clock, logo, "bil")
+        elif dove == "carte":
+            import carte            # le carte stanno nel loro file
+            dove = carte.schermata_carte(sc, clock, logo)
         elif dove == "discipline":
             dove = schermata_menu(sc, clock, logo, "gioco")
         elif dove == "gioca":
