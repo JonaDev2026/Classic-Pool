@@ -5385,6 +5385,19 @@ def disegna_stecca(sc, p, d, potenza, chi=0):
     """La stecca dietro la bianca: piu' e' carica, piu' si tira indietro.
     Ogni giocatore ha la sua: quella dell'avversario e' sempre un'altra."""
     indietro = 24 + potenza * 80
+    # col gesso la stecca va via dal tavolo, si passa il gesso sul cuoio
+    # e poi torna: tira indietro, resta fuori un attimo, rientra
+    if chi in (0, 1):
+        t = (pygame.time.get_ticks() - GESSO_QUANDO[chi]) / 1000.0
+        if 0.0 <= t < 1.6:
+            if t < 0.35:
+                via = t / 0.35
+            elif t < 1.25:
+                via = 1.0
+            else:
+                via = 1.0 - (t - 1.25) / 0.35
+            via = via * via * (3 - 2 * via)         # morbido
+            indietro += via * PLAY.w * 0.9
     p0 = Vector2(p) - d * indietro          # il cuoio
     lung = PLAY.w * 145.0 / 254.0           # stecca da 145 cm
     # i 13 mm della ghiera, i 20 della giunzione e i 30 del fondello
@@ -11221,10 +11234,14 @@ def _gioca(sc, clock, logo, cpu=None, torneo=False, panno=None, bordo=None,
                     if ev.key == tasto("eff_via"):
                         partita.spin.update(0, 0)
 
-            # il gesso: quando tocca a te e le palle sono ferme
+            # il gesso: contro il computer lo metti quando vuoi, anche
+            # mentre tira lui o le palle corrono; in due, chi e' di turno.
+            # Solo non mentre stai caricando il tuo tiro.
             if ev.type == pygame.KEYDOWN and ev.key == tasto("gesso") \
-                    and not (in_moto or suo or partita.finita or carico):
-                metti_gesso(partita.turno)
+                    and not partita.finita:
+                chi_g = 0 if cpu is not None else partita.turno
+                if not (carico and chi_g == partita.turno):
+                    metti_gesso(chi_g)
 
             # piramide: si sceglie la palla con cui tirare. Col mouse il
             # tasto destro sulla palla, da tastiera e joystick si scorre
