@@ -535,19 +535,16 @@ VETRO = [None]
 
 
 def vetro_fondo(misura):
-    """Il fondo dei rulli: quasi nero, con una luce morbida al centro che
-    stacca i simboli senza rubare la scena."""
+    """Il fondo dei rulli: crema, come i rulli veri delle macchine di una
+    volta, con un'ombra leggera in alto e in basso."""
     if VETRO[0] is None or VETRO[0].get_size() != misura:
         w, h = misura
         q = pygame.Surface(misura)
-        q.fill((10, 11, 15))
-        luce = pygame.Surface(misura, pygame.SRCALPHA)
-        for i in range(24):
-            k = i / 23.0
-            r = pygame.Rect(0, int(h * 0.5 - h * 0.5 * (1 - k * 0.8)),
-                            w, max(1, int(h * (1 - k * 0.8))))
-            pygame.draw.rect(luce, (40, 48, 68, 5), r)
-        q.blit(luce, (0, 0))
+        for y in range(h):
+            k = abs(y - h * 0.5) / (h * 0.5)      # 0 in mezzo, 1 ai bordi
+            v = 1.0 - 0.18 * k * k
+            q.fill((int(246 * v), int(241 * v), int(228 * v)),
+                   (0, y, w, 1))
         VETRO[0] = q
     return VETRO[0]
 
@@ -716,7 +713,7 @@ class Macchina:
             # le caselle che non c'entrano si spengono, cosi' si vede
             # bene la combinazione che sta pagando
             velo = pygame.Surface(vetro.size, pygame.SRCALPHA)
-            velo.fill((6, 7, 10, 165))
+            velo.fill((246, 241, 228, 170))
             sc.blit(velo, vetro)
             respiro = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0)
             k = 1.0 + 0.12 * respiro
@@ -726,18 +723,6 @@ class Macchina:
                     continue
                 nome = self.griglia[c][i]
                 r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
-                # una luce del colore di questa combinazione, dietro
-                lato = int(min(cw, ch) * GRANDE * 1.25)
-                q = pygame.Surface((lato, lato), pygame.SRCALPHA)
-                for j in range(6):
-                    kk = j / 5.0
-                    a_l = int((10 + 26 * kk) * (0.4 + 0.6 * respiro))
-                    d = int(lato * 0.5 * (1 - kk) * 0.9)
-                    pygame.draw.rect(q, col + (a_l,),
-                                     pygame.Rect(d, d, lato - d * 2,
-                                                 lato - d * 2),
-                                     border_radius=int(lato * 0.28))
-                sc.blit(q, q.get_rect(center=r.center))
                 img = figura(nome, (int(cw * GRANDE * k),
                                     int(ch * GRANDE * k))).copy()
                 # l'alfa si moltiplica sui pixel: set_alpha su una
@@ -748,7 +733,7 @@ class Macchina:
         sc.set_clip(vecchio)
         for c in range(1, COLONNE):
             x = vetro.x + c * cw
-            pygame.draw.line(sc, (26, 29, 38), (x, vetro.y),
+            pygame.draw.line(sc, (206, 198, 180), (x, vetro.y),
                              (x, vetro.bottom), max(1, B.s(1)))
 
     def disegna_scelte(self, voci, sel):
