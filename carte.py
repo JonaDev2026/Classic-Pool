@@ -143,7 +143,7 @@ def faccia_carta(scoperta):
     r = max(3, B.s(9))
     sup = pygame.Surface((w + B.s(6), h + B.s(6)), pygame.SRCALPHA)
     # l'ombra, spostata in basso a destra
-    pygame.draw.rect(sup, (0, 0, 0, 60), pygame.Rect(B.s(4), B.s(5), w, h),
+    pygame.draw.rect(sup, (0, 0, 0, 28), pygame.Rect(B.s(2), B.s(3), w, h),
                      border_radius=r)
     corpo = pygame.Rect(0, 0, w, h)
     if scoperta:
@@ -328,15 +328,15 @@ def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
     if sinistra:
         q = t.get_rect(midleft=(xd + B.s(18), y - B.s(2)))
         box.midleft = (q.right + B.s(14), y)
-        da, a = xd - B.s(6), box.left - B.s(6)
+        da, a = xd - B.s(6), box.right + B.s(8)
     else:
         q = t.get_rect(midright=(xd - B.s(18), y - B.s(2)))
         box.midright = (q.left - B.s(14), y)
-        da, a = xd + B.s(6), box.right + B.s(6)
+        da, a = xd + B.s(6), box.left - B.s(8)
     sc.blit(t, q)
     # sotto il nome, dal diamantino al punteggio, un filo d'oro che lo
     # sottolinea, con la perlina ai due capi come nel logo
-    yl = q.bottom + B.s(7)
+    yl = max(q.bottom, box.bottom) + B.s(7)
     pygame.draw.line(sc, B.ORO_LOGO, (da, yl), (a, yl), max(1, B.s(1)))
     pygame.draw.circle(sc, B.ORO_LOGO, (da, yl), max(2, B.s(2)))
     pygame.draw.circle(sc, B.ORO_LUCE, (a, yl), max(2, B.s(2)))
