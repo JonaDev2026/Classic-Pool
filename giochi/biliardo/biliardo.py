@@ -8369,7 +8369,7 @@ def schermata_menu(sc, clock, logo, inizio=None):
         if categoria is None:
             return [T("billiards"), T("cards"),
                     "%s  (%s)" % (T("roulette"), T("soon")),
-                    "%s  (%s)" % (T("slots"), T("soon")),
+                    T("slots"),
                     T("settings"), T("quit")]
         if categoria == "bil":
             return [T("games"), T("rules"), T("shop"), T("bag"),
@@ -8396,7 +8396,9 @@ def schermata_menu(sc, clock, logo, inizio=None):
                 return None
             if i == 1:
                 return "carte"
-            if i in (2, 3):
+            if i == 3:
+                return "slot"
+            if i == 2:
                 avviso[0] = pygame.time.get_ticks()     # non c'e' ancora
                 return None
             return ("settings", "quit")[i - 4]
@@ -12246,6 +12248,12 @@ def main():
                 sys.path.insert(0, os.path.join(RADICE, "giochi", "carte"))
             import carte
             dove = carte.schermata_carte(sc, clock, logo)
+        elif dove == "slot":
+            # la slot sta in giochi/slot
+            if os.path.join(RADICE, "giochi", "slot") not in sys.path:
+                sys.path.insert(0, os.path.join(RADICE, "giochi", "slot"))
+            import slot
+            dove = slot.schermata_slot(sc, clock, logo)
         elif dove == "discipline":
             dove = schermata_menu(sc, clock, logo, "gioco")
         elif dove == "gioca":

@@ -1,0 +1,707 @@
+"""Golden Break - la slot machine.
+
+Cinque colonne per quattro righe, venti linee fisse, i rulli che si
+fermano uno dopo l'altro. Qui c'e' il motore: le strisce dei rulli, il
+conto delle vincite e il tabellone dei pagamenti. La grafica dei simboli
+sta fuori, in immagini/slot/<tema>: finche' non c'e' si disegnano dei
+segnaposto, cosi' la macchina si puo' provare lo stesso.
+
+Si appoggia a biliardo.py per finestra, caratteri, sfondo, suoni e
+portafoglio, come fanno le carte.
+"""
+import os
+import random
+import sys
+
+import pygame
+
+
+def _base():
+    m = sys.modules.get("__main__")
+    if m is not None and hasattr(m, "tavolo_composto"):
+        return m
+    import biliardo
+    return biliardo
+
+
+B = _base()
+
+CARTELLA = os.path.dirname(os.path.abspath(__file__))
+RADICE = os.path.dirname(os.path.dirname(CARTELLA))
+GFX = os.path.join(RADICE, "immagini", "slot")
+
+# ----------------------------------------------------------- i simboli
+# id, colore del segnaposto, segno, e quanto paga con 3, 4 e 5 uguali
+# (per ogni dollaro puntato sulla linea)
+SIMBOLI = (
+    ("sette",    (226,  60,  60), "7",  60, 300, 1500),
+    ("campana",  (240, 190,  70), "B",  30, 150,  600),
+    ("stella",   (150, 120, 235), "*",  25, 100,  400),
+    ("uva",      (120, 190, 120), "U",  15,  60,  250),
+    ("anguria",  (236, 120, 150), "A",  12,  45,  180),
+    ("limone",   (232, 224,  90), "L",   9,  30,  120),
+    ("ciliegia", (226,  80, 110), "C",   6,  24,   90),
+    ("jolly",    (250, 250, 250), "W",   0,   0,   0),   # sostituisce tutti
+    ("bonus",    ( 90, 210, 220), "S",   0,   0,   0),   # paga sparso
+)
+PAGA = dict((s[0], (s[3], s[4], s[5])) for s in SIMBOLI)
+COLORE = dict((s[0], s[1]) for s in SIMBOLI)
+SEGNO = dict((s[0], s[2]) for s in SIMBOLI)
+JOLLY = "jolly"
+BONUS = "bonus"
+# il bonus paga sul totale puntato, non sulla linea
+PAGA_BONUS = {3: 2, 4: 10, 5: 50}
+
+COLONNE, RIGHE = 5, 4
+
+# le venti linee: per ogni colonna, su quale riga passa la linea
+LINEE = (
+    (1, 1, 1, 1, 1), (0, 0, 0, 0, 0), (2, 2, 2, 2, 2), (3, 3, 3, 3, 3),
+    (0, 1, 2, 1, 0), (1, 2, 3, 2, 1), (3, 2, 1, 2, 3), (2, 1, 0, 1, 2),
+    (0, 0, 1, 0, 0), (1, 1, 2, 1, 1), (2, 2, 3, 2, 2), (3, 3, 2, 3, 3),
+    (1, 0, 0, 0, 1), (2, 1, 1, 1, 2), (0, 1, 1, 1, 0), (3, 2, 2, 2, 3),
+    (1, 2, 2, 2, 1), (2, 3, 3, 3, 2), (0, 1, 0, 1, 0), (3, 2, 3, 2, 3),
+)
+N_LINEE = len(LINEE)
+
+# quante volte ogni simbolo sta nella striscia di ogni rullo: i simboli
+# che pagano tanto sono rari, il jolly non sta sul primo rullo
+QUANTI = {
+    "sette":    (3, 3, 3, 3, 3),
+    "campana":  (4, 4, 4, 4, 4),
+    "stella":   (5, 5, 5, 5, 5),
+    "uva":      (6, 6, 6, 6, 6),
+    "anguria":  (7, 7, 6, 7, 7),
+    "limone":   (8, 8, 7, 8, 8),
+    "ciliegia": (9, 9, 8, 9, 9),
+    "jolly":    (0, 2, 2, 2, 0),
+    "bonus":    (2, 2, 2, 2, 2),
+}
+
+PUNTATE = (20, 40, 100, 200, 400)   # per giro, divisi sulle venti linee
+
+
+def _buona(s):
+    """Una striscia va bene se non ha due simboli uguali attaccati e se i
+    bonus stanno lontani fra loro almeno quanto e' alta la finestra: cosi'
+    un rullo non ne mostra mai due insieme e i conti dei pagamenti
+    tornano sempre uguali."""
+    n = len(s)
+    if any(s[i] == s[i - 1] for i in range(n)):
+        return False
+    dove = [i for i, x in enumerate(s) if x == BONUS]
+    for a in range(len(dove)):
+        for b in range(a + 1, len(dove)):
+            d = abs(dove[a] - dove[b])
+            if min(d, n - d) < RIGHE:
+                return False
+    return True
+
+
+def strisce():
+    """Le cinque strisce dei rulli, una per colonna."""
+    fuori = []
+    for r in range(COLONNE):
+        s = []
+        for nome, quanti in QUANTI.items():
+            s += [nome] * quanti[r]
+        for _ in range(4000):
+            random.shuffle(s)
+            if _buona(s):
+                break
+        fuori.append(list(s))
+    return fuori
+
+
+def tira(strisce_ora):
+    """Un giro: da ogni striscia si prende una finestra di quattro
+    simboli. Torna la griglia [colonna][riga] e dove si e' fermata."""
+    griglia, fermi = [], []
+    for s in strisce_ora:
+        p = random.randrange(len(s))
+        fermi.append(p)
+        griglia.append([s[(p + i) % len(s)] for i in range(RIGHE)])
+    return griglia, fermi
+
+
+def vincite(griglia, per_linea):
+    """Quanto paga la griglia. Torna il totale e l'elenco delle vincite:
+    (numero della linea o -1 per il bonus, simbolo, quante caselle,
+    quanto paga, le caselle)."""
+    fuori = []
+    for n, linea in enumerate(LINEE):
+        celle = [(c, linea[c]) for c in range(COLONNE)]
+        simboli = [griglia[c][r] for c, r in celle]
+        meglio = None
+        for nome in PAGA:
+            if nome in (JOLLY, BONUS) or PAGA[nome] == (0, 0, 0):
+                continue
+            n_uguali = 0
+            for x in simboli:
+                if x == nome or x == JOLLY:
+                    n_uguali += 1
+                else:
+                    break
+            if n_uguali >= 3:
+                paga = PAGA[nome][n_uguali - 3] * per_linea
+                if paga and (meglio is None or paga > meglio[2]):
+                    meglio = (nome, n_uguali, paga)
+        if meglio:
+            nome, n_uguali, paga = meglio
+            fuori.append((n, nome, n_uguali, paga, celle[:n_uguali]))
+    # il bonus paga dovunque sia, sul totale puntato
+    caselle = [(c, r) for c in range(COLONNE) for r in range(RIGHE)
+               if griglia[c][r] == BONUS]
+    if len(caselle) >= 3:
+        quanti = min(5, len(caselle))
+        paga = PAGA_BONUS[quanti] * per_linea * N_LINEE
+        fuori.append((-1, BONUS, quanti, paga, caselle))
+    return sum(v[3] for v in fuori), fuori
+
+
+# ------------------------------------------------------------- i testi
+TXT = {
+    "en": {"slot": "Slots", "spin": "Spin", "bet": "Bet", "pays": "Paytable",
+           "back": "Back", "win": "You win %s", "no_win": "No win",
+           "broke": "Not enough money", "tot_bet": "Total bet",
+           "per_line": "Per line", "lines": "Lines", "credit": "Credit",
+           "pt_title": "Paytable", "pt_wild": "Wild: stands for any symbol",
+           "pt_bonus": "Bonus: pays anywhere, on the total bet",
+           "pt_line": "Wins pay left to right on %d lines",
+           "help": "click / ENTER  spin     < >  bet     %s  paytable     ESC  back",
+           "sp_spin": "spin", "sp_bet": "bet", "sp_pays": "paytable", "help_pt": "ENTER / ESC  back"},
+    "it": {"slot": "Slot", "spin": "Gira", "bet": "Puntata",
+           "pays": "Pagamenti", "back": "Indietro", "win": "Vinci %s",
+           "no_win": "Niente", "broke": "Non hai abbastanza soldi",
+           "tot_bet": "Puntata", "per_line": "Per linea", "lines": "Linee",
+           "credit": "Credito", "pt_title": "Pagamenti",
+           "pt_wild": "Jolly: vale per tutti i simboli",
+           "pt_bonus": "Bonus: paga dovunque sia, sulla puntata intera",
+           "pt_line": "Si paga da sinistra a destra, su %d linee",
+           "help": "clic / INVIO  gira     < >  puntata     %s  pagamenti     ESC  indietro",
+           "sp_spin": "gira", "sp_bet": "puntata", "sp_pays": "pagamenti", "help_pt": "INVIO / ESC  indietro"},
+    "fr": {"slot": "Machine", "spin": "Tourner", "bet": "Mise",
+           "pays": "Gains", "back": "Retour", "win": "Vous gagnez %s",
+           "no_win": "Rien", "broke": "Pas assez d'argent",
+           "tot_bet": "Mise", "per_line": "Par ligne", "lines": "Lignes",
+           "credit": "Credit", "pt_title": "Table des gains",
+           "pt_wild": "Joker : remplace tous les symboles",
+           "pt_bonus": "Bonus : paie partout, sur la mise totale",
+           "pt_line": "Les gains paient de gauche a droite, sur %d lignes",
+           "help": "clic / ENTREE  tourner     < >  mise     %s  gains     ECHAP  retour",
+           "sp_spin": "tourner", "sp_bet": "mise", "sp_pays": "gains", "help_pt": "ENTREE / ECHAP  retour"},
+    "es": {"slot": "Tragaperras", "spin": "Girar", "bet": "Apuesta",
+           "pays": "Premios", "back": "Atras", "win": "Ganas %s",
+           "no_win": "Nada", "broke": "No tienes bastante dinero",
+           "tot_bet": "Apuesta", "per_line": "Por linea", "lines": "Lineas",
+           "credit": "Credito", "pt_title": "Tabla de premios",
+           "pt_wild": "Comodin: vale por todos los simbolos",
+           "pt_bonus": "Bonus: paga donde sea, sobre la apuesta total",
+           "pt_line": "Se paga de izquierda a derecha, en %d lineas",
+           "help": "clic / INTRO  girar     < >  apuesta     %s  premios     ESC  atras",
+           "sp_spin": "girar", "sp_bet": "apuesta", "sp_pays": "premios", "help_pt": "INTRO / ESC  atras"},
+}
+NOMI_SIM = {
+    "en": {"sette": "Seven", "campana": "Bell", "stella": "Star",
+           "uva": "Grapes", "anguria": "Melon", "limone": "Lemon",
+           "ciliegia": "Cherry", "jolly": "Wild", "bonus": "Bonus"},
+    "it": {"sette": "Sette", "campana": "Campana", "stella": "Stella",
+           "uva": "Uva", "anguria": "Anguria", "limone": "Limone",
+           "ciliegia": "Ciliegia", "jolly": "Jolly", "bonus": "Bonus"},
+    "fr": {"sette": "Sept", "campana": "Cloche", "stella": "Etoile",
+           "uva": "Raisin", "anguria": "Pasteque", "limone": "Citron",
+           "ciliegia": "Cerise", "jolly": "Joker", "bonus": "Bonus"},
+    "es": {"sette": "Siete", "campana": "Campana", "stella": "Estrella",
+           "uva": "Uvas", "anguria": "Sandia", "limone": "Limon",
+           "ciliegia": "Cereza", "jolly": "Comodin", "bonus": "Bonus"},
+}
+
+
+def T(k):
+    d = TXT.get(B.CFG.get("lingua", "en"), TXT["en"])
+    return d.get(k, TXT["en"].get(k, k))
+
+
+def nome_simbolo(s):
+    d = NOMI_SIM.get(B.CFG.get("lingua", "en"), NOMI_SIM["en"])
+    return d.get(s, s)
+
+
+# la riga dei comandi col joystick, con le icone come nel resto del gioco
+RIGA_PAD_SLOT = ((("croce",), "sl_move"), (("a",), "sl_ok"),
+                 (("b",), "pa_back"))
+for _l, _d in (
+        ("en", {"sl_move": "choose", "sl_ok": "ok"}),
+        ("it", {"sl_move": "scegli", "sl_ok": "ok"}),
+        ("fr", {"sl_move": "choisir", "sl_ok": "ok"}),
+        ("es", {"sl_move": "elegir", "sl_ok": "ok"})):
+    B.TESTI.setdefault(_l, {}).update(_d)
+
+_FONT = {}
+
+
+def font_slot(misura):
+    if misura not in _FONT:
+        _FONT[misura] = B.carattere_elegante(B.s(misura)) or B.FONTS["small"]
+    return _FONT[misura]
+
+
+def aiuto_slot():
+    """La riga d'aiuto con mouse e tastiera: i tasti veri."""
+    return T("help") % B.nome_tasto(B.tasto("gesso"))
+
+
+# ---------------------------------------------------------- la grafica
+FIGURE = {}
+
+
+def tema():
+    return B.CFG.get("slot_tema", "classica")
+
+
+def figura(nome, misura):
+    """Il disegno di un simbolo, della misura voluta. Se la PNG del tema
+    non c'e' si disegna un segnaposto: cosi' la macchina si prova anche
+    senza grafica."""
+    chiave = (tema(), nome, misura)
+    if chiave in FIGURE:
+        return FIGURE[chiave]
+    w, h = misura
+    q = None
+    f = os.path.join(GFX, tema(), nome + ".png")
+    if os.path.isfile(f):
+        try:
+            img = pygame.image.load(f).convert_alpha()
+            k = min(w / float(img.get_width()), h / float(img.get_height()))
+            q = pygame.transform.smoothscale(
+                img, (max(1, int(img.get_width() * k)),
+                      max(1, int(img.get_height() * k))))
+        except (pygame.error, OSError):
+            q = None
+    if q is None:
+        q = pygame.Surface((w, h), pygame.SRCALPHA)
+        col = COLORE[nome]
+        r = pygame.Rect(w // 10, h // 10, w - w // 5, h - h // 5)
+        pygame.draw.rect(q, col + (230,), r, border_radius=int(h * 0.18))
+        pygame.draw.rect(q, (14, 14, 18, 220), r, max(1, B.s(2)),
+                         border_radius=int(h * 0.18))
+        f_s = B.FONTS["grande"]
+        t = f_s.render(SEGNO[nome], True, (18, 18, 22))
+        if t.get_width() > r.w * 0.7:
+            k = r.w * 0.7 / float(t.get_width())
+            t = pygame.transform.smoothscale(
+                t, (int(t.get_width() * k), int(t.get_height() * k)))
+        q.blit(t, t.get_rect(center=r.center))
+    FIGURE[chiave] = q
+    return q
+
+
+class Macchina:
+    """La slot sullo schermo: la cassa, i cinque rulli e quello che
+    succede a ogni giro."""
+
+    def __init__(self, sc, clock):
+        self.sc, self.clock = sc, clock
+        self.dt = 0.0
+        self.strisce = strisce()
+        self.pos = [float(random.randrange(len(s))) for s in self.strisce]
+        self.da, self.a, self.t, self.durata = None, None, None, None
+        self.griglia = self.ferma()
+        self.vinte, self.mostra, self.t_mostra = [], -1, 0.0
+        self.msg = ""
+        self.vinto = 0
+        self.gira = False
+        # la cassa: a sinistra il vetro coi rulli, a destra la fascia
+        # delle scelte, come al tavolo da carte
+        largo = B.WIN_W - B.s(300)
+        self.cassa = pygame.Rect(B.s(40), B.ALTO + B.s(56),
+                                 largo - B.s(60), B.WIN_H - B.ALTO - B.s(170))
+        m = B.s(18)
+        self.vetro = self.cassa.inflate(-m * 2, -m * 2)
+        self.vetro.height -= B.s(46)
+        self.vetro.top = self.cassa.top + m + B.s(34)
+        self.cella = (self.vetro.w // COLONNE, self.vetro.h // RIGHE)
+
+    # ---- i rulli
+    def ferma(self):
+        """I simboli fermi adesso, dalla posizione di ogni rullo."""
+        g = []
+        for c, s in enumerate(self.strisce):
+            p = int(self.pos[c]) % len(s)
+            g.append([s[(p + i) % len(s)] for i in range(RIGHE)])
+        return g
+
+    def parti(self):
+        """Lancia i rulli: si sa gia' dove si fermano, e ognuno ci arriva
+        rallentando, uno dopo l'altro."""
+        griglia, fermi = tira(self.strisce)
+        self.griglia = griglia
+        self.da = list(self.pos)
+        self.a = []
+        for c, p in enumerate(fermi):
+            s = len(self.strisce[c])
+            giri = 4 + c
+            avanti = (p - self.da[c]) % s
+            self.a.append(self.da[c] + giri * s + avanti)
+        self.durata = [0.9 + c * 0.28 for c in range(COLONNE)]
+        self.t = 0.0
+        self.gira = True
+        self.vinte, self.mostra, self.vinto = [], -1, 0
+        self.msg = ""
+
+    def passo(self):
+        if not self.gira:
+            return
+        self.t += self.dt
+        finiti = 0
+        for c in range(COLONNE):
+            d = self.durata[c]
+            if self.t >= d:
+                if self.pos[c] != self.a[c]:
+                    self.pos[c] = self.a[c]
+                    B.suona_fx("menu_tic", 0.7)
+                finiti += 1
+            else:
+                k = self.t / d
+                k = 1 - (1 - k) ** 3          # parte forte e rallenta
+                self.pos[c] = self.da[c] + (self.a[c] - self.da[c]) * k
+        if finiti == COLONNE:
+            self.gira = False
+            return True
+        return False
+
+    # ---- il disegno
+    def disegna(self, voci, sel, per_linea):
+        sc = self.sc
+        sc.blit(B.fondo(), (0, 0))
+        self.nome_gioco()
+        # la cassa
+        q = pygame.Surface(self.cassa.size, pygame.SRCALPHA)
+        q.fill((16, 18, 24, 225))
+        sc.blit(q, self.cassa)
+        pygame.draw.rect(sc, B.ORO_LOGO, self.cassa, max(1, B.s(2)),
+                         border_radius=B.s(10))
+        self.disegna_rulli()
+        self.disegna_scelte(voci, sel)
+        self.disegna_pannello(per_linea)
+        self.disegna_messaggio()
+        small = B.FONTS["small"]
+        if B.modo_comandi() == "pad" and B.ICONE_TASTI_OK():
+            r = B.riga_pad(small, RIGA_PAD_SLOT)
+        else:
+            r = small.render(aiuto_slot(), True, (150, 156, 168))
+        sc.blit(r, r.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(40))))
+
+    def nome_gioco(self):
+        f = B.FONTS.get("elegante_voce") or B.FONTS["font"]
+        t = f.render(B.tit_el(T("slot")), True, B.ORO_SCELTA)
+        self.sc.blit(t, (B.s(18), B.ALTO + B.s(10)))
+
+    def disegna_rulli(self):
+        sc = self.sc
+        vetro = self.vetro
+        fondo = pygame.Surface(vetro.size, pygame.SRCALPHA)
+        fondo.fill((8, 9, 12, 245))
+        sc.blit(fondo, vetro)
+        cw, ch = self.cella
+        vecchio = sc.get_clip()
+        sc.set_clip(vetro)
+        acceso = set()
+        if 0 <= self.mostra < len(self.vinte):
+            acceso = set(self.vinte[self.mostra][4])
+        for c in range(COLONNE):
+            s = self.strisce[c]
+            p = self.pos[c]
+            base = int(p)
+            sotto = (p - base) * ch
+            for i in range(-1, RIGHE + 1):
+                nome = s[(base + i) % len(s)]
+                r = pygame.Rect(vetro.x + c * cw,
+                                int(vetro.y + i * ch - sotto), cw, ch)
+                img = figura(nome, (cw - B.s(8), ch - B.s(8)))
+                sc.blit(img, img.get_rect(center=r.center))
+                if not self.gira and (c, i) in acceso:
+                    pygame.draw.rect(sc, B.ORO_SCELTA, r.inflate(-B.s(6),
+                                                                 -B.s(6)),
+                                     max(2, B.s(3)), border_radius=B.s(8))
+        sc.set_clip(vecchio)
+        for c in range(1, COLONNE):
+            x = vetro.x + c * cw
+            pygame.draw.line(sc, (30, 32, 40), (x, vetro.y),
+                             (x, vetro.bottom), max(1, B.s(1)))
+        pygame.draw.rect(sc, (60, 64, 76), vetro, max(1, B.s(2)))
+
+    def disegna_scelte(self, voci, sel):
+        """Le scelte nella fascia a destra, nello stesso stile dei menu."""
+        self.rett = []
+        x0, x1 = self.cassa.right + B.s(16), B.WIN_W - B.s(8)
+        f = font_slot(19)
+        B.tic_menu(tuple(voci), sel)
+        passo = f.get_height() + B.s(14)
+        y = self.cassa.centery - (len(voci) - 1) * passo // 2 + B.s(30)
+        for i, testo in enumerate(voci):
+            t = f.render(B.tit_el(testo), True,
+                         (255, 255, 255) if i == sel else (196, 200, 208))
+            fondo = pygame.Rect(x0, y - (passo - B.s(8)) // 2, x1 - x0,
+                                passo - B.s(8))
+            if i == sel:
+                q = pygame.Surface(fondo.size, pygame.SRCALPHA)
+                q.fill((255, 255, 255, 18))
+                self.sc.blit(q, fondo)
+                pygame.draw.rect(self.sc, B.COL_GIOC[0],
+                                 (fondo.x, fondo.y, max(1, B.s(3)), fondo.h))
+            self.sc.blit(t, t.get_rect(midleft=(x0 + B.s(14), y)))
+            self.rett.append(fondo)
+            y += passo
+
+    def disegna_pannello(self, per_linea):
+        """Sopra le scelte: puntata, quanto va per linea, quante linee."""
+        x0, x1 = self.cassa.right + B.s(16), B.WIN_W - B.s(14)
+        f = font_slot(16)
+        passo = f.get_height() + B.s(10)
+        y = self.cassa.top + B.s(60)
+        righe = [(T("tot_bet"), B.dollari(per_linea * N_LINEE)),
+                 (T("per_line"), B.dollari(per_linea)),
+                 (T("lines"), str(N_LINEE))]
+        for et, val in righe:
+            t = f.render(et, True, B.ORO_SOTTO)
+            self.sc.blit(t, (x0, y - t.get_height() // 2))
+            v = f.render(str(val), True, (255, 255, 255))
+            self.sc.blit(v, v.get_rect(midright=(x1, y)))
+            y += passo
+
+    def disegna_messaggio(self):
+        if not self.msg:
+            return
+        t = font_slot(20).render(self.msg, True, B.TESTO)
+        self.sc.blit(t, t.get_rect(center=(self.cassa.centerx,
+                                           self.cassa.bottom + B.s(34))))
+
+    def frame(self):
+        self.dt = min(0.05, self.clock.tick(60) / 1000.0)
+
+
+def pagina_pagamenti(sc, clock):
+    """Il tabellone dei pagamenti: ogni simbolo con quanto paga a tre,
+    quattro e cinque uguali, per ogni dollaro sulla linea."""
+    while True:
+        clock.tick(60)
+        for ev in B.eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            if ev.type == pygame.KEYDOWN:
+                if ev.key in (pygame.K_ESCAPE, pygame.K_RETURN,
+                              pygame.K_KP_ENTER, pygame.K_SPACE,
+                              pygame.K_BACKSPACE):
+                    return "su"
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button in (1, 3):
+                return "su"
+        sc.blit(B.fondo(), (0, 0))
+        f_t = B.FONTS.get("elegante") or B.FONTS["grande"]
+        t = f_t.render(B.tit_el(T("pt_title")), True, (240, 240, 244))
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(56))))
+        small, font = B.FONTS["small"], B.FONTS["font"]
+        paganti = [s[0] for s in SIMBOLI if PAGA[s[0]] != (0, 0, 0)]
+        lato = B.s(54)
+        passo = lato + B.s(16)
+        y0 = B.ALTO + B.s(120)
+        for col in range(2):
+            gruppo = paganti[col * 4:col * 4 + 4]
+            x = B.s(110) + col * (B.WIN_W // 2 - B.s(40))
+            for i, nome in enumerate(gruppo):
+                y = y0 + i * passo
+                img = figura(nome, (lato, lato))
+                sc.blit(img, img.get_rect(midleft=(x, y)))
+                t = font.render(nome_simbolo(nome), True, B.ORO_SCELTA)
+                sc.blit(t, t.get_rect(midleft=(x + lato + B.s(14), y)))
+                p3, p4, p5 = PAGA[nome]
+                t = font.render("3 - %d      4 - %d      5 - %d"
+                                % (p3, p4, p5), True, (230, 232, 238))
+                sc.blit(t, t.get_rect(midright=(x + B.s(452), y)))
+        y = y0 + 4 * passo + B.s(10)
+        for nome, testo in ((JOLLY, T("pt_wild")), (BONUS, T("pt_bonus"))):
+            img = figura(nome, (lato, lato))
+            sc.blit(img, img.get_rect(midleft=(B.s(110), y)))
+            t = font.render(testo, True, (230, 232, 238))
+            sc.blit(t, t.get_rect(midleft=(B.s(110) + lato + B.s(14), y)))
+            if nome == BONUS:
+                t = small.render("3 - %dx      4 - %dx      5 - %dx"
+                                 % (PAGA_BONUS[3], PAGA_BONUS[4],
+                                    PAGA_BONUS[5]), True, B.ORO_SOTTO)
+                sc.blit(t, t.get_rect(midleft=(B.s(110) + lato + B.s(14),
+                                               y + B.s(24))))
+            y += passo
+        t = small.render(T("pt_line") % N_LINEE, True, B.ORO_SOTTO)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(80))))
+        if B.modo_comandi() == "pad" and B.ICONE_TASTI_OK():
+            r = B.riga_pad(small, B.RIGA_MENU)
+        else:
+            r = small.render(T("help_pt"), True, (150, 156, 168))
+        sc.blit(r, r.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(40))))
+        B.presenta()
+
+
+def gioca_slot(sc, clock, logo):
+    """La macchina: si punta, si gira, si paga."""
+    m = Macchina(sc, clock)
+    punta = B.CFG.get("slot_punta", PUNTATE[0])
+    if punta not in PUNTATE:
+        punta = PUNTATE[0]
+    sel = 0
+    aspetta = [0.0]         # quanto resta da far vedere della vincita
+
+    def voci():
+        return [T("spin"), "%s  %s" % (T("bet"), B.dollari(punta)),
+                T("pays"), T("back")]
+
+    def per_linea():
+        return max(1, punta // N_LINEE)
+
+    def cambia_punta(verso):
+        nonlocal punta
+        i = PUNTATE.index(punta)
+        punta = PUNTATE[(i + verso) % len(PUNTATE)]
+        B.CFG["slot_punta"] = punta
+        B.salva_config()
+        B.suona_fx("menu_tic", 0.6)
+
+    def parti():
+        if B.soldi() < punta:
+            m.msg = T("broke")
+            B.suona_fx("menu_chiudi", 0.7)
+            return
+        B.soldi(-punta)
+        B.salva_config()
+        m.parti()
+        B.suona_fx("menu_apri", 0.6)
+
+    while True:
+        m.frame()
+        mouse = B.mouse_gioco()
+        for ev in B.eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            if ev.type == pygame.KEYDOWN:
+                if ev.key == pygame.K_ESCAPE:
+                    return "su"
+                if ev.key in (pygame.K_DOWN, pygame.K_s):
+                    sel = (sel + 1) % 4
+                    B.suona_fx("menu_tic", 0.6)
+                elif ev.key in (pygame.K_UP, pygame.K_w):
+                    sel = (sel - 1) % 4
+                    B.suona_fx("menu_tic", 0.6)
+                elif ev.key in (pygame.K_LEFT, pygame.K_a) and sel == 1:
+                    cambia_punta(-1)
+                elif ev.key in (pygame.K_RIGHT, pygame.K_d) and sel == 1:
+                    cambia_punta(1)
+                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                                pygame.K_SPACE):
+                    if m.gira:
+                        pass
+                    elif sel == 0:
+                        parti()
+                    elif sel == 1:
+                        cambia_punta(1)
+                    elif sel == 2:
+                        if pagina_pagamenti(sc, clock) == "quit":
+                            return "quit"
+                    else:
+                        return "su"
+                elif ev.key == B.tasto("gesso") and not m.gira:
+                    if pagina_pagamenti(sc, clock) == "quit":
+                        return "quit"
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                for i, r in enumerate(getattr(m, "rett", [])):
+                    if r.collidepoint(mouse):
+                        sel = i
+                        if not m.gira:
+                            if i == 0:
+                                parti()
+                            elif i == 1:
+                                cambia_punta(1)
+                            elif i == 2:
+                                if pagina_pagamenti(sc, clock) == "quit":
+                                    return "quit"
+                            else:
+                                return "su"
+        if B.MOUSE_VIVO[0]:
+            for i, r in enumerate(getattr(m, "rett", [])):
+                if r.collidepoint(mouse):
+                    sel = i
+        if m.passo():
+            # i rulli si sono fermati: si conta
+            tot, vinte = vincite(m.griglia, per_linea())
+            m.vinte, m.vinto = vinte, tot
+            if tot:
+                B.soldi(tot)
+                B.salva_config()
+                m.msg = T("win") % B.dollari(tot)
+                m.mostra, aspetta[0] = 0, 1.0
+                B.suona_fx("menu_apri", 0.9)
+            else:
+                m.msg = T("no_win")
+                m.mostra = -1
+        if m.vinte and m.mostra >= 0:
+            aspetta[0] -= m.dt
+            if aspetta[0] <= 0:
+                m.mostra = (m.mostra + 1) % len(m.vinte)
+                aspetta[0] = 1.0
+            n, nome, quanti, paga, _celle = m.vinte[m.mostra]
+            dove = T("lines") if n >= 0 else T("pt_title")
+            m.msg = "%s  %d x %s  -  %s" % (
+                ("%s %d" % (dove, n + 1)) if n >= 0 else nome_simbolo(nome),
+                quanti, nome_simbolo(nome), B.dollari(paga))
+        m.disegna(voci(), sel, per_linea())
+        B.presenta()
+
+
+def schermata_slot(sc, clock, logo):
+    """Il menu della slot: gioca, pagamenti, indietro."""
+    sel = 0
+    rett = []
+    while True:
+        clock.tick(60)
+        voci = [(T("spin"), None), (T("pays"), None), (T("back"), None)]
+        mouse = B.mouse_gioco()
+        for ev in B.eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            if ev.type == pygame.KEYDOWN:
+                if ev.key in (pygame.K_DOWN, pygame.K_s):
+                    sel = (sel + 1) % len(voci)
+                elif ev.key in (pygame.K_UP, pygame.K_w):
+                    sel = (sel - 1) % len(voci)
+                elif ev.key == pygame.K_ESCAPE:
+                    return "menu"
+                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                                pygame.K_SPACE):
+                    if sel == 0:
+                        if gioca_slot(sc, clock, logo) == "quit":
+                            return "quit"
+                    elif sel == 1:
+                        if pagina_pagamenti(sc, clock) == "quit":
+                            return "quit"
+                    else:
+                        return "menu"
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                for i, r in enumerate(rett):
+                    if r.collidepoint(mouse):
+                        sel = i
+                        if i == 0:
+                            if gioca_slot(sc, clock, logo) == "quit":
+                                return "quit"
+                        elif i == 1:
+                            if pagina_pagamenti(sc, clock) == "quit":
+                                return "quit"
+                        else:
+                            return "menu"
+        B.sfondo_menu(sc, logo)
+        t = (B.FONTS.get("elegante") or B.FONTS["grande"]).render(
+            B.tit_el(T("slot")), True, (240, 240, 244))
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.s(326))))
+        rett = B.disegna_voci(sc, voci, sel, B.FONTS["font"],
+                              B.FONTS["small"], B.s(436), B.s(44))
+        for i, r in enumerate(rett):
+            if B.MOUSE_VIVO[0] and r.collidepoint(mouse):
+                sel = i
+        B.presenta()
