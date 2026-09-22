@@ -336,7 +336,7 @@ def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
     sc.blit(t, q)
     # sotto il nome, dal diamantino al punteggio, un filo d'oro che lo
     # sottolinea, con la perlina ai due capi come nel logo
-    yl = q.bottom + B.s(3)
+    yl = q.bottom + B.s(7)
     pygame.draw.line(sc, B.ORO_LOGO, (da, yl), (a, yl), max(1, B.s(1)))
     pygame.draw.circle(sc, B.ORO_LOGO, (da, yl), max(2, B.s(2)))
     pygame.draw.circle(sc, B.ORO_LUCE, (a, yl), max(2, B.s(2)))
@@ -349,15 +349,19 @@ def fila_targhette(sc, nomi, punti, attivo=0):
     """La fascia del punteggio divisa fra sopra e sotto il tavolo, ognuno
     dalla parte del suo diamantino: sotto tu (oro) a sinistra e il verde
     a destra, sopra il rosso a sinistra e il blu a destra."""
-    sotto = B.BANDA_PUNTI
+    # sopra: a meta' fra il bordo della finestra e il legno. Sotto: alla
+    # stessa distanza dal legno, cosi' sono uguali tutte e due
+    sotto = B.BANDA_PUNTI.copy()
     sopra = sotto.copy()        # stessa larghezza e stesso inizio di sotto
-    tav_top = B.TAV_POS[1] + B.TAV_VISTA[1] * B.SCALA
-    sopra.centery = int(tav_top / 2 + B.s(4))
+    legno_su = B.TAV_POS[1] + LEGNO_FUORI.top * B.SCALA
+    legno_giu = B.TAV_POS[1] + LEGNO_FUORI.bottom * B.SCALA
+    sopra.centery = int(legno_su / 2)
+    sotto.centery = int(legno_giu + (legno_su - sopra.centery))
     meta = sotto.w // 2
     posto = {0: (sotto, True), 3: (sotto, False),
              2: (sopra, True), 1: (sopra, False)}
     # il nome del gioco in mezzo alla fascia di sopra
-    B.scritta_logo(sc, sopra.centerx, sopra.centery - B.s(4), 0.55)
+    B.scritta_logo(sc, sopra.centerx, sopra.centery - B.s(2), 0.55)
     for chi in range(len(nomi)):
         fascia, sinistra = posto[chi]
         r = pygame.Rect(fascia.x + (0 if sinistra else meta), fascia.y,
