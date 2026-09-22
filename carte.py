@@ -31,33 +31,48 @@ B = _base()
 TAVOLO_CARTE = "table_cards.png"
 # il panno: dentro la linea della PNG, fin dove arriva il legno
 PANNO_CARTE = pygame.Rect(120, 117, 1277, 662)
-OMBRA_BORDO = 34        # quanto e' larga l'ombra lungo il bordo, in pixel
-OMBRA_FORTE = 95        # quanto scurisce proprio contro il legno (0-255)
+OMBRA_LEGNO = 14        # quanto si allarga l'ombra del panno sul legno
+OMBRA_SUL_LEGNO = 120   # quanto scurisce il legno contro il panno (0-255)
 LUCE_MEZZO = 26         # quanto schiarisce il centro del panno
 
 COMPOSTO = {}
 
 
-def ombra_tavolo(campo):
-    """L'ombra di un tavolo senza sponde: scura contro il legno, sfuma
-    in poco spazio; e al centro un filo di luce, come la lampada sopra."""
+def ombra_tavolo(base, r):
+    """Il panno qualche millimetro piu' alto del legno, come sui tavoli da
+    carte: niente ombra dentro il panno (quella fa sembrare una sponda),
+    ma un'ombra morbida che il panno butta sul legno tutto intorno, piu'
+    forte in basso a destra, e sul bordo del panno un filo di luce in
+    alto e un filo di scuro in basso. Al centro un filo di luce."""
+    # l'ombra sul legno, fuori dal panno
+    om = pygame.Surface(base.get_size(), pygame.SRCALPHA)
+    for i in range(OMBRA_LEGNO, 0, -1):
+        a = int(OMBRA_SUL_LEGNO * (1.0 - i / float(OMBRA_LEGNO + 1)) ** 1.6)
+        q = r.inflate(i * 2, i * 2).move(i // 3, i // 2)
+        pygame.draw.rect(om, (0, 0, 0, a), q, border_radius=i)
+    om.fill((0, 0, 0, 0), r)        # solo sul legno, non sotto il panno
+    base.blit(om, (0, 0))
+    campo = base.subsurface(r)
     w, h = campo.get_size()
-    om = pygame.Surface((w, h), pygame.SRCALPHA)
-    for i in range(OMBRA_BORDO):
-        a = int(OMBRA_FORTE * (1.0 - i / float(OMBRA_BORDO)) ** 2)
-        if a <= 0:
-            continue
-        pygame.draw.rect(om, (0, 0, 0, a), pygame.Rect(i, i, w - 2 * i,
-                                                       h - 2 * i), 1)
-    campo.blit(om, (0, 0))
+    # il bordo del panno, alzato: luce sopra e a sinistra, scuro sotto
+    bordo = pygame.Surface((w, h), pygame.SRCALPHA)
+    for k in range(3):
+        a_l, a_s = 55 - k * 18, 45 - k * 15
+        pygame.draw.line(bordo, (255, 255, 255, a_l), (k, k), (w - 1 - k, k))
+        pygame.draw.line(bordo, (255, 255, 255, a_l), (k, k), (k, h - 1 - k))
+        pygame.draw.line(bordo, (0, 0, 0, a_s), (k, h - 1 - k),
+                         (w - 1 - k, h - 1 - k))
+        pygame.draw.line(bordo, (0, 0, 0, a_s), (w - 1 - k, k),
+                         (w - 1 - k, h - 1 - k))
+    campo.blit(bordo, (0, 0))
     luce = pygame.Surface((w, h), pygame.SRCALPHA)
     for i in range(12):
         k = 1.0 - i / 12.0
-        r = pygame.Rect(0, 0, int(w * (0.35 + 0.6 * k)),
+        q = pygame.Rect(0, 0, int(w * (0.35 + 0.6 * k)),
                         int(h * (0.35 + 0.6 * k)))
-        r.center = (w // 2, h // 2)
+        q.center = (w // 2, h // 2)
         pygame.draw.ellipse(luce, (255, 255, 255, max(1, LUCE_MEZZO // 12)),
-                            r)
+                            q)
     campo.blit(luce, (0, 0))
 
 
@@ -87,7 +102,7 @@ def tavolo_carte(i_panno, i_bordo):
             for x in range(0, campo.get_width(), B.LATO_PANNO):
                 for y in range(0, campo.get_height(), B.LATO_PANNO):
                     campo.blit(q, (x, y))
-            ombra_tavolo(campo)
+    ombra_tavolo(base, PANNO_CARTE)
     base.blit(vero, (0, 0))
     if len(COMPOSTO) > 3:
         COMPOSTO.clear()
