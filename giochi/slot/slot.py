@@ -9,6 +9,7 @@ segnaposto, cosi' la macchina si puo' provare lo stesso.
 Si appoggia a biliardo.py per finestra, caratteri, sfondo, suoni e
 portafoglio, come fanno le carte.
 """
+import math
 import os
 import random
 import sys
@@ -300,6 +301,30 @@ def figura(nome, misura):
     return q
 
 
+NEON = {}
+
+
+def neon(misura, col, spesso=None):
+    """Un alone morbido attorno a una casella: tanti riquadri arrotondati
+    uno dentro l'altro, sempre piu' accesi. Sul nero fa il neon."""
+    w, h = misura
+    m = spesso or max(B.s(14), h // 6)
+    chiave = (w, h, col, m)
+    if chiave in NEON:
+        return NEON[chiave]
+    q = pygame.Surface((w + m * 2, h + m * 2), pygame.SRCALPHA)
+    passi = max(4, m // max(1, B.s(2)))
+    for i in range(passi):
+        k = i / float(passi - 1)            # 0 fuori, 1 dentro
+        d = int(m * (1 - k))
+        r = pygame.Rect(d, d, w + (m - d) * 2, h + (m - d) * 2)
+        a = int(12 + 70 * k * k)
+        pygame.draw.rect(q, col + (a,), r, max(1, B.s(3)),
+                         border_radius=int(h * 0.22) + d // 2)
+    NEON[chiave] = q
+    return q
+
+
 class Macchina:
     """La slot sullo schermo: la cassa, i cinque rulli e quello che
     succede a ogni giro."""
@@ -312,6 +337,7 @@ class Macchina:
         self.da, self.a, self.t, self.durata = None, None, None, None
         self.griglia = self.ferma()
         self.vinte, self.mostra, self.t_mostra = [], -1, 0.0
+        self.t_vinta = 0.0      # per far respirare i simboli vincenti
         self.msg = ""
         self.vinto = 0
         self.gira = False
@@ -424,10 +450,29 @@ class Macchina:
                                 int(vetro.y + i * ch - sotto), cw, ch)
                 img = figura(nome, (cw - B.s(8), ch - B.s(8)))
                 sc.blit(img, img.get_rect(center=r.center))
-                if not self.gira and (c, i) in acceso:
-                    pygame.draw.rect(sc, B.ORO_SCELTA, r.inflate(-B.s(6),
-                                                                 -B.s(6)),
-                                     max(2, B.s(3)), border_radius=B.s(8))
+        if acceso and not self.gira:
+            # le caselle che non c'entrano si spengono, cosi' si vede
+            # bene la combinazione che sta pagando
+            velo = pygame.Surface(vetro.size, pygame.SRCALPHA)
+            velo.fill((6, 7, 10, 165))
+            sc.blit(velo, vetro)
+            respiro = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0)
+            k = 1.0 + 0.12 * respiro
+            for c, i in sorted(acceso):
+                if not 0 <= i < RIGHE:
+                    continue
+                nome = self.griglia[c][i]
+                r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
+                al = neon((cw - B.s(16), ch - B.s(16)),
+                          COLORE.get(nome, B.ORO_SCELTA))
+                sc.blit(al, al.get_rect(center=r.center))
+                img = figura(nome, (int((cw - B.s(8)) * k),
+                                    int((ch - B.s(8)) * k)))
+                sc.blit(img, img.get_rect(center=r.center))
+                col = B.ORO_SCELTA
+                pygame.draw.rect(sc, col, r.inflate(-B.s(10), -B.s(10)),
+                                 max(2, B.s(2)),
+                                 border_radius=int(ch * 0.2))
         sc.set_clip(vecchio)
         for c in range(1, COLONNE):
             x = vetro.x + c * cw
@@ -483,6 +528,7 @@ class Macchina:
 
     def frame(self):
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
+        self.t_vinta += self.dt
 
 
 # le macchine: chiave, come si chiama, che tema usa. Ognuna avra' i suoi
@@ -645,7 +691,7 @@ def gioca_slot(sc, clock, logo):
                 B.soldi(tot)
                 B.salva_config()
                 m.msg = T("win") % B.dollari(tot)
-                m.mostra, aspetta[0] = 0, 1.0
+                m.mostra, aspetta[0], m.t_vinta = 0, 1.2, 0.0
                 B.suona_fx("menu_apri", 0.9)
             else:
                 m.msg = T("no_win")
@@ -655,6 +701,8 @@ def gioca_slot(sc, clock, logo):
             if aspetta[0] <= 0:
                 m.mostra = (m.mostra + 1) % len(m.vinte)
                 aspetta[0] = 1.0
+                m.t_vinta = 0.0
+                B.suona_fx("menu_tic", 0.5)
             n, nome, quanti, paga, _celle = m.vinte[m.mostra]
             dove = T("lines") if n >= 0 else T("pt_title")
             m.msg = "%s  %d x %s  -  %s" % (
