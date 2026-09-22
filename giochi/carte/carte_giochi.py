@@ -25,6 +25,7 @@ TXT = {
            "again": "Play again", "menu": "Menu", "next": "Next hand",
            "cont": "Continue", "hand_won": "%s wins the hand",
            "bet": "Place your bet", "free": "Free play",
+           "bet_match": "Bet on the match", "bet_won": "Bet",
            "bust": "Bust!", "you_win": "You win %s",
            "you_lose": "You lose %s", "banker": "Banker",
            "reale": "Sette e mezzo reale!", "banker_bust": "Banker busts",
@@ -106,6 +107,7 @@ TXT = {
            "again": "Rigioca", "menu": "Menu", "next": "Prossima mano",
            "cont": "Continua", "hand_won": "%s vince la mano",
            "bet": "Fai la tua puntata", "free": "Gioco libero",
+           "bet_match": "Punta sulla partita", "bet_won": "Puntata",
            "bust": "Sballato!", "you_win": "Vinci %s",
            "you_lose": "Perdi %s", "banker": "Banco",
            "reale": "Sette e mezzo reale!", "banker_bust": "Il banco sballa",
@@ -187,6 +189,7 @@ TXT = {
            "again": "Rejouer", "menu": "Menu", "next": "Main suivante",
            "cont": "Continuer", "hand_won": "%s gagne la main",
            "bet": "Placez votre mise", "free": "Jeu libre",
+           "bet_match": "Misez sur la partie", "bet_won": "Mise",
            "bust": "Perdu !", "you_win": "Vous gagnez %s",
            "you_lose": "Vous perdez %s", "banker": "Banque",
            "reale": "Sette e mezzo royal !", "banker_bust": "La banque saute",
@@ -268,6 +271,7 @@ TXT = {
            "again": "Otra vez", "menu": "Menu", "next": "Otra mano",
            "cont": "Continuar", "hand_won": "%s gana la mano",
            "bet": "Haz tu apuesta", "free": "Juego libre",
+           "bet_match": "Apuesta a la partida", "bet_won": "Apuesta",
            "bust": "Te pasaste!", "you_win": "Ganas %s",
            "you_lose": "Pierdes %s", "banker": "Banca",
            "reale": "Sette e mezzo real!", "banker_bust": "La banca se pasa",
@@ -1183,11 +1187,57 @@ def conta_scopa(prese_a, prese_b, scope):
     return pt, righe
 
 
+PUNTATE_PARTITA = (10, 25, 50, 100, 250, 500, 1000)
+
+
+def scegli_posta(tv):
+    """La puntata sulla partita, nei giochi a punti: si sceglie prima di
+    cominciare, da 10 a 1000 dollari (quelli che hai), e chi vince il
+    match si prende il doppio. Torna None se preferisci uscire."""
+    tv.righe = [T("bet_match")]
+    opz = [B.dollari(p) for p in PUNTATE_PARTITA if p <= B.soldi()]
+    libero = not opz
+    if libero:
+        opz = [T("free")]
+    i = yield from tv.chiedi(opz + [T("leave")])
+    tv.righe = []
+    if i == len(opz):
+        return None
+    posta = 0 if libero else PUNTATE_PARTITA[i]
+    if posta:
+        B.soldi(-posta)
+        B.salva_config()
+    return posta
+
+
+def paga_posta(tv, posta, vince, righe):
+    """Fine partita: chi vince incassa il doppio, a pari si riprende la
+    sua. La riga va anche nel riepilogo."""
+    if not posta:
+        return
+    if vince is None:
+        B.soldi(posta)
+        vinto = [posta, posta]
+    else:
+        if vince == 0:
+            B.soldi(posta * 2)
+        vinto = [posta * 2 if vince == 0 else 0,
+                 posta * 2 if vince == 1 else 0]
+    B.salva_config()
+    righe.append((T("bet_won"), B.dollari(vinto[0]), B.dollari(vinto[1])))
+
+
 def partita_scopa(tv):
     totali = [0, 0]
     chi_inizia = 0
     y_tavolo = tv.z.centery
+    posta = [None]
     while True:
+        if posta[0] is None:
+            p = yield from scegli_posta(tv)
+            if p is None:
+                return "menu"
+            posta[0] = p
         tv.nuovo_mazzo(C.mazzo_codici())
         random.shuffle(tv.mazzo)
         for k, c in enumerate(tv.mazzo):
@@ -1315,6 +1365,8 @@ def partita_scopa(tv):
             vince = 0 if totali[0] > totali[1] else 1
             tab["fondo"] = T("win_match") % tv.nomi[vince]
             C.suona("levelup" if vince == 0 else "gameover")
+            paga_posta(tv, posta[0], vince, righe)
+            posta[0] = None
             opz = [T("again"), T("menu")]
         else:
             opz = [T("next")]
@@ -1363,6 +1415,9 @@ def partita_briscola(tv):
     y_mezzo = tv.z.centery
     chi_inizia = 0
     while True:
+        posta = yield from scegli_posta(tv)
+        if posta is None:
+            return "menu"
         tv.nuovo_mazzo(C.mazzo_codici())
         random.shuffle(tv.mazzo)
         for k, c in enumerate(tv.mazzo):
@@ -1450,9 +1505,10 @@ def partita_briscola(tv):
             C.suona("gameover")
         else:
             esito = T("draw")
+        righe = [(T("p_cards"), len(prese[0]), len(prese[1]))]
+        paga_posta(tv, posta, None if a == b else (0 if a > b else 1), righe)
         tab = {"titolo": T("hand_over"), "tot": [a, b],
-               "righe": [(T("p_cards"), len(prese[0]), len(prese[1]))],
-               "fondo": esito}
+               "righe": righe, "fondo": esito}
         i = yield from tv.fine_mano(esito, tab, [T("again"), T("menu")])
         if i == 1:
             return "menu"
@@ -1973,6 +2029,7 @@ def partita_ramino(tv):
     totali = [0, 0]
     messa = [MESSA]
     chi_inizia = 0
+    posta = [None]
     ordine_semi = [True]            # True: per seme, False: per valore
 
     def ordina(mano):
@@ -1985,6 +2042,11 @@ def partita_ramino(tv):
         mano.sort(key=chiave)
 
     while True:
+        if posta[0] is None:
+            p = yield from scegli_posta(tv)
+            if p is None:
+                return "menu"
+            posta[0] = p
         codici = mazzo_francese(2, 4)
         tv.nuovo_mazzo(codici)
         for k, c in enumerate(tv.carte):
@@ -2293,6 +2355,8 @@ def partita_ramino(tv):
         if fine:
             vince = 0 if totali[0] < totali[1] else 1
             tab["fondo"] = T("win_match") % tv.nomi[vince]
+            paga_posta(tv, posta[0], vince, righe)
+            posta[0] = None
             opz = [T("again"), T("menu")]
         else:
             opz = [T("next")]
