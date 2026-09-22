@@ -7955,7 +7955,7 @@ CFG = {"lingua": "en", "panno": -1, "bordo": -1, "nomi": ["", ""],
        "stecche_vinte": 0,
        "stecca2": -1,                    # quella del giocatore 2
        "avversario": "",                 # contro il computer: chi, o a caso
-       "soldi": 0,                       # il portafoglio
+       "soldi": 500,                     # il portafoglio: si parte con 500
        "stecche_mie": [0],               # le stecche comprate
        "gessi": {"blu": 1},              # i cubetti ancora da aprire
        "gesso_tipo": "blu",              # il gessetto che si usa
