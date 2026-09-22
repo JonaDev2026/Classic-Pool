@@ -263,12 +263,44 @@ def immagine_carta(codice):
     return None
 
 
+def _solo_pieno(img):
+    """Toglie il bordo trasparente o mezzo trasparente attorno alla
+    carta: si tiene solo il rettangolo dove la carta e' piena, cosi' non
+    resta un filo chiaro quando la si porta alla nostra misura."""
+    if img is None:
+        return None
+    try:
+        a = pygame.surfarray.pixels_alpha(img)
+        import numpy as np
+        pieno = np.asarray(a) >= 250
+        del a
+        cols = np.nonzero(pieno.any(axis=1))[0]
+        righe = np.nonzero(pieno.any(axis=0))[0]
+        if len(cols) and len(righe):
+            # dentro anche gli angoli tondi: si entra di un paio di pixel
+            m = max(2, int(min(img.get_size()) * 0.012))
+            r = pygame.Rect(cols[0] + m, righe[0] + m,
+                            cols[-1] - cols[0] - 2 * m,
+                            righe[-1] - righe[0] - 2 * m)
+            return img.subsurface(r).copy()
+    except Exception:
+        pass
+    return img
+
+
 def immagine_mazzo(che):
-    """dorso o scatola del mazzo scelto."""
+    """dorso o scatola del mazzo scelto. Il dorso senza bordo vuoto."""
     if MAZZO_ORA[0] is None:
         return None
     f = os.path.join(cartella_carte(), "mazzi", MAZZO_ORA[0], che + ".png")
-    return _immagine(f) if os.path.exists(f) else None
+    if not os.path.exists(f):
+        return None
+    if che != "dorso":
+        return _immagine(f)
+    chiave = f + "#pieno"
+    if chiave not in IMG_CARTE:
+        IMG_CARTE[chiave] = _solo_pieno(_immagine(f))
+    return IMG_CARTE[chiave]
 
 
 def misura_carta():
@@ -279,6 +311,26 @@ def misura_carta():
     if img is not None:
         return max(1, int(h * img.get_width() / float(img.get_height()))), h
     return B.s(CARTA_W), h
+
+
+def _riduci(img, w, h):
+    """Rimpicciolisce bene: Lanczos e un filo di nitidezza (con PIL se
+    c'e'), altrimenti a meta' per volta con smoothscale."""
+    try:
+        from PIL import Image, ImageFilter
+        src = img.convert_alpha()
+        p = Image.frombytes("RGBA", src.get_size(),
+                            pygame.image.tostring(src, "RGBA"))
+        p = p.resize((w, h), Image.LANCZOS)
+        p = p.filter(ImageFilter.UnsharpMask(radius=0.8, percent=60,
+                                             threshold=1))
+        return pygame.image.fromstring(p.tobytes(), (w, h),
+                                       "RGBA").convert_alpha()
+    except Exception:
+        while img.get_width() > 2 * w and img.get_height() > 2 * h:
+            img = pygame.transform.smoothscale(
+                img, (img.get_width() // 2, img.get_height() // 2))
+        return pygame.transform.smoothscale(img, (w, h))
 
 
 def _arrotonda(img, r):
@@ -304,9 +356,8 @@ def faccia_carta(scoperta, codice=None):
     corpo = pygame.Rect(0, 0, w, h)
     img = immagine_carta(codice) if scoperta else immagine_mazzo("dorso")
     if img is not None:
-        img = _arrotonda(pygame.transform.smoothscale(img, (w, h)), r)
+        img = _arrotonda(_riduci(img, w, h), r)
         sup.blit(img, (0, 0))
-        pygame.draw.rect(sup, (120, 120, 126), corpo, 1, border_radius=r)
     elif scoperta:
         pygame.draw.rect(sup, (250, 250, 246), corpo, border_radius=r)
         pygame.draw.rect(sup, (170, 170, 176), corpo, 1, border_radius=r)
@@ -328,8 +379,7 @@ def disegna_scatola(sc, centro, alto):
     k = alto / float(img.get_height())
     chiave = ("scatola", MAZZO_ORA[0], alto)
     if chiave not in FACCIA:
-        FACCIA[chiave] = pygame.transform.smoothscale(
-            img, (int(img.get_width() * k), alto))
+        FACCIA[chiave] = _riduci(img, int(img.get_width() * k), alto)
     q = FACCIA[chiave]
     om = pygame.Surface(q.get_size(), pygame.SRCALPHA)
     om.fill((0, 0, 0, 40))
@@ -563,11 +613,27 @@ def schermata_carte(sc, clock, logo):
     z = zona_panno()
     # il mazzo fuori dal tavolo, a sinistra: dove nel biliardo ci sono
     # potenza e precisione
-    x_lato = max(B.s(30), int((B.TAV_POS[0] + B.TAV_VISTA[0] * B.SCALA)
-                              / 2.0))
-    mazzo_pos = (x_lato, z.centery + B.s(56))
-    scatola_pos = (x_lato, z.centery - B.s(70))
+    legno_sx = int(B.TAV_POS[0] + LEGNO_FUORI.left * B.SCALA)
+    x_lato = max(B.s(30), legno_sx // 2)
     scegli_mazzo(0)
+    # la scatola proprio accanto al mazzo, sulla stessa riga
+    cw, ch = misura_carta()
+    sb = immagine_mazzo("scatola")
+    spazio = B.s(6)
+    alto_sc = B.s(96)
+    sw = cw
+    if sb is not None:
+        # se non ci stanno tutti e due nella fascia, la scatola si rimpicciolisce
+        largo = legno_sx - B.s(12) - cw - spazio
+        alto_sc = max(B.s(40), min(alto_sc, int(largo * sb.get_height()
+                                                / float(sb.get_width()))))
+        sw = int(sb.get_width() * alto_sc / float(sb.get_height()))
+    x0 = x_lato - (cw + spazio + sw) // 2
+    scatola_pos = (x0 + sw // 2, z.centery)
+    mazzo_pos = (x0 + sw + spazio + cw // 2, z.centery)
+
+    def posto_mazzo(k):
+        return (mazzo_pos[0] + k * 0.2, mazzo_pos[1] - k * 0.35)
     carte = []
     mani = {0: [], 1: [], 2: [], 3: []}
     centro = []
@@ -577,8 +643,7 @@ def schermata_carte(sc, clock, logo):
         codici = mazzo_codici()
         random.shuffle(codici)
         for k, cod in enumerate(codici):
-            c = Carta((mazzo_pos[0] - k * 0.25, mazzo_pos[1] - k * 0.35),
-                      codice=cod)
+            c = Carta(posto_mazzo(k), codice=cod)
             carte.append(c)
         for m in mani.values():
             del m[:]
@@ -620,13 +685,19 @@ def schermata_carte(sc, clock, logo):
         if tutte:
             suona("cattura")
         for c in tutte:
-            c.vai(mazzo_pos, 0.0, scoperta=False, ritardo=rit)
-            rit += 0.02
             carte.insert(0, c)
         for m in mani.values():
             del m[:]
         del centro[:]
         random.shuffle(carte)
+        # ognuna torna al suo posto nella pila, dritta e giu' dal sollevo
+        for k, c in enumerate(carte):
+            c.su = 0.0
+            if c in tutte:
+                c.vai(posto_mazzo(k), 0.0, scoperta=False, ritardo=rit)
+                rit += 0.02
+            else:
+                c.vai(posto_mazzo(k), 0.0, scoperta=False)
 
     nomi = [B.NOMI[0] or "Player 1"] + random.sample(B.AVVERSARI, 3)
     punti = [0, 0, 0, 0]
@@ -670,7 +741,7 @@ def schermata_carte(sc, clock, logo):
         tav = tavolo_carte(ip, ib)
         if tav is not None:
             sc.blit(tav, B.TAV_POS)
-        disegna_scatola(sc, scatola_pos, B.s(96))
+        disegna_scatola(sc, scatola_pos, alto_sc)
         # prima quelle ferme nel mazzo, poi il centro, poi le mani: e fra
         # quelle in volo, prima chi e' partito prima
         for c in carte:
