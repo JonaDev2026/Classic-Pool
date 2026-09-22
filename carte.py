@@ -307,16 +307,48 @@ def diamanti_posti(base):
 
 
 def fila_targhette(sc, nomi, punti, attivo=0):
-    """Le quattro targhette in fila sotto il tavolo, centrate."""
-    tav_bot = B.TAV_POS[1] + (B.TAV_VISTA[1] + B.TAV_VISTA[3]) * B.SCALA
-    y = tav_bot + B.s(36)
-    stacco = B.s(18)
-    larghe = [larga_targhetta(n, p) for n, p in zip(nomi, punti)]
-    x = B.WIN_W // 2 - (sum(larghe) + stacco * (len(larghe) - 1)) // 2
-    for chi, w in enumerate(larghe):
-        targhetta(sc, nomi[chi], punti[chi], (x + w // 2, y),
-                  COL_POSTI[chi], attivo=(chi == attivo))
-        x += w + stacco
+    """La fascia del punteggio come nel biliardo, larga quanto la
+    finestra e divisa in quattro: per ognuno il diamantino del suo posto,
+    il nome in avorio e il riquadro verde col punteggio. Fra un posto e
+    l'altro un filo d'oro; davanti a chi gioca la freccia d'oro."""
+    r = B.BANDA_PUNTI
+    carattere = B.FONTS.get("nomi_hud") or B.FONTS["font"]
+    font = B.FONTS["font"]
+    n = len(nomi)
+    largo = r.w // n
+    alto = r.h - B.s(8)
+    for chi in range(n):
+        cella = pygame.Rect(r.x + chi * largo, r.y, largo, r.h)
+        # il punteggio: riquadro verde a destra della cella
+        box = pygame.Rect(0, 0, B.s(64), alto)
+        box.midright = (cella.right - B.s(14), cella.centery)
+        pygame.draw.rect(sc, B.VERDONE, box)
+        t = font.render(str(punti[chi]), True, (255, 255, 255))
+        sc.blit(t, t.get_rect(center=box.center))
+        # diamantino e nome a sinistra
+        x = cella.left + B.s(26)
+        if chi == attivo:
+            m = B.s(7)
+            pygame.draw.polygon(sc, B.ORO_LUCE,
+                                [(x - B.s(12), cella.centery - m),
+                                 (x - B.s(12) + B.s(9), cella.centery),
+                                 (x - B.s(12), cella.centery + m)])
+        rombo(sc, (x + B.s(8), cella.centery), COL_POSTI[chi],
+              B.s(6), B.s(10))
+        x += B.s(24)
+        spazio = box.left - B.s(12) - x
+        testo = nomi[chi]
+        while testo and carattere.size(testo)[0] > spazio:
+            testo = testo[:-1]
+        if testo != nomi[chi]:
+            testo = testo[:-1] + "."
+        t = carattere.render(testo, True, B.AVORIO)
+        sc.blit(t, t.get_rect(midleft=(x, cella.centery)))
+        # il filo d'oro che separa i posti
+        if chi > 0:
+            pygame.draw.line(sc, B.ORO_LOGO, (cella.left, cella.top + B.s(8)),
+                             (cella.left, cella.bottom - B.s(8)),
+                             max(1, B.s(1)))
 
 
 def schermata_carte(sc, clock, logo):
