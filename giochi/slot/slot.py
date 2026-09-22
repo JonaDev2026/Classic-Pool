@@ -570,6 +570,10 @@ def neon(misura, col, spesso=None):
     return q
 
 
+# quanto della casella riempie il simbolo: piu' piccolo respira meglio
+GRANDE = 0.66
+
+
 class Macchina:
     """La slot sullo schermo: la cassa, i cinque rulli e quello che
     succede a ogni giro."""
@@ -694,7 +698,7 @@ class Macchina:
                 nome = s[(base + i) % len(s)]
                 r = pygame.Rect(vetro.x + c * cw,
                                 int(vetro.y + i * ch - sotto), cw, ch)
-                img = figura(nome, (cw - B.s(8), ch - B.s(8)))
+                img = figura(nome, (int(cw * GRANDE), int(ch * GRANDE)))
                 sc.blit(img, img.get_rect(center=r.center))
         if acceso and not self.gira:
             # le caselle che non c'entrano si spengono, cosi' si vede
@@ -710,8 +714,8 @@ class Macchina:
                 nome = self.griglia[c][i]
                 r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
                 # niente cornici ne' aloni: il simbolo lampeggia e basta
-                img = figura(nome, (int((cw - B.s(8)) * k),
-                                    int((ch - B.s(8)) * k))).copy()
+                img = figura(nome, (int(cw * GRANDE * k),
+                                    int(ch * GRANDE * k))).copy()
                 # l'alfa si moltiplica sui pixel: set_alpha su una
                 # superficie trasparente farebbe un quadrato nero
                 img.fill((255, 255, 255, int(150 + 105 * respiro)),
@@ -771,8 +775,7 @@ class Macchina:
         passo = f.get_height() + B.s(10)
         y = r.bottom + B.s(24)
         righe = [(T("tot_bet"), B.dollari(per_linea * MODI_UNITA)),
-                 (T("per_line"), B.dollari(per_linea)),
-                 (T("lines"), str(MODI))]
+                 (T("per_line"), B.dollari(per_linea))]
         for et, val in righe:
             t = f.render(et, True, (150, 156, 168))
             sc.blit(t, (x0, y - t.get_height() // 2))
