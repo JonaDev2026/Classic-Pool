@@ -161,7 +161,8 @@ def vincite(griglia, per_linea):
 
 # ------------------------------------------------------------- i testi
 TXT = {
-    "en": {"slot": "Slots", "spin": "Spin", "bet": "Bet", "pays": "Paytable",
+    "en": {"slot": "Slots", "spin": "Spin", "play": "Play",
+           "m_prova": "Test machine", "bet": "Bet", "pays": "Paytable",
            "back": "Back", "win": "You win %s", "no_win": "No win",
            "broke": "Not enough money", "tot_bet": "Total bet",
            "per_line": "Per line", "lines": "Lines", "credit": "Credit",
@@ -170,7 +171,8 @@ TXT = {
            "pt_line": "Wins pay left to right on %d lines",
            "help": "click / ENTER  spin     < >  bet     %s  paytable     ESC  back",
            "sp_spin": "spin", "sp_bet": "bet", "sp_pays": "paytable", "help_pt": "ENTER / ESC  back"},
-    "it": {"slot": "Slot", "spin": "Gira", "bet": "Puntata",
+    "it": {"slot": "Slot", "spin": "Gira", "play": "Gioca",
+           "m_prova": "Slot di prova", "bet": "Puntata",
            "pays": "Pagamenti", "back": "Indietro", "win": "Vinci %s",
            "no_win": "Niente", "broke": "Non hai abbastanza soldi",
            "tot_bet": "Puntata", "per_line": "Per linea", "lines": "Linee",
@@ -180,7 +182,8 @@ TXT = {
            "pt_line": "Si paga da sinistra a destra, su %d linee",
            "help": "clic / INVIO  gira     < >  puntata     %s  pagamenti     ESC  indietro",
            "sp_spin": "gira", "sp_bet": "puntata", "sp_pays": "pagamenti", "help_pt": "INVIO / ESC  indietro"},
-    "fr": {"slot": "Machine", "spin": "Tourner", "bet": "Mise",
+    "fr": {"slot": "Machine", "spin": "Tourner", "play": "Jouer",
+           "m_prova": "Machine d'essai", "bet": "Mise",
            "pays": "Gains", "back": "Retour", "win": "Vous gagnez %s",
            "no_win": "Rien", "broke": "Pas assez d'argent",
            "tot_bet": "Mise", "per_line": "Par ligne", "lines": "Lignes",
@@ -190,7 +193,8 @@ TXT = {
            "pt_line": "Les gains paient de gauche a droite, sur %d lignes",
            "help": "clic / ENTREE  tourner     < >  mise     %s  gains     ECHAP  retour",
            "sp_spin": "tourner", "sp_bet": "mise", "sp_pays": "gains", "help_pt": "ENTREE / ECHAP  retour"},
-    "es": {"slot": "Tragaperras", "spin": "Girar", "bet": "Apuesta",
+    "es": {"slot": "Tragaperras", "spin": "Girar", "play": "Jugar",
+           "m_prova": "Tragaperras de prueba", "bet": "Apuesta",
            "pays": "Premios", "back": "Atras", "win": "Ganas %s",
            "no_win": "Nada", "broke": "No tienes bastante dinero",
            "tot_bet": "Apuesta", "per_line": "Por linea", "lines": "Lineas",
@@ -481,6 +485,11 @@ class Macchina:
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
 
 
+# le macchine: chiave, come si chiama, che tema usa. Ognuna avra' i suoi
+# simboli e i suoi pagamenti; per ora c'e' solo quella di prova
+MACCHINE = (("prova", "m_prova", "classica"),)
+
+
 def pagina_pagamenti(sc, clock):
     """Il tabellone dei pagamenti: ogni simbolo con quanto paga a tre,
     quattro e cinque uguali, per ogni dollaro sulla linea."""
@@ -655,13 +664,68 @@ def gioca_slot(sc, clock, logo):
         B.presenta()
 
 
-def schermata_slot(sc, clock, logo):
-    """Il menu della slot: gioca, pagamenti, indietro."""
+def menu_macchina(sc, clock, logo, quale):
+    """Il menu di una macchina: si gioca, si guardano i suoi pagamenti.
+    Ogni macchina ha i suoi, per questo stanno qui dentro e non fuori."""
+    chiave, nome, tema_suo = quale
     sel = 0
     rett = []
     while True:
         clock.tick(60)
-        voci = [(T("spin"), None), (T("pays"), None), (T("back"), None)]
+        voci = [(T("play"), None), (T("pays"), None), (T("back"), None)]
+        mouse = B.mouse_gioco()
+
+        def fai(i):
+            """Torna "quit" se si chiude il gioco, "su" se si torna
+            indietro, None se si resta qui."""
+            if i == 2:
+                return "su"
+            B.CFG["slot_tema"] = tema_suo
+            fine = (gioca_slot(sc, clock, logo) if i == 0
+                    else pagina_pagamenti(sc, clock))
+            return "quit" if fine == "quit" else None
+
+        for ev in B.eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            if ev.type == pygame.KEYDOWN:
+                if ev.key in (pygame.K_DOWN, pygame.K_s):
+                    sel = (sel + 1) % len(voci)
+                elif ev.key in (pygame.K_UP, pygame.K_w):
+                    sel = (sel - 1) % len(voci)
+                elif ev.key == pygame.K_ESCAPE:
+                    return "su"
+                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                                pygame.K_SPACE):
+                    fine = fai(sel)
+                    if fine:
+                        return fine
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                for i, r in enumerate(rett):
+                    if r.collidepoint(mouse):
+                        sel = i
+                        fine = fai(i)
+                        if fine:
+                            return fine
+        B.sfondo_menu(sc, logo)
+        t = (B.FONTS.get("elegante") or B.FONTS["grande"]).render(
+            B.tit_el(T(nome)), True, (240, 240, 244))
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.s(326))))
+        rett = B.disegna_voci(sc, voci, sel, B.FONTS["font"],
+                              B.FONTS["small"], B.s(436), B.s(44))
+        for i, r in enumerate(rett):
+            if B.MOUSE_VIVO[0] and r.collidepoint(mouse):
+                sel = i
+        B.presenta()
+
+
+def schermata_slot(sc, clock, logo):
+    """L'elenco delle macchine."""
+    sel = 0
+    rett = []
+    while True:
+        clock.tick(60)
+        voci = [(T(m[1]), None) for m in MACCHINE] + [(T("back"), None)]
         mouse = B.mouse_gioco()
         for ev in B.eventi():
             if ev.type == pygame.QUIT:
@@ -675,26 +739,20 @@ def schermata_slot(sc, clock, logo):
                     return "menu"
                 elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
                                 pygame.K_SPACE):
-                    if sel == 0:
-                        if gioca_slot(sc, clock, logo) == "quit":
-                            return "quit"
-                    elif sel == 1:
-                        if pagina_pagamenti(sc, clock) == "quit":
-                            return "quit"
-                    else:
+                    if sel >= len(MACCHINE):
                         return "menu"
+                    if menu_macchina(sc, clock, logo,
+                                     MACCHINE[sel]) == "quit":
+                        return "quit"
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 for i, r in enumerate(rett):
                     if r.collidepoint(mouse):
                         sel = i
-                        if i == 0:
-                            if gioca_slot(sc, clock, logo) == "quit":
-                                return "quit"
-                        elif i == 1:
-                            if pagina_pagamenti(sc, clock) == "quit":
-                                return "quit"
-                        else:
+                        if i >= len(MACCHINE):
                             return "menu"
+                        if menu_macchina(sc, clock, logo,
+                                         MACCHINE[i]) == "quit":
+                            return "quit"
         B.sfondo_menu(sc, logo)
         t = (B.FONTS.get("elegante") or B.FONTS["grande"]).render(
             B.tit_el(T("slot")), True, (240, 240, 244))
