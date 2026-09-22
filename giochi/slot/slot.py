@@ -566,16 +566,12 @@ class Macchina:
                     continue
                 nome = self.griglia[c][i]
                 r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
-                al = neon((cw - B.s(16), ch - B.s(16)),
-                          COLORE.get(nome, B.ORO_SCELTA))
-                sc.blit(al, al.get_rect(center=r.center))
+                # niente cornici ne' aloni: il simbolo lampeggia e basta
                 img = figura(nome, (int((cw - B.s(8)) * k),
                                     int((ch - B.s(8)) * k)))
+                img = img.copy()
+                img.set_alpha(int(150 + 105 * respiro))
                 sc.blit(img, img.get_rect(center=r.center))
-                col = B.ORO_SCELTA
-                pygame.draw.rect(sc, col, r.inflate(-B.s(10), -B.s(10)),
-                                 max(2, B.s(2)),
-                                 border_radius=int(ch * 0.2))
         sc.set_clip(vecchio)
         for c in range(1, COLONNE):
             x = vetro.x + c * cw
