@@ -481,8 +481,8 @@ class Macchina:
             d = self.durata[c]
             if self.t >= d:
                 if self.pos[c] != self.a[c]:
+                    # il rullo si ferma in silenzio: c'e' solo lo spin
                     self.pos[c] = self.a[c]
-                    B.suona_fx("menu_tic", 0.5)
                 finiti += 1
             else:
                 k = self.t / d
@@ -834,7 +834,6 @@ def gioca_slot(sc, clock, logo):
                 m.mostra = (m.mostra + 1) % len(m.vinte)
                 aspetta[0] = 1.0
                 m.t_vinta = 0.0
-                B.suona_fx("menu_tic", 0.5)
             n, nome, quanti, paga, _celle = m.vinte[m.mostra]
             dove = T("lines") if n >= 0 else T("pt_title")
             m.msg = "%s  %d x %s  -  %s" % (
