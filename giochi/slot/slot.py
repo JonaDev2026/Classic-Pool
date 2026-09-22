@@ -81,6 +81,37 @@ QUANTI = {
 
 PUNTATE = (20, 40, 100, 200, 400)   # per giro, divisi sulle venti linee
 
+# il jackpot: parte da qui, cresce di una fetta di ogni puntata e si
+# vince con cinque simboli del jackpot in fila su una linea. Sta nel
+# file del giocatore, quindi cresce di partita in partita finche' non si
+# vince o non si ricomincia la carriera.
+JACKPOT_BASE = 500
+JACKPOT_FETTA = 0.02
+SIMBOLO_JACKPOT = "sette"
+
+
+def jackpot(agg=None):
+    """Quanto vale adesso il jackpot, o ce ne mette dentro dell'altro."""
+    ora = int(B.CFG.get("slot_jackpot", JACKPOT_BASE) or JACKPOT_BASE)
+    if agg:
+        ora = max(JACKPOT_BASE, ora + int(agg))
+        B.CFG["slot_jackpot"] = ora
+    return ora
+
+
+def azzera_jackpot():
+    B.CFG["slot_jackpot"] = JACKPOT_BASE
+    return JACKPOT_BASE
+
+
+def fa_jackpot(vinte):
+    """Vero se fra le vincite c'e' una linea con cinque simboli del
+    jackpot: sono quelli veri, il jolly conta come loro."""
+    for n, nome, quanti, _paga, _celle in vinte:
+        if n >= 0 and nome == SIMBOLO_JACKPOT and quanti == COLONNE:
+            return True
+    return False
+
 
 def _buona(s):
     """Una striscia va bene se non ha due simboli uguali attaccati e se i
@@ -167,6 +198,8 @@ TXT = {
            "back": "Back", "win": "You win %s", "no_win": "No win",
            "broke": "Not enough money", "tot_bet": "Total bet",
            "per_line": "Per line", "lines": "Lines", "credit": "Credit",
+           "jackpot": "Jackpot", "won_jack": "JACKPOT!  %s",
+           "pt_jack": "Five %s on a line win the jackpot, growing with every spin",
            "pt_title": "Paytable", "pt_wild": "Wild: stands for any symbol",
            "pt_bonus": "Bonus: pays anywhere, on the total bet",
            "pt_line": "Wins pay left to right on %d lines",
@@ -177,7 +210,10 @@ TXT = {
            "pays": "Pagamenti", "back": "Indietro", "win": "Vinci %s",
            "no_win": "Niente", "broke": "Non hai abbastanza soldi",
            "tot_bet": "Puntata", "per_line": "Per linea", "lines": "Linee",
-           "credit": "Credito", "pt_title": "Pagamenti",
+           "credit": "Credito", "jackpot": "Jackpot",
+           "won_jack": "JACKPOT!  %s",
+           "pt_jack": "Cinque %s in fila su una linea vincono il jackpot, che cresce a ogni giro",
+           "pt_title": "Pagamenti",
            "pt_wild": "Jolly: vale per tutti i simboli",
            "pt_bonus": "Bonus: paga dovunque sia, sulla puntata intera",
            "pt_line": "Si paga da sinistra a destra, su %d linee",
@@ -188,7 +224,10 @@ TXT = {
            "pays": "Gains", "back": "Retour", "win": "Vous gagnez %s",
            "no_win": "Rien", "broke": "Pas assez d'argent",
            "tot_bet": "Mise", "per_line": "Par ligne", "lines": "Lignes",
-           "credit": "Credit", "pt_title": "Table des gains",
+           "credit": "Credit", "jackpot": "Jackpot",
+           "won_jack": "JACKPOT !  %s",
+           "pt_jack": "Cinq %s sur une ligne gagnent le jackpot, qui grandit a chaque tour",
+           "pt_title": "Table des gains",
            "pt_wild": "Joker : remplace tous les symboles",
            "pt_bonus": "Bonus : paie partout, sur la mise totale",
            "pt_line": "Les gains paient de gauche a droite, sur %d lignes",
@@ -199,7 +238,10 @@ TXT = {
            "pays": "Premios", "back": "Atras", "win": "Ganas %s",
            "no_win": "Nada", "broke": "No tienes bastante dinero",
            "tot_bet": "Apuesta", "per_line": "Por linea", "lines": "Lineas",
-           "credit": "Credito", "pt_title": "Tabla de premios",
+           "credit": "Credito", "jackpot": "Jackpot",
+           "won_jack": "JACKPOT!  %s",
+           "pt_jack": "Cinco %s en una linea ganan el jackpot, que crece en cada giro",
+           "pt_title": "Tabla de premios",
            "pt_wild": "Comodin: vale por todos los simbolos",
            "pt_bonus": "Bonus: paga donde sea, sobre la apuesta total",
            "pt_line": "Se paga de izquierda a derecha, en %d lineas",
@@ -338,6 +380,7 @@ class Macchina:
         self.griglia = self.ferma()
         self.vinte, self.mostra, self.t_mostra = [], -1, 0.0
         self.t_vinta = 0.0      # per far respirare i simboli vincenti
+        self.lampo = 0.0        # quanto dura il lampo del jackpot vinto
         self.msg = ""
         self.vinto = 0
         self.gira = False
@@ -349,7 +392,7 @@ class Macchina:
         m = B.s(18)
         self.vetro = self.cassa.inflate(-m * 2, -m * 2)
         self.vetro.height -= B.s(46)
-        self.vetro.top = self.cassa.top + m + B.s(34)
+        self.vetro.top = self.cassa.top + m + B.s(38)
         self.cella = (self.vetro.w // COLONNE, self.vetro.h // RIGHE)
 
     # ---- i rulli
@@ -411,6 +454,16 @@ class Macchina:
         sc.blit(q, self.cassa)
         pygame.draw.rect(sc, B.ORO_LOGO, self.cassa, max(1, B.s(2)),
                          border_radius=B.s(10))
+        # il jackpot in cima alla cassa, come sulle macchine vere
+        f = font_slot(24)
+        t = f.render("%s   %s" % (B.tit_el(T("jackpot")),
+                                  B.dollari(jackpot())), True, B.ORO_SCELTA)
+        if self.lampo > 0:
+            # appena vinto: la scritta pulsa
+            k = 0.5 + 0.5 * math.sin(self.t_vinta * 9.0)
+            t.set_alpha(int(120 + 135 * k))
+        sc.blit(t, t.get_rect(center=(self.cassa.centerx,
+                                      self.cassa.top + B.s(26))))
         self.disegna_rulli()
         self.disegna_scelte(voci, sel)
         self.disegna_pannello(per_linea)
@@ -529,6 +582,8 @@ class Macchina:
     def frame(self):
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
         self.t_vinta += self.dt
+        if self.lampo > 0:
+            self.lampo = max(0.0, self.lampo - self.dt)
 
 
 # le macchine: chiave, come si chiama, che tema usa. Ognuna avra' i suoi
@@ -586,6 +641,13 @@ def pagina_pagamenti(sc, clock):
                 sc.blit(t, t.get_rect(midleft=(B.s(110) + lato + B.s(14),
                                                y + B.s(24))))
             y += passo
+        t = font.render(T("pt_jack") % nome_simbolo(SIMBOLO_JACKPOT),
+                        True, B.ORO_SCELTA)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(150))))
+        t = font.render("%s   %s" % (B.tit_el(T("jackpot")),
+                                     B.dollari(jackpot())), True,
+                        (255, 255, 255))
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(116))))
         t = small.render(T("pt_line") % N_LINEE, True, B.ORO_SOTTO)
         sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(80))))
         if B.modo_comandi() == "pad" and B.ICONE_TASTI_OK():
@@ -626,6 +688,7 @@ def gioca_slot(sc, clock, logo):
             B.suona_fx("menu_chiudi", 0.7)
             return
         B.soldi(-punta)
+        jackpot(max(1, int(punta * JACKPOT_FETTA)))
         B.salva_config()
         m.parti()
         B.suona_fx("menu_apri", 0.6)
@@ -687,6 +750,16 @@ def gioca_slot(sc, clock, logo):
             # i rulli si sono fermati: si conta
             tot, vinte = vincite(m.griglia, per_linea())
             m.vinte, m.vinto = vinte, tot
+            if fa_jackpot(vinte):
+                premio = jackpot()
+                azzera_jackpot()
+                tot += premio
+                m.vinto = tot
+                m.lampo = 6.0
+                m.msg = T("won_jack") % B.dollari(premio)
+                B.soldi(premio)
+                B.salva_config()
+                B.suona_fx("menu_apri", 1.0)
             if tot:
                 B.soldi(tot)
                 B.salva_config()

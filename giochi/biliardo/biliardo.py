@@ -8000,7 +8000,7 @@ def carica_config():
         # le scelte delle carte (mazzi, panno, ramino) nascono dopo, e
         # non stanno nell'elenco di partenza: si rileggono lo stesso
         for k, v in d.items():
-            if k.startswith(("mazzo_", "ramino_", "panno_carte")):
+            if k.startswith(("mazzo_", "ramino_", "panno_carte", "slot_")):
                 CFG[k] = v
         PRIMA_VOLTA[0] = False
     except (IOError, ValueError):
@@ -9616,6 +9616,7 @@ def azzera_carriera():
     CFG["cubo2"], CFG["cubo2_tipo"] = 0, "blu"
     CFG["avanzi"] = {}
     CFG["torneo_record"] = 0
+    CFG["slot_jackpot"] = 500       # il jackpot della slot riparte da capo
     salva_config()
     try:
         os.remove(SALVA_TORNEO)
