@@ -133,7 +133,7 @@ def scelta_tavolo():
 import math
 import random
 
-CARTA_W, CARTA_H = 92, 132       # alla misura del disegno, poi s()
+CARTA_W, CARTA_H = 61, 88       # alla misura del disegno, poi s()
 
 # I suoni delle carte, nella cartella carte_fx accanto al gioco:
 # servi (una carta dal mazzo), giocata (una carta sul tavolo), cattura
@@ -643,22 +643,18 @@ def schermata_carte(sc, clock, logo):
     P = {}
 
     def disponi():
-        """La scatola proprio accanto al mazzo, sulla stessa riga: si
-        rifà quando si cambia mazzo, le carte possono essere piu' larghe."""
-        cw, ch = misura_carta()
-        # la scatola sopra il mazzo, in colonna: cosi' anche le scatole
-        # larghe (ramino) ci stanno, sempre con le loro proporzioni
+        """Dove stanno mazzo e scatola: si rifà quando si cambia mazzo."""
+        # il mazzo nella fascia a sinistra del tavolo, la scatola in
+        # quella a destra, sempre con le sue proporzioni
         sb = immagine_mazzo("scatola")
-        spazio = B.s(24)
+        legno_dx = int(B.TAV_POS[0] + LEGNO_FUORI.right * B.SCALA)
         alto_sc = 0
         if sb is not None:
-            largo = legno_sx - B.s(16)
-            alto_sc = max(B.s(30), min(B.s(96), int(
+            largo = B.WIN_W - legno_dx - B.s(20)
+            alto_sc = max(B.s(30), min(B.s(150), int(
                 largo * sb.get_height() / float(sb.get_width()))))
-        tutto = alto_sc + spazio + ch
-        y0 = z.centery - tutto // 2
-        P["scatola"] = (x_lato, y0 + alto_sc // 2)
-        P["mazzo"] = (x_lato, y0 + alto_sc + spazio + ch // 2)
+        P["scatola"] = ((legno_dx + B.WIN_W) // 2, z.centery)
+        P["mazzo"] = (x_lato, z.centery + B.s(7))
         P["alto"] = alto_sc
     disponi()
 
