@@ -7719,19 +7719,31 @@ PAGINE_TESTI = {
     "en": {"mus_menu": "Menu music", "mus_gioco": "Music in game",
            "p_audio": "Sound", "p_regole": "Rules", "p_tavolo": "Table",
            "p_grafica": "Graphics", "screen": "Screen",
-           "s_pieno": "fullscreen", "s_finestra": "window"},
+           "s_pieno": "fullscreen", "s_finestra": "window",
+           "career": "Restart career",
+           "car_sure": "press again to confirm",
+           "car_done": "done"},
     "it": {"mus_menu": "Musica nel menu", "mus_gioco": "Musica in gioco",
            "p_audio": "Audio", "p_regole": "Regole", "p_tavolo": "Tavolo",
            "p_grafica": "Grafica", "screen": "Schermo",
-           "s_pieno": "tutto schermo", "s_finestra": "finestra"},
+           "s_pieno": "tutto schermo", "s_finestra": "finestra",
+           "career": "Ricomincia carriera",
+           "car_sure": "premi ancora per confermare",
+           "car_done": "fatto"},
     "fr": {"mus_menu": "Musique du menu", "mus_gioco": "Musique en jeu",
            "p_audio": "Son", "p_regole": "Regles", "p_tavolo": "Table",
            "p_grafica": "Graphismes", "screen": "Ecran",
-           "s_pieno": "plein ecran", "s_finestra": "fenetre"},
+           "s_pieno": "plein ecran", "s_finestra": "fenetre",
+           "career": "Recommencer la carriere",
+           "car_sure": "appuyez encore pour confirmer",
+           "car_done": "fait"},
     "es": {"mus_menu": "Musica del menu", "mus_gioco": "Musica en juego",
            "p_audio": "Sonido", "p_regole": "Reglas", "p_tavolo": "Mesa",
            "p_grafica": "Graficos", "screen": "Pantalla",
-           "s_pieno": "pantalla completa", "s_finestra": "ventana"},
+           "s_pieno": "pantalla completa", "s_finestra": "ventana",
+           "career": "Reiniciar carrera",
+           "car_sure": "pulsa otra vez para confirmar",
+           "car_done": "hecho"},
     "ja": {"mus_menu": "\u30e1\u30cb\u30e5\u30fc\u306e\u97f3\u697d",
            "mus_gioco": "\u30d7\u30ec\u30a4\u4e2d\u306e\u97f3\u697d",
            "p_audio": "\u30b5\u30a6\u30f3\u30c9",
@@ -9585,6 +9597,30 @@ for _k, _en, _it, _fr, _es in NOMI_STECCHE_55:
         TESTI.setdefault(_l, {})[_k] = _v
 
 
+CARRIERA_CONF = [0]     # 0 niente, 1 chiede conferma, 2 fatto
+
+
+def azzera_carriera():
+    """Ricomincia da capo: portafoglio ai 500 di partenza, una sola
+    stecca, il gessetto blu, nessun torneo salvato e record a zero. Le
+    impostazioni (lingua, audio, comandi, nome) restano come sono."""
+    CFG["soldi"] = 500
+    CFG["stecca"], CFG["stecca2"] = 0, -1
+    CFG["stecche_mie"] = [0]
+    CFG["stecche_vinte"] = 0
+    CFG["gessi"] = {"blu": 1}
+    CFG["gesso_tipo"] = "blu"
+    CFG["cubo"], CFG["cubo_tipo"] = 0, "blu"
+    CFG["cubo2"], CFG["cubo2_tipo"] = 0, "blu"
+    CFG["avanzi"] = {}
+    CFG["torneo_record"] = 0
+    salva_config()
+    try:
+        os.remove(SALVA_TORNEO)
+    except OSError:
+        pass
+
+
 def righe_setting(pagina, blocca_tavolo):
     """Le righe di una pagina delle impostazioni: un nome interno, quello
     che si legge e il valore. Il nome interno dice cosa cambiare, cosi'
@@ -9663,10 +9699,12 @@ def righe_setting(pagina, blocca_tavolo):
     nomi_l = dict(LINGUE)
     if pagina == "generale":
         # quelle che valgono per tutto il casino'
+        stato = ("", T("car_sure"), T("car_done"))[CARRIERA_CONF[0]]
         return [("lingua", T("language"),
                  nomi_l.get(CFG["lingua"], CFG["lingua"])),
                 ("p_audio", T("p_audio"), None),
-                ("p_grafica", T("p_grafica"), None)]
+                ("p_grafica", T("p_grafica"), None),
+                ("carriera", T("career"), stato)]
     if pagina == "biliardo":
         # quelle del biliardo: regole, tavolo e palle, comandi
         return [("p_regole", T("p_regole"), None),
@@ -9770,6 +9808,7 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
     livello per livello, e quelle due righe non ci sono proprio."""
     sel = 0
     rett = []
+    CARRIERA_CONF[0] = 0
     if pagina == "tavolo":
         if not DENTRO_PARTITA[0] and PALLE_VISTA[0] is None:
             PALLE_VISTA[0] = tipo_palle(GIOCO[0])
@@ -9785,6 +9824,10 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
         voci.append((T("back"), None))
         indietro = len(voci) - 1
         sel = min(sel, indietro)
+        # allontanandosi dalla riga della carriera la conferma decade
+        if CARRIERA_CONF[0] and (sel >= len(righe) or
+                                 righe[sel][0] != "carriera"):
+            CARRIERA_CONF[0] = 0
 
         font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
         cambia = 0
@@ -9850,6 +9893,15 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                         return "quit"
                     if dentro == "menu":
                         return "menu"
+            elif nome == "carriera":
+                # due invii: il primo chiede conferma, il secondo azzera
+                if entra:
+                    if CARRIERA_CONF[0] == 1:
+                        azzera_carriera()
+                        suona_fx("menu_apri")
+                        CARRIERA_CONF[0] = 2
+                    elif CARRIERA_CONF[0] != 2:
+                        CARRIERA_CONF[0] = 1
             elif nome == "t_base":
                 if entra:
                     CFG["tasti"] = {}
