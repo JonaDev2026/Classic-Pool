@@ -337,6 +337,16 @@ def _riduci(img, w, h):
         return pygame.transform.smoothscale(img, (w, h))
 
 
+def _copri(img, w, h):
+    """Porta l'immagine a w x h senza stirarla: si ingrandisce in modo
+    uguale nei due sensi e si taglia quello che avanza, in mezzo."""
+    iw, ih = img.get_size()
+    k = max(w / float(iw), h / float(ih))
+    cw, ch = min(iw, int(round(w / k))), min(ih, int(round(h / k)))
+    r = pygame.Rect((iw - cw) // 2, (ih - ch) // 2, cw, ch)
+    return _riduci(img.subsurface(r).copy(), w, h)
+
+
 def _arrotonda(img, r):
     """Gli angoli tondi di una carta vera."""
     # la maschera si disegna 4 volte piu' grande e si rimpicciolisce:
@@ -369,7 +379,7 @@ def faccia_carta(scoperta, codice=None, k=1.0):
     corpo = pygame.Rect(0, 0, w, h)
     img = immagine_carta(codice) if scoperta else immagine_mazzo("dorso")
     if img is not None:
-        img = _arrotonda(_riduci(img, w, h), r)
+        img = _arrotonda(_copri(img, w, h), r)
         sup.blit(img, (0, 0))
     elif scoperta:
         pygame.draw.rect(sup, (250, 250, 246), corpo, border_radius=r)
@@ -387,7 +397,7 @@ def faccia_carta(scoperta, codice=None, k=1.0):
 def disegna_scatola(sc, centro, alto, z=1.0):
     """La scatolina del mazzo, accanto al mazzo. z: l'ingrandimento."""
     img = immagine_mazzo("scatola")
-    if img is None:
+    if img is None or alto <= 0:
         return
     alto = max(1, int(alto * z))
     k = alto / float(img.get_height())
@@ -638,19 +648,19 @@ def schermata_carte(sc, clock, logo):
         """La scatola proprio accanto al mazzo, sulla stessa riga: si
         rifà quando si cambia mazzo, le carte possono essere piu' larghe."""
         cw, ch = misura_carta()
+        # la scatola sopra il mazzo, in colonna: cosi' anche le scatole
+        # larghe (ramino) ci stanno, sempre con le loro proporzioni
         sb = immagine_mazzo("scatola")
-        spazio = B.s(6)
-        alto_sc = B.s(96)
-        sw = cw
+        spazio = B.s(24)
+        alto_sc = 0
         if sb is not None:
-            # se non ci stanno tutti e due, la scatola si rimpicciolisce
-            largo = legno_sx - B.s(12) - cw - spazio
-            alto_sc = max(B.s(40), min(alto_sc, int(
+            largo = legno_sx - B.s(16)
+            alto_sc = max(B.s(30), min(B.s(96), int(
                 largo * sb.get_height() / float(sb.get_width()))))
-            sw = int(sb.get_width() * alto_sc / float(sb.get_height()))
-        x0 = x_lato - (cw + spazio + sw) // 2
-        P["scatola"] = (x0 + sw // 2, z.centery)
-        P["mazzo"] = (x0 + sw + spazio + cw // 2, z.centery)
+        tutto = alto_sc + spazio + ch
+        y0 = z.centery - tutto // 2
+        P["scatola"] = (x_lato, y0 + alto_sc // 2)
+        P["mazzo"] = (x_lato, y0 + alto_sc + spazio + ch // 2)
         P["alto"] = alto_sc
     disponi()
 
