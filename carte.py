@@ -246,6 +246,40 @@ def posti(n_mano):
     return out
 
 
+def targhetta(sc, nome, punti, centro, attivo=False):
+    """Nome e punteggio di un giocatore, in una targhetta scura."""
+    f = B.FONTS["small"]
+    tn = f.render(nome, True, (240, 240, 244))
+    tp = f.render(str(punti), True, B.ORO_SCELTA)
+    pad, gap = B.s(12), B.s(14)
+    w = tn.get_width() + gap + tp.get_width() + pad * 2
+    h = max(tn.get_height(), tp.get_height()) + B.s(8)
+    r = pygame.Rect(0, 0, w, h)
+    r.center = (int(centro[0]), int(centro[1]))
+    q = pygame.Surface(r.size, pygame.SRCALPHA)
+    pygame.draw.rect(q, (0, 0, 0, 150), q.get_rect(),
+                     border_radius=h // 2)
+    sc.blit(q, r)
+    if attivo:
+        pygame.draw.rect(sc, B.ORO_SCELTA, r, max(1, B.s(2)),
+                         border_radius=h // 2)
+    sc.blit(tn, tn.get_rect(midleft=(r.x + pad, r.centery)))
+    sc.blit(tp, tp.get_rect(midright=(r.right - pad, r.centery)))
+
+
+def posti_nomi():
+    """Dove vanno le targhette: tu sotto il tavolo, chi e' di fronte
+    sopra il tavolo, gli altri due sul panno sopra le loro carte."""
+    z = zona_panno()
+    tav_top = B.TAV_POS[1] + B.TAV_VISTA[1] * B.SCALA
+    tav_bot = B.TAV_POS[1] + (B.TAV_VISTA[1] + B.TAV_VISTA[3]) * B.SCALA
+    alto_m = B.s(CARTA_H) * 0.35 + B.s(CARTA_W) * 0.62 * 0.7 * 2 + B.s(26)
+    return {0: (z.centerx, tav_bot + B.s(22)),
+            1: (z.centerx, tav_top - B.s(20)),
+            2: (z.left + B.s(CARTA_H) * 0.6, z.centery - alto_m),
+            3: (z.right - B.s(CARTA_H) * 0.6, z.centery - alto_m)}
+
+
 def schermata_carte(sc, clock, logo):
     """La prova delle carte: D distribuisce, clic su una tua carta la
     gioca al centro, R raccoglie tutto nel mazzo e lo rimescola. ESC
@@ -311,6 +345,8 @@ def schermata_carte(sc, clock, logo):
         del centro[:]
         random.shuffle(carte)
 
+    nomi = [B.NOMI[0] or "Player 1"] + random.sample(B.AVVERSARI, 3)
+    punti = [0, 0, 0, 0]
     nuovo_mazzo()
     while True:
         dt = clock.tick(60) / 1000.0
@@ -356,6 +392,8 @@ def schermata_carte(sc, clock, logo):
         for chi in (1, 2, 3, 0):
             for c in mani[chi]:
                 c.disegna(sc)
+        for chi, dove in posti_nomi().items():
+            targhetta(sc, nomi[chi], punti[chi], dove, attivo=(chi == 0))
         aiuto = FONT_AIUTO()
         if aiuto is not None:
             t = aiuto.render("D  deal     click  play a card     R  collect"
