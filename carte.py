@@ -39,6 +39,9 @@ LUCE_MEZZO = 26         # quanto schiarisce il centro del panno
 COMPOSTO = {}
 
 
+OMBRA_PANNO = False     # True: il panno rialzato con le ombre
+
+
 def ombra_tavolo(base, r):
     """Il panno qualche millimetro piu' alto del legno, come sui tavoli da
     carte: niente ombra dentro il panno (quella fa sembrare una sponda),
@@ -103,7 +106,8 @@ def tavolo_carte(i_panno, i_bordo):
             for x in range(0, campo.get_width(), B.LATO_PANNO):
                 for y in range(0, campo.get_height(), B.LATO_PANNO):
                     campo.blit(q, (x, y))
-    ombra_tavolo(base, PANNO_CARTE)
+    if OMBRA_PANNO:
+        ombra_tavolo(base, PANNO_CARTE)
     diamanti_posti(base)
     base.blit(vero, (0, 0))
     if len(COMPOSTO) > 3:
@@ -335,23 +339,32 @@ def _riduci(img, w, h):
 
 def _arrotonda(img, r):
     """Gli angoli tondi di una carta vera."""
-    m = pygame.Surface(img.get_size(), pygame.SRCALPHA)
-    pygame.draw.rect(m, (255, 255, 255, 255), m.get_rect(), border_radius=r)
+    # la maschera si disegna 4 volte piu' grande e si rimpicciolisce:
+    # cosi' gli angoli vengono morbidi e non a scalini
+    w, h = img.get_size()
+    g = pygame.Surface((w * 4, h * 4), pygame.SRCALPHA)
+    pygame.draw.rect(g, (255, 255, 255, 255), g.get_rect(),
+                     border_radius=r * 4)
+    m = pygame.transform.smoothscale(g, (w, h))
     out = img.copy().convert_alpha()
     out.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     return out
 
 
-def faccia_carta(scoperta, codice=None):
-    """La superficie della carta, dritta, con la sua ombra."""
-    chiave = (scoperta, codice if scoperta else None)
+def faccia_carta(scoperta, codice=None, k=1.0):
+    """La superficie della carta, dritta, con la sua ombra. k: quanto
+    e' ingrandito lo schermo, la carta nasce gia' a quella misura."""
+    k = round(k, 3)
+    chiave = (scoperta, codice if scoperta else None, k)
     if chiave in FACCIA:
         return FACCIA[chiave]
     w, h = misura_carta()
-    r = max(3, B.s(6))
-    sup = pygame.Surface((w + B.s(6), h + B.s(6)), pygame.SRCALPHA)
+    w, h = max(1, int(w * k)), max(1, int(h * k))
+    q = lambda v: max(1, int(round(B.s(v) * k)))
+    r = max(3, q(6))
+    sup = pygame.Surface((w + q(6), h + q(6)), pygame.SRCALPHA)
     # l'ombra, spostata in basso a destra
-    pygame.draw.rect(sup, (0, 0, 0, 28), pygame.Rect(B.s(2), B.s(3), w, h),
+    pygame.draw.rect(sup, (0, 0, 0, 28), pygame.Rect(q(2), q(3), w, h),
                      border_radius=r)
     corpo = pygame.Rect(0, 0, w, h)
     img = immagine_carta(codice) if scoperta else immagine_mazzo("dorso")
@@ -363,28 +376,31 @@ def faccia_carta(scoperta, codice=None):
         pygame.draw.rect(sup, (170, 170, 176), corpo, 1, border_radius=r)
     else:
         pygame.draw.rect(sup, (214, 216, 222), corpo, border_radius=r)
-        dentro = corpo.inflate(-B.s(14), -B.s(14))
-        pygame.draw.rect(sup, (186, 190, 200), dentro, max(1, B.s(2)),
-                         border_radius=max(2, r - B.s(4)))
+        dentro = corpo.inflate(-q(14), -q(14))
+        pygame.draw.rect(sup, (186, 190, 200), dentro, q(2),
+                         border_radius=max(2, r - q(4)))
         pygame.draw.rect(sup, (150, 152, 160), corpo, 1, border_radius=r)
     FACCIA[chiave] = sup
     return sup
 
 
-def disegna_scatola(sc, centro, alto):
-    """La scatolina del mazzo, accanto al mazzo."""
+def disegna_scatola(sc, centro, alto, z=1.0):
+    """La scatolina del mazzo, accanto al mazzo. z: l'ingrandimento."""
     img = immagine_mazzo("scatola")
     if img is None:
         return
+    alto = max(1, int(alto * z))
     k = alto / float(img.get_height())
     chiave = ("scatola", MAZZO_ORA[0], alto)
     if chiave not in FACCIA:
         FACCIA[chiave] = _riduci(img, int(img.get_width() * k), alto)
     q = FACCIA[chiave]
+    c = (int(centro[0] * z), int(centro[1] * z))
     om = pygame.Surface(q.get_size(), pygame.SRCALPHA)
     om.fill((0, 0, 0, 40))
-    sc.blit(om, q.get_rect(center=(centro[0] + B.s(2), centro[1] + B.s(3))))
-    sc.blit(q, q.get_rect(center=centro))
+    sc.blit(om, q.get_rect(center=(c[0] + int(B.s(2) * z),
+                                   c[1] + int(B.s(3) * z))))
+    sc.blit(q, q.get_rect(center=c))
 
 
 def morbido(t):
@@ -433,7 +449,7 @@ class Carta:
             self.pos = self.da.lerp(self.a, k)
             self.ang = self.ang_da + (self.ang_a - self.ang_da) * k
 
-    def disegna(self, sc):
+    def disegna(self, sc, z=1.0):
         # la girata: a meta' volo si stringe fino a sparire e rinasce
         # dall'altra parte, come una carta che ruota
         k = 1.0
@@ -445,14 +461,14 @@ class Carta:
             else:
                 k = abs(math.cos(math.pi * max(0.0, self.t)))
                 scoperta = self.gira_a if self.t > 0.5 else self.scoperta
-        img = faccia_carta(scoperta, self.codice)
+        img = faccia_carta(scoperta, self.codice, z)
         if k < 0.999:
             img = pygame.transform.smoothscale(
                 img, (max(1, int(img.get_width() * k)), img.get_height()))
         if abs(self.ang) > 0.1:
             img = pygame.transform.rotozoom(img, self.ang, 1.0)
-        sc.blit(img, img.get_rect(center=(int(self.pos.x),
-                                          int(self.pos.y - self.su))))
+        sc.blit(img, img.get_rect(center=(int(self.pos.x * z),
+                                          int((self.pos.y - self.su) * z))))
 
 
 def zona_panno():
@@ -616,24 +632,30 @@ def schermata_carte(sc, clock, logo):
     legno_sx = int(B.TAV_POS[0] + LEGNO_FUORI.left * B.SCALA)
     x_lato = max(B.s(30), legno_sx // 2)
     scegli_mazzo(0)
-    # la scatola proprio accanto al mazzo, sulla stessa riga
-    cw, ch = misura_carta()
-    sb = immagine_mazzo("scatola")
-    spazio = B.s(6)
-    alto_sc = B.s(96)
-    sw = cw
-    if sb is not None:
-        # se non ci stanno tutti e due nella fascia, la scatola si rimpicciolisce
-        largo = legno_sx - B.s(12) - cw - spazio
-        alto_sc = max(B.s(40), min(alto_sc, int(largo * sb.get_height()
-                                                / float(sb.get_width()))))
-        sw = int(sb.get_width() * alto_sc / float(sb.get_height()))
-    x0 = x_lato - (cw + spazio + sw) // 2
-    scatola_pos = (x0 + sw // 2, z.centery)
-    mazzo_pos = (x0 + sw + spazio + cw // 2, z.centery)
+    P = {}
+
+    def disponi():
+        """La scatola proprio accanto al mazzo, sulla stessa riga: si
+        rifà quando si cambia mazzo, le carte possono essere piu' larghe."""
+        cw, ch = misura_carta()
+        sb = immagine_mazzo("scatola")
+        spazio = B.s(6)
+        alto_sc = B.s(96)
+        sw = cw
+        if sb is not None:
+            # se non ci stanno tutti e due, la scatola si rimpicciolisce
+            largo = legno_sx - B.s(12) - cw - spazio
+            alto_sc = max(B.s(40), min(alto_sc, int(
+                largo * sb.get_height() / float(sb.get_width()))))
+            sw = int(sb.get_width() * alto_sc / float(sb.get_height()))
+        x0 = x_lato - (cw + spazio + sw) // 2
+        P["scatola"] = (x0 + sw // 2, z.centery)
+        P["mazzo"] = (x0 + sw + spazio + cw // 2, z.centery)
+        P["alto"] = alto_sc
+    disponi()
 
     def posto_mazzo(k):
-        return (mazzo_pos[0] + k * 0.2, mazzo_pos[1] - k * 0.35)
+        return (P["mazzo"][0] + k * 0.2, P["mazzo"][1] - k * 0.35)
     carte = []
     mani = {0: [], 1: [], 2: [], 3: []}
     centro = []
@@ -699,7 +721,46 @@ def schermata_carte(sc, clock, logo):
             else:
                 c.vai(posto_mazzo(k), 0.0, scoperta=False)
 
+    def sopra_scena(sup, z):
+        """Scatola e carte si disegnano dopo l'ingrandimento, alla misura
+        vera dello schermo: cosi' restano nitide."""
+        disegna_scatola(sup, P["scatola"], P["alto"], z)
+        # prima quelle ferme nel mazzo, poi il centro, poi le mani
+        for c in carte:
+            c.disegna(sup, z)
+        for c in centro:
+            c.disegna(sup, z)
+        for chi in (1, 2, 3, 0):
+            for c in mani[chi]:
+                c.disegna(sup, z)
+
+    scelta = [0]
+
+    def cambia_mazzo():
+        """T: il mazzo dopo, per provarli tutti. Torna il nome."""
+        m = mazzi_disponibili()
+        if not m:
+            return None
+        scelta[0] = (scelta[0] + 1) % len(m)
+        scegli_mazzo(scelta[0])
+        disponi()
+        for k, c in enumerate(carte):
+            c.vai(posto_mazzo(k), 0.0)
+        return m[scelta[0]][0]
+
+    B.SOPRA_SCENA[0] = sopra_scena
+    try:
+        return _giro_carte(sc, clock, carte, mani, centro, nuovo_mazzo,
+                           distribuisci, gioca, raccogli, ip, ib,
+                           cambia_mazzo)
+    finally:
+        B.SOPRA_SCENA[0] = None
+
+
+def _giro_carte(sc, clock, carte, mani, centro, nuovo_mazzo, distribuisci,
+                gioca, raccogli, ip, ib, cambia_mazzo):
     nomi = [B.NOMI[0] or "Player 1"] + random.sample(B.AVVERSARI, 3)
+    cartello = ["", 0.0]    # il nome del mazzo, per un paio di secondi
     punti = [0, 0, 0, 0]
     carica_suoni()
     musica_carte()
@@ -725,6 +786,10 @@ def schermata_carte(sc, clock, logo):
                     distribuisci()
                 if ev.key == pygame.K_r:
                     raccogli()
+                if ev.key == pygame.K_t:
+                    nome = cambia_mazzo()
+                    if nome:
+                        cartello[:] = [nome.replace("_", " ").title(), 2.0]
             if ev.type == pygame.MOUSEBUTTONDOWN:
                 if ev.button == 3:
                     fine_musica_carte()
@@ -741,23 +806,18 @@ def schermata_carte(sc, clock, logo):
         tav = tavolo_carte(ip, ib)
         if tav is not None:
             sc.blit(tav, B.TAV_POS)
-        disegna_scatola(sc, scatola_pos, alto_sc)
-        # prima quelle ferme nel mazzo, poi il centro, poi le mani: e fra
-        # quelle in volo, prima chi e' partito prima
-        for c in carte:
-            c.disegna(sc)
-        for c in centro:
-            c.disegna(sc)
-        for chi in (1, 2, 3, 0):
-            for c in mani[chi]:
-                c.disegna(sc)
         fila_targhette(sc, nomi, punti)
         aiuto = FONT_AIUTO()
         if aiuto is not None:
             t = aiuto.render("D  deal     click  play a card     R  collect"
-                             "     ESC  back", True, (190, 196, 208))
+                             "     T  deck     ESC  back", True, (190, 196, 208))
             sc.blit(t, t.get_rect(center=(B.WIN_W // 2,
                                           B.WIN_H - B.s(40))))
+        if cartello[1] > 0 and aiuto is not None:
+            cartello[1] -= dt
+            t = aiuto.render(cartello[0], True, B.ORO_LUCE)
+            z = zona_panno()
+            sc.blit(t, t.get_rect(center=(z.centerx, z.top + B.s(24))))
         B.presenta()
 
 
