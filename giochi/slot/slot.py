@@ -672,7 +672,6 @@ class Macchina:
     def disegna(self, voci, sel, per_linea):
         sc = self.sc
         sc.blit(fondo_slot(), (0, 0))
-        self.nome_gioco()
         # la cassa: un pannello scuro pieno, con la luce che gira intorno
         pygame.draw.rect(sc, (13, 15, 21), self.cassa,
                          border_radius=B.s(14))
@@ -680,7 +679,6 @@ class Macchina:
         self.disegna_rulli()
         self.disegna_scelte(voci, sel)
         self.disegna_pannello(per_linea)
-        self.disegna_messaggio()
         small = B.FONTS["small"]
         if B.modo_comandi() == "pad" and B.ICONE_TASTI_OK():
             r = B.riga_pad(small, RIGA_PAD_SLOT)
@@ -760,7 +758,7 @@ class Macchina:
         f = B.FONTS["font"]
         B.tic_menu(tuple(voci), sel)
         passo = f.get_height() + B.s(14)
-        y = self.cassa.centery - (len(voci) - 1) * passo // 2 + B.s(30)
+        y = self.cassa.centery - (len(voci) - 1) * passo // 2 + B.s(52)
         for i, testo in enumerate(voci):
             t = f.render(testo, True,
                          (255, 255, 255) if i == sel else (160, 166, 178))
@@ -810,19 +808,26 @@ class Macchina:
             v = f.render(str(val), True, (235, 238, 245))
             sc.blit(v, v.get_rect(midright=(x1, y)))
             y += passo
+        # quanto ha pagato il giro, nello spazio che resta
+        self.disegna_messaggio((x0 + x1) // 2, y + B.s(32))
 
-    def disegna_messaggio(self):
-        y = self.cassa.bottom + B.s(24)
+    def disegna_messaggio(self, cx, y):
+        """Quanto ha pagato il giro e che combinazione e' stata: nella
+        colonna a destra, sopra le scelte."""
         if self.msg:
-            col = (255, 226, 140) if self.totale else (235, 238, 245)
+            col = (255, 226, 140) if self.totale else (200, 206, 216)
             t = B.FONTS["font"].render(self.msg, True, col)
-            self.sc.blit(t, t.get_rect(center=(self.cassa.centerx, y)))
+            self.sc.blit(t, t.get_rect(center=(cx, y)))
         if self.sotto:
             col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)] \
                 if self.mostra >= 0 else (170, 176, 188)
             t = B.FONTS["small"].render(self.sotto, True, col)
-            self.sc.blit(t, t.get_rect(center=(self.cassa.centerx,
-                                               y + B.s(24))))
+            r = t.get_rect(center=(cx, y + B.s(26)))
+            if r.width > B.WIN_W - cx * 2 + B.s(40):
+                t = B.FONTS["mini"].render(self.sotto, True, col) \
+                    if "mini" in B.FONTS else t
+                r = t.get_rect(center=(cx, y + B.s(26)))
+            self.sc.blit(t, r)
 
     def frame(self):
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
