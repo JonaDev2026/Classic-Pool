@@ -307,23 +307,14 @@ def diamanti_posti(base):
 
 
 def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
-    """Meta' fascia per un giocatore, come nel biliardo: diamantino e
-    nome verso il bordo, riquadro verde col punteggio verso il centro.
-    A destra tutto a specchio."""
+    """Meta' fascia per un giocatore: diamantino e nome dalla parte del
+    bordo, poi un filo d'oro corto e subito il riquadro verde col
+    punteggio. Il centro della fascia resta libero. A destra a specchio."""
     carattere = B.FONTS.get("nomi_hud") or B.FONTS["font"]
     font = B.FONTS["font"]
     alto = r.h - B.s(8)
-    box = pygame.Rect(0, 0, B.s(64), alto)
-    if sinistra:
-        box.midright = (r.right - B.s(40), r.centery)
-        xd = r.left + B.s(26)
-    else:
-        box.midleft = (r.left + B.s(40), r.centery)
-        xd = r.right - B.s(26)
-    pygame.draw.rect(sc, B.VERDONE, box)
-    t = font.render(str(punti), True, (255, 255, 255))
-    sc.blit(t, t.get_rect(center=box.center))
     y = r.centery
+    xd = r.left + B.s(26) if sinistra else r.right - B.s(26)
     rombo(sc, (xd, y), col, B.s(6), B.s(10))
     if attivo:
         m, d = B.s(7), B.s(18)
@@ -333,18 +324,25 @@ def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
                                              (xf + verso * B.s(9), y),
                                              (xf, y + m)])
     t = carattere.render(nome, True, B.AVORIO)
+    filo = B.s(34)
+    box = pygame.Rect(0, 0, B.s(64), alto)
     if sinistra:
         q = t.get_rect(midleft=(xd + B.s(18), y))
-        da, a = q.right + B.s(16), box.left - B.s(16)
+        da = q.right + B.s(12)
+        a = da + filo
+        box.midleft = (a + B.s(10), y)
     else:
         q = t.get_rect(midright=(xd - B.s(18), y))
-        da, a = q.left - B.s(16), box.right + B.s(16)
+        da = q.left - B.s(12)
+        a = da - filo
+        box.midright = (a - B.s(10), y)
     sc.blit(t, q)
-    # il filo d'oro dal nome al punteggio, come nel logo
-    if (a - da) * (1 if sinistra else -1) > B.s(20):
-        pygame.draw.line(sc, B.ORO_LOGO, (da, y), (a, y), max(1, B.s(1)))
-        pygame.draw.circle(sc, B.ORO_LOGO, (da, y), max(2, B.s(2)))
-        pygame.draw.circle(sc, B.ORO_LUCE, (a, y), max(2, B.s(3)))
+    pygame.draw.line(sc, B.ORO_LOGO, (da, y), (a, y), max(1, B.s(1)))
+    pygame.draw.circle(sc, B.ORO_LOGO, (da, y), max(2, B.s(2)))
+    pygame.draw.circle(sc, B.ORO_LUCE, (a, y), max(2, B.s(3)))
+    pygame.draw.rect(sc, B.VERDONE, box)
+    t = font.render(str(punti), True, (255, 255, 255))
+    sc.blit(t, t.get_rect(center=box.center))
 
 
 def fila_targhette(sc, nomi, punti, attivo=0):
