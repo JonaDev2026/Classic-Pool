@@ -62,18 +62,19 @@ SIMBOLI = (
     ("bar",          ( 60, 180, 220), "=", 0,  65, 260, 1150),
     ("sette",        (226,  60,  60), "7", 0, 110, 450, 2000),
     ("jolly",        (250, 250, 250), "W", 0,   0,   0,    0),  # vale per tutti
-    ("mistero",      (180, 186, 200), "?", 0,   0,   0,    0),  # si trasforma
-    ("bonus",        ( 90, 210, 220), "*", 0,   0,   0,    0),  # paga sparso
+    ("dadi",         (180, 186, 200), "?", 0,   0,   0,    0),  # giri gratis
+    ("regalo",       ( 90, 210, 220), "*", 0,   0,   0,    0),  # premio a caso
     ("jackpot",      (255, 214,  92), "J", 0,   0,   0,    0),  # il jackpot
 )
 PAGA = dict((s[0], (s[3], s[4], s[5], s[6])) for s in SIMBOLI)
 COLORE = dict((s[0], s[1]) for s in SIMBOLI)
 SEGNO = dict((s[0], s[2]) for s in SIMBOLI)
 JOLLY = "jolly"
-BONUS = "bonus"
-MISTERO = "mistero"
-# il bonus paga sul totale puntato, non sulla linea
-PAGA_BONUS = {3: 2, 4: 10, 5: 50}
+REGALO = "regalo"           # tre o piu': un premio a caso
+DADI = "dadi"               # tre o piu': giri gratis
+GIRI_GRATIS = 3             # quanti ne regalano i dadi
+PREMIO_REGALO = {3: (2, 8), 4: (8, 25), 5: (30, 100)}   # in puntate
+
 
 COLONNE, RIGHE = 5, 4
 
@@ -109,8 +110,8 @@ QUANTI = {
     "bar":          (3, 3, 3, 3, 3),
     "sette":        (2, 2, 2, 2, 2),
     "jolly":        (0, 3, 3, 3, 0),
-    "mistero":      (0, 3, 3, 3, 0),
-    "bonus":        (2, 2, 2, 2, 2),
+    "dadi":         (2, 2, 2, 2, 2),
+    "regalo":       (2, 2, 2, 2, 2),
     "jackpot":      (5, 5, 5, 5, 5),
 }
 
@@ -156,7 +157,7 @@ def _buona(s):
     n = len(s)
     if any(s[i] == s[i - 1] for i in range(n)):
         return False
-    dove = [i for i, x in enumerate(s) if x == BONUS]
+    dove = [i for i, x in enumerate(s) if x == REGALO]
     for a in range(len(dove)):
         for b in range(a + 1, len(dove)):
             d = abs(dove[a] - dove[b])
@@ -195,19 +196,17 @@ def paganti():
     return [x[0] for x in SIMBOLI if any(PAGA[x[0]])]
 
 
-def apri_mistero(griglia):
-    """I simboli mistero si girano tutti insieme e diventano tutti lo
-    stesso simbolo, scelto a caso fra quelli che pagano. Torna il
-    simbolo uscito e le caselle che si sono girate, o (None, [])."""
-    celle = [(c, r) for c in range(COLONNE) for r in range(RIGHE)
-             if griglia[c][r] == MISTERO]
-    if not celle:
-        return None, []
-    pesi = [sum(QUANTI[n]) for n in paganti()]
-    quale = random.choices(paganti(), pesi)[0]
-    for c, r in celle:
-        griglia[c][r] = quale
-    return quale, celle
+def quanti_ce_ne(griglia, nome):
+    """Le caselle con quel simbolo, dovunque stiano."""
+    return [(c, r) for c in range(COLONNE) for r in range(RIGHE)
+            if griglia[c][r] == nome]
+
+
+def premio_regalo(quanti, punta):
+    """Il pacchetto regalo: tre o piu' dovunque siano, e dentro c'e' un
+    premio a caso, tanto piu' grosso quanti pacchetti sono."""
+    da, a = PREMIO_REGALO[min(5, quanti)]
+    return int(round(random.uniform(da, a) * punta))
 
 
 def vincite(griglia, unita):
@@ -240,13 +239,6 @@ def vincite(griglia, unita):
         paga = quanto * strade * unita
         celle = [x for c in range(lung) for x in dove[c]]
         fuori.append((nome, lung, strade, paga, celle))
-    # il bonus paga dovunque sia, sulla puntata intera
-    celle = [(c, r) for c in range(COLONNE) for r in range(RIGHE)
-             if griglia[c][r] == BONUS]
-    if len(celle) >= 3:
-        quanti = min(5, len(celle))
-        paga = PAGA_BONUS[quanti] * unita * MODI_UNITA
-        fuori.append((BONUS, quanti, 1, paga, celle))
     return sum(v[3] for v in fuori), fuori
 
 
@@ -257,12 +249,13 @@ TXT = {
            "back": "Back", "win": "You win %s", "no_win": "No win",
            "broke": "Not enough money", "tot_bet": "Total bet",
            "per_line": "Per unit", "lines": "Ways",
-           "mystery": "Mystery:  %s",
+           "free_spins": "Free spins", "won_free": "%d free spins",
            "ways_win": "%d x %s  on %d ways", "credit": "Credit",
            "jackpot": "Jackpot", "won_jack": "JACKPOT!  %s",
            "pt_jack": "One on each of the five reels wins the jackpot: %s",
            "pt_title": "Paytable", "pt_wild": "Wild: stands for any symbol",
-           "pt_mystery": "Mystery: they all flip to the same random symbol",
+           "pt_gift": "Gift: three or more anywhere, with a random prize inside",
+           "pt_dice": "Dice: three or more anywhere win %d free spins",
            "pt_bonus": "Bonus: pays anywhere, on the total bet",
            "pt_line": "Same symbol on touching reels from the left: %d ways, the commonest symbols already pay on two reels",
            "help": "click / ENTER  spin     < >  bet     %s  paytable     ESC  back",
@@ -272,14 +265,15 @@ TXT = {
            "pays": "Pagamenti", "back": "Indietro", "win": "Vinci %s",
            "no_win": "Niente", "broke": "Non hai abbastanza soldi",
            "tot_bet": "Puntata", "per_line": "Per unita", "lines": "Modi",
-           "mystery": "Mistero:  %s",
+           "free_spins": "Giri gratis", "won_free": "%d giri gratis",
            "ways_win": "%d x %s  su %d modi",
            "credit": "Credito", "jackpot": "Jackpot",
            "won_jack": "JACKPOT!  %s",
            "pt_jack": "Uno su ognuno dei cinque rulli vince il jackpot: %s",
            "pt_title": "Pagamenti",
            "pt_wild": "Jolly: vale per tutti i simboli",
-           "pt_mystery": "Mistero: si girano tutti insieme nello stesso simbolo",
+           "pt_gift": "Regalo: tre o piu' dovunque siano, e dentro c'e' un premio a caso",
+           "pt_dice": "Dadi: tre o piu' dovunque siano vincono %d giri gratis",
            "pt_bonus": "Bonus: paga dovunque sia, sulla puntata intera",
            "pt_line": "Stesso simbolo su rulli attaccati da sinistra: %d modi, i simboli comuni pagano gia con due rulli",
            "help": "clic / INVIO  gira     < >  puntata     %s  pagamenti     ESC  indietro",
@@ -289,14 +283,15 @@ TXT = {
            "pays": "Gains", "back": "Retour", "win": "Vous gagnez %s",
            "no_win": "Rien", "broke": "Pas assez d'argent",
            "tot_bet": "Mise", "per_line": "Par unite", "lines": "Facons",
-           "mystery": "Mystere :  %s",
+           "free_spins": "Tours gratuits", "won_free": "%d tours gratuits",
            "ways_win": "%d x %s  sur %d facons",
            "credit": "Credit", "jackpot": "Jackpot",
            "won_jack": "JACKPOT !  %s",
            "pt_jack": "Un sur chacun des cinq rouleaux gagne le jackpot : %s",
            "pt_title": "Table des gains",
            "pt_wild": "Joker : remplace tous les symboles",
-           "pt_mystery": "Mystere : ils se retournent tous sur le meme symbole",
+           "pt_gift": "Cadeau : trois ou plus n'importe ou, avec un prix au hasard",
+           "pt_dice": "Des : trois ou plus n'importe ou gagnent %d tours gratuits",
            "pt_bonus": "Bonus : paie partout, sur la mise totale",
            "pt_line": "Meme symbole sur des rouleaux voisins depuis la gauche : %d facons",
            "help": "clic / ENTREE  tourner     < >  mise     %s  gains     ECHAP  retour",
@@ -306,14 +301,15 @@ TXT = {
            "pays": "Premios", "back": "Atras", "win": "Ganas %s",
            "no_win": "Nada", "broke": "No tienes bastante dinero",
            "tot_bet": "Apuesta", "per_line": "Por unidad", "lines": "Modos",
-           "mystery": "Misterio:  %s",
+           "free_spins": "Giros gratis", "won_free": "%d giros gratis",
            "ways_win": "%d x %s  en %d modos",
            "credit": "Credito", "jackpot": "Jackpot",
            "won_jack": "JACKPOT!  %s",
            "pt_jack": "Uno en cada uno de los cinco rodillos gana el jackpot: %s",
            "pt_title": "Tabla de premios",
            "pt_wild": "Comodin: vale por todos los simbolos",
-           "pt_mystery": "Misterio: se giran todos en el mismo simbolo",
+           "pt_gift": "Regalo: tres o mas donde sea, con un premio al azar",
+           "pt_dice": "Dados: tres o mas donde sea ganan %d giros gratis",
            "pt_bonus": "Bonus: paga donde sea, sobre la apuesta total",
            "pt_line": "Mismo simbolo en rodillos seguidos desde la izquierda: %d modos",
            "help": "clic / INTRO  girar     < >  apuesta     %s  premios     ESC  atras",
@@ -328,7 +324,7 @@ NOMI_SIM = {
            "quadrifoglio": "Clover", "carte": "Cards", "roulette": "Wheel",
            "fiches": "Chips", "dollaro": "Coin", "gemma": "Gem",
            "bar": "Bar", "sette": "Seven", "jolly": "Wild",
-           "mistero": "Mystery", "bonus": "Bonus", "jackpot": "Jackpot"},
+           "dadi": "Dice", "regalo": "Gift", "jackpot": "Jackpot"},
     "it": {"ciliegia": "Ciliegia", "limone": "Limone", "arancia": "Arancia",
            "prugna": "Prugna", "mela": "Mela", "fragola": "Fragola",
            "anguria": "Anguria", "uva": "Uva", "cuori": "Cuori",
@@ -337,7 +333,7 @@ NOMI_SIM = {
            "quadrifoglio": "Quadrifoglio", "carte": "Carte",
            "roulette": "Roulette", "fiches": "Fiches", "dollaro": "Moneta",
            "gemma": "Gemma", "bar": "Bar", "sette": "Sette",
-           "jolly": "Jolly", "mistero": "Mistero", "bonus": "Bonus",
+           "jolly": "Jolly", "dadi": "Dadi", "regalo": "Regalo",
            "jackpot": "Jackpot"},
     "fr": {"ciliegia": "Cerise", "limone": "Citron", "arancia": "Orange",
            "prugna": "Prune", "mela": "Pomme", "fragola": "Fraise",
@@ -347,7 +343,7 @@ NOMI_SIM = {
            "quadrifoglio": "Trefle porte-bonheur", "carte": "Cartes",
            "roulette": "Roulette", "fiches": "Jetons", "dollaro": "Piece",
            "gemma": "Gemme", "bar": "Bar", "sette": "Sept",
-           "jolly": "Joker", "mistero": "Mystere", "bonus": "Bonus",
+           "jolly": "Joker", "dadi": "Des", "regalo": "Cadeau",
            "jackpot": "Jackpot"},
     "es": {"ciliegia": "Cereza", "limone": "Limon", "arancia": "Naranja",
            "prugna": "Ciruela", "mela": "Manzana", "fragola": "Fresa",
@@ -357,7 +353,7 @@ NOMI_SIM = {
            "quadrifoglio": "Trebol de cuatro", "carte": "Cartas",
            "roulette": "Ruleta", "fiches": "Fichas", "dollaro": "Moneda",
            "gemma": "Gema", "bar": "Bar", "sette": "Siete",
-           "jolly": "Comodin", "mistero": "Misterio", "bonus": "Bonus",
+           "jolly": "Comodin", "dadi": "Dados", "regalo": "Regalo",
            "jackpot": "Jackpot"},
 }
 
@@ -405,8 +401,13 @@ def carica_suoni():
             pass
 
 
+# finche' non ci sono i file nuovi, questi suoni ne fanno le veci
+RIPIEGO = {"vinci1": "gift", "vinci2": "level", "vinci3": "bonus",
+           "dadi": "transform", "regalo": "gift"}
+
+
 def suona(nome, quanto=0.9):
-    s = SUONI.get(nome)
+    s = SUONI.get(nome) or SUONI.get(RIPIEGO.get(nome, ""))
     v = B.CFG.get("effetti", 100) / 100.0
     if not s or v <= 0:
         return None
@@ -570,6 +571,11 @@ def neon(misura, col, spesso=None):
     return q
 
 
+# ogni combinazione che lampeggia ha il suo colore, a turno
+COLORI_VINTE = ((120, 230, 255), (255, 170, 205), (160, 245, 170),
+                (255, 214, 130), (200, 170, 255), (255, 150, 120))
+
+
 # quanto della casella riempie il simbolo: piu' piccolo respira meglio
 GRANDE = 0.66
 
@@ -587,6 +593,9 @@ class Macchina:
         self.griglia = self.ferma()
         self.vinte, self.mostra, self.t_mostra = [], -1, 0.0
         self.t_vinta = 0.0      # per far respirare i simboli vincenti
+        self.sotto = ""         # la riga piccola sotto il totale
+        self.totale = 0         # quanto ha pagato tutto il giro
+        self.gratis = 0         # i giri gratis che restano
         self.lampo = 0.0        # quanto dura il lampo del jackpot vinto
         self.t_neon = 0.0       # il colore che gira nella cornice
         self.msg = ""
@@ -708,17 +717,29 @@ class Macchina:
             sc.blit(velo, vetro)
             respiro = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0)
             k = 1.0 + 0.12 * respiro
+            col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)]
             for c, i in sorted(acceso):
                 if not 0 <= i < RIGHE:
                     continue
                 nome = self.griglia[c][i]
                 r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
-                # niente cornici ne' aloni: il simbolo lampeggia e basta
+                # una luce del colore di questa combinazione, dietro
+                lato = int(min(cw, ch) * GRANDE * 1.25)
+                q = pygame.Surface((lato, lato), pygame.SRCALPHA)
+                for j in range(6):
+                    kk = j / 5.0
+                    a_l = int((10 + 26 * kk) * (0.4 + 0.6 * respiro))
+                    d = int(lato * 0.5 * (1 - kk) * 0.9)
+                    pygame.draw.rect(q, col + (a_l,),
+                                     pygame.Rect(d, d, lato - d * 2,
+                                                 lato - d * 2),
+                                     border_radius=int(lato * 0.28))
+                sc.blit(q, q.get_rect(center=r.center))
                 img = figura(nome, (int(cw * GRANDE * k),
                                     int(ch * GRANDE * k))).copy()
                 # l'alfa si moltiplica sui pixel: set_alpha su una
                 # superficie trasparente farebbe un quadrato nero
-                img.fill((255, 255, 255, int(150 + 105 * respiro)),
+                img.fill((255, 255, 255, int(165 + 90 * respiro)),
                          special_flags=pygame.BLEND_RGBA_MULT)
                 sc.blit(img, img.get_rect(center=r.center))
         sc.set_clip(vecchio)
@@ -776,6 +797,8 @@ class Macchina:
         y = r.bottom + B.s(24)
         righe = [(T("tot_bet"), B.dollari(per_linea * MODI_UNITA)),
                  (T("per_line"), B.dollari(per_linea))]
+        if self.gratis:
+            righe.append((T("free_spins"), str(self.gratis)))
         for et, val in righe:
             t = f.render(et, True, (150, 156, 168))
             sc.blit(t, (x0, y - t.get_height() // 2))
@@ -784,11 +807,17 @@ class Macchina:
             y += passo
 
     def disegna_messaggio(self):
-        if not self.msg:
-            return
-        t = B.FONTS["font"].render(self.msg, True, (235, 238, 245))
-        self.sc.blit(t, t.get_rect(center=(self.cassa.centerx,
-                                           self.cassa.bottom + B.s(34))))
+        y = self.cassa.bottom + B.s(24)
+        if self.msg:
+            col = (255, 226, 140) if self.totale else (235, 238, 245)
+            t = B.FONTS["font"].render(self.msg, True, col)
+            self.sc.blit(t, t.get_rect(center=(self.cassa.centerx, y)))
+        if self.sotto:
+            col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)] \
+                if self.mostra >= 0 else (170, 176, 188)
+            t = B.FONTS["small"].render(self.sotto, True, col)
+            self.sc.blit(t, t.get_rect(center=(self.cassa.centerx,
+                                               y + B.s(24))))
 
     def frame(self):
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
@@ -857,18 +886,19 @@ def pagina_pagamenti(sc, clock):
             y += passo
         # i simboli speciali, in fondo
         y += B.s(10)
-        for nome, testo in ((JOLLY, T("pt_wild")), (MISTERO, T("pt_mystery")),
-                            (BONUS, T("pt_bonus")),
+        for nome, testo in ((JOLLY, T("pt_wild")),
+                            (REGALO, T("pt_gift")),
+                            (DADI, T("pt_dice") % GIRI_GRATIS),
                             (SIMBOLO_JACKPOT,
                              T("pt_jack") % B.dollari(jackpot()))):
             img = figura(nome, (lato, lato))
             sc.blit(img, img.get_rect(midleft=(x0, y)))
             t = small.render(testo, True, (230, 232, 238))
             sc.blit(t, t.get_rect(midleft=(x0 + lato + B.s(12), y)))
-            if nome == BONUS:
-                t = small.render("3 - %dx    4 - %dx    5 - %dx"
-                                 % (PAGA_BONUS[3], PAGA_BONUS[4],
-                                    PAGA_BONUS[5]), True, B.ORO_SOTTO)
+            if nome == REGALO:
+                t = small.render("3 - %d/%dx    4 - %d/%dx    5 - %d/%dx"
+                                 % (PREMIO_REGALO[3] + PREMIO_REGALO[4]
+                                    + PREMIO_REGALO[5]), True, B.ORO_SOTTO)
                 sc.blit(t, t.get_rect(midright=(B.WIN_W - B.s(90), y)))
             y += lato + B.s(4)
         t = small.render(T("pt_line") % MODI, True, B.ORO_SOTTO)
@@ -890,8 +920,7 @@ def gioca_slot(sc, clock, logo):
         punta = PUNTATE[0]
     sel = 0
     aspetta = [0.0]         # quanto resta da far vedere della vincita
-    conta = [0.0]           # la pausa per far vedere il mistero aperto
-    da_contare = [False]
+    gratis = [0]            # i giri gratis ancora da giocare
 
     def voci():
         return [T("spin"), "%s  %s" % (T("bet"), B.dollari(punta)),
@@ -909,13 +938,18 @@ def gioca_slot(sc, clock, logo):
         B.suona_fx("menu_tic", 0.6)
 
     def parti():
-        if B.soldi() < punta:
-            m.msg = T("broke")
-            B.suona_fx("menu_chiudi", 0.7)
-            return
-        B.soldi(-punta)
-        jackpot(max(1, int(punta * JACKPOT_FETTA)))
-        B.salva_config()
+        if gratis[0] > 0:
+            # un giro gratis: non si paga, e il jackpot non cresce
+            gratis[0] -= 1
+        else:
+            if B.soldi() < punta:
+                m.msg = T("broke")
+                B.suona_fx("menu_chiudi", 0.7)
+                return
+            B.soldi(-punta)
+            jackpot(max(1, int(punta * JACKPOT_FETTA)))
+            B.salva_config()
+        m.gratis = gratis[0]
         m.parti()
         suona("bottone", 0.9)
         suona("spin", 0.9)
@@ -976,65 +1010,67 @@ def gioca_slot(sc, clock, logo):
                 if r.collidepoint(mouse):
                     sel = i
         if m.passo():
-            # i rulli si sono fermati: prima si girano i misteri
-            quale, celle = apri_mistero(m.griglia)
-            if quale:
-                m.msg = T("mystery") % nome_simbolo(quale)
-                m.vinte, m.mostra = [(quale, 0, 0, 0, celle)], 0
-                m.t_vinta = 0.0
-                suona("transform", 0.9)
-                conta[0] = 1.1
-            else:
-                conta[0] = 0.0
-            da_contare[0] = True
-        if da_contare[0]:
-            conta[0] -= m.dt
-            if conta[0] > 0:
-                m.disegna(voci(), sel, per_linea())
-                B.presenta()
-                continue
-            da_contare[0] = False
+            # i rulli si sono fermati: prima i simboli che pagano a modi
             tot, vinte = vincite(m.griglia, per_linea())
-            m.vinte, m.vinto = vinte, tot
+            # il pacchetto regalo: tre o piu' dovunque siano
+            pacchi = quanti_ce_ne(m.griglia, REGALO)
+            if len(pacchi) >= 3:
+                premio = premio_regalo(len(pacchi), punta)
+                tot += premio
+                vinte.append((REGALO, len(pacchi), 0, premio, pacchi))
+            # i dadi: tre o piu' e si vincono i giri gratis
+            dadi = quanti_ce_ne(m.griglia, DADI)
+            vinti_gratis = GIRI_GRATIS if len(dadi) >= 3 else 0
+            if vinti_gratis:
+                gratis[0] += vinti_gratis
+                vinte.append((DADI, len(dadi), 0, 0, dadi))
             jack = fa_jackpot(m.griglia)
             if jack:
                 premio = jackpot()
                 azzera_jackpot()
                 tot += premio
-                m.vinto = tot
                 m.lampo = 8.0
-                B.soldi(premio)
-                B.salva_config()
+            m.vinte, m.vinto = vinte, tot
             if tot:
                 B.soldi(tot)
-                B.salva_config()
-                m.msg = T("win") % B.dollari(tot)
-                m.mostra, aspetta[0], m.t_vinta = 0, 1.2, 0.0
-                if jack:
-                    suona("jackpot", 1.0)
-                elif any(v[1] == BONUS for v in vinte):
-                    suona("bonus", 0.9)
-                elif tot >= punta * 10:
-                    suona("level", 0.9)
-                else:
-                    suona("gift", 0.9)
-            else:
-                m.msg = T("no_win")
-                m.mostra = -1
+            B.salva_config()
+            m.totale = tot
+            m.mostra, aspetta[0], m.t_vinta = (0 if vinte else -1), 1.4, 0.0
+            if jack:
+                suona("jackpot", 1.0)
+            elif vinti_gratis:
+                suona("dadi", 0.9)
+            elif len(pacchi) >= 3:
+                suona("regalo", 0.9)
+            elif tot >= punta * 20:
+                suona("vinci3", 0.9)
+            elif tot >= punta * 5:
+                suona("vinci2", 0.9)
+            elif tot:
+                suona("vinci1", 0.9)
+            m.msg = (T("win") % B.dollari(tot)) if tot else (
+                T("won_free") % vinti_gratis if vinti_gratis else T("no_win"))
         if m.vinte and m.mostra >= 0:
             aspetta[0] -= m.dt
             if aspetta[0] <= 0:
                 m.mostra = (m.mostra + 1) % len(m.vinte)
-                aspetta[0] = 1.0
+                aspetta[0] = 1.2
                 m.t_vinta = 0.0
             nome, lung, strade, paga, _celle = m.vinte[m.mostra]
-            if nome == BONUS:
-                m.msg = "%d x %s  -  %s" % (lung, nome_simbolo(nome),
-                                            B.dollari(paga))
+            if nome == REGALO:
+                m.sotto = "%d x %s  -  %s" % (lung, nome_simbolo(nome),
+                                              B.dollari(paga))
+            elif nome == DADI:
+                m.sotto = "%d x %s  -  %s" % (lung, nome_simbolo(nome),
+                                              T("won_free") % GIRI_GRATIS)
             else:
-                m.msg = "%s  -  %s" % (
-                    T("ways_win") % (lung, nome_simbolo(nome), strade),
-                    B.dollari(paga))
+                testo = ("%d x %s" % (lung, nome_simbolo(nome))
+                         if strade <= 1 else
+                         T("ways_win") % (lung, nome_simbolo(nome), strade))
+                m.sotto = "%s  -  %s" % (testo, B.dollari(paga))
+        else:
+            m.sotto = ""
+        m.gratis = gratis[0]
         m.disegna(voci(), sel, per_linea())
         B.presenta()
 
