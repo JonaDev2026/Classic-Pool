@@ -7999,8 +7999,8 @@ def sfondo_menu(sc, palla_grossa, tinta=None):
                                         r * 2, r))
     sc.blit(alone, (0, 0))
     if palla_grossa is not None:
-        sc.blit(palla_grossa,
-                palla_grossa.get_rect(center=(WIN_W // 2, s(196))))
+        # niente stemma: al suo posto il nome del gioco coi suoi fili
+        scritta_logo(sc, WIN_W // 2, s(196), 1.25)
     aiuto_menu(sc)
 
 
@@ -8393,7 +8393,6 @@ def schermata_menu(sc, clock, logo, inizio=None):
 
         font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
         sfondo_menu(sc, logo)
-        scritta_logo(sc, WIN_W // 2, s(340))
         sotto = ("" if categoria is None else T("billiards")
                  if categoria == "bil" else T("sub_disc")
                  if categoria == "fam" else nome_categoria(categoria))
@@ -8401,10 +8400,10 @@ def schermata_menu(sc, clock, logo, inizio=None):
                 pygame.time.get_ticks() - avviso[0] < 1500:
             sotto = T("soon")
         t = small.render(sotto, True, ORO_SOTTO)
-        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(396))))
+        sc.blit(t, t.get_rect(center=(WIN_W // 2, s(270))))
 
         rett = disegna_voci(sc, [(v, None) for v in voci], sel, font, small,
-                            s(448), s(40) if len(voci) > 7 else
+                            s(330), s(40) if len(voci) > 7 else
                             s(46) if len(voci) > 6 else s(52))
         for i, r in enumerate(rett):
             if MOUSE_VIVO[0] and r.collidepoint(mouse):
