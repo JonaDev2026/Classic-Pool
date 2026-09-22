@@ -132,9 +132,11 @@ import random
 CARTA_W, CARTA_H = 61, 88       # alla misura del disegno, poi s()
 
 # I suoni delle carte, nella cartella carte_fx accanto al gioco:
-# servi (una carta dal mazzo), giocata1/2 (una carta giocata), giocate
-# (piu' carte calate insieme), togli (una carta tolta), pulisci1/2 (il
-# tavolo che si svuota). Se mancano, silenzio.
+# servi (una carta dal mazzo), giocata (una carta sul tavolo), cattura
+# (le carte prese), errore (una mossa che non si puo' fare), colpo (il
+# colpo grosso: la scopa, il blackjack), gameover, levelup. Se due file
+# finiscono col numero sono lo stesso suono, a caso. Se mancano, silenzio.
+# La musica: i loop di carte_audio, uno a caso per partita.
 import os
 SUONI_CARTE = {}
 
@@ -152,6 +154,35 @@ def carica_suoni():
         try:
             SUONI_CARTE.setdefault(nome, []).append(
                 pygame.mixer.Sound(os.path.join(cartella, f)))
+        except pygame.error:
+            pass
+
+
+def musica_carte():
+    """Un loop jazz a caso, in ripetizione, al volume della musica di
+    gioco. Uscendo sfuma e il menu rimette la sua."""
+    if not B.MUSICA_OK:
+        return
+    cartella = os.path.join(B.CARTELLA, "carte_audio")
+    if not os.path.isdir(cartella):
+        return
+    tracce = [f for f in os.listdir(cartella)
+              if f.lower().endswith((".mp3", ".ogg", ".wav"))]
+    v = B.CFG.get("musica_gioco", 20)
+    if not tracce or v <= 0:
+        return
+    try:
+        pygame.mixer.music.load(os.path.join(cartella, random.choice(tracce)))
+        pygame.mixer.music.set_volume(v / 100.0)
+        pygame.mixer.music.play(-1)
+    except pygame.error:
+        pass
+
+
+def fine_musica_carte():
+    if B.MUSICA_OK:
+        try:
+            pygame.mixer.music.fadeout(500)
         except pygame.error:
             pass
 
@@ -468,7 +499,7 @@ def schermata_carte(sc, clock, logo):
         rit = 0.0
         tutte = centro + mani[0] + mani[1] + mani[2] + mani[3]
         if tutte:
-            suona("pulisci")
+            suona("cattura")
         for c in tutte:
             c.vai(mazzo_pos, 0.0, scoperta=False, ritardo=rit)
             rit += 0.02
@@ -481,6 +512,7 @@ def schermata_carte(sc, clock, logo):
     nomi = [B.NOMI[0] or "Player 1"] + random.sample(B.AVVERSARI, 3)
     punti = [0, 0, 0, 0]
     carica_suoni()
+    musica_carte()
     nuovo_mazzo()
     while True:
         dt = clock.tick(60) / 1000.0
@@ -497,6 +529,7 @@ def schermata_carte(sc, clock, logo):
                 return "quit"
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
+                    fine_musica_carte()
                     return "menu"
                 if ev.key == pygame.K_d and not any(mani.values()):
                     distribuisci()
@@ -504,6 +537,7 @@ def schermata_carte(sc, clock, logo):
                     raccogli()
             if ev.type == pygame.MOUSEBUTTONDOWN:
                 if ev.button == 3:
+                    fine_musica_carte()
                     return "menu"
                 if ev.button == 1 and sopra is not None:
                     gioca(sopra)
