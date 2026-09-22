@@ -133,7 +133,7 @@ def scelta_tavolo():
 import math
 import random
 
-CARTA_W, CARTA_H = 61, 88       # alla misura del disegno, poi s()
+CARTA_W, CARTA_H = 92, 132       # alla misura del disegno, poi s()
 
 # I suoni delle carte, nella cartella carte_fx accanto al gioco:
 # servi (una carta dal mazzo), giocata (una carta sul tavolo), cattura
@@ -321,13 +321,11 @@ def _riduci(img, w, h):
     """Rimpicciolisce bene: Lanczos e un filo di nitidezza (con PIL se
     c'e'), altrimenti a meta' per volta con smoothscale."""
     try:
-        from PIL import Image, ImageFilter
+        from PIL import Image
         src = img.convert_alpha()
         p = Image.frombytes("RGBA", src.get_size(),
                             pygame.image.tostring(src, "RGBA"))
         p = p.resize((w, h), Image.LANCZOS)
-        p = p.filter(ImageFilter.UnsharpMask(radius=0.8, percent=60,
-                                             threshold=1))
         return pygame.image.fromstring(p.tobytes(), (w, h),
                                        "RGBA").convert_alpha()
     except Exception:
