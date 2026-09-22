@@ -885,11 +885,12 @@ def pagina_pagamenti(sc, clock):
         meta = (len(elenco) + 1) // 2
         lato = B.s(30)
         passo = lato + B.s(12)
-        y0 = B.ALTO + B.s(56)
-        largo = (B.WIN_W - B.s(60)) // 2
+        y0 = B.ALTO + B.s(46)
+        bordo, spazio = B.s(28), B.s(70)      # aria fra le due colonne
+        largo = (B.WIN_W - bordo * 2 - spazio) // 2
         for col in range(2):
             gruppo = elenco[col * meta:(col + 1) * meta]
-            x = B.s(30) + col * largo
+            x = bordo + col * (largo + spazio)
             for i, nome in enumerate(gruppo):
                 y = y0 + i * passo
                 img = figura(nome, (lato, lato))
@@ -897,19 +898,17 @@ def pagina_pagamenti(sc, clock):
                 t = small.render(nome_simbolo(nome), True, (215, 218, 226))
                 sc.blit(t, t.get_rect(midleft=(x + lato + B.s(8), y)))
                 p2, p3, p4, p5 = PAGA[nome]
-                # le quattro colonne dei numeri, incolonnate
+                # "2 = $8   3 = $18   4 = $38   5 = $95"
+                x_val = x + largo
+                cella = (largo - B.s(170)) // 4
                 for k, v in enumerate((p2, p3, p4, p5)):
                     if not v:
                         continue
-                    q = small.render("%d" % round(v * unita), True,
-                                     (255, 255, 255))
-                    sc.blit(q, q.get_rect(
-                        midright=(x + largo - B.s(20) - (3 - k) * B.s(74), y)))
-            # le intestazioni dei numeri
-            for k, testo in enumerate(("2", "3", "4", "5")):
-                q = mini.render(testo, True, B.ORO_SOTTO)
-                sc.blit(q, q.get_rect(midright=(
-                    x + largo - B.s(20) - (3 - k) * B.s(74), y0 - B.s(22))))
+                    q = small.render("%d = %s" % (k + 2,
+                                                  B.dollari(round(v * unita))),
+                                     True, (255, 255, 255))
+                    sc.blit(q, q.get_rect(midright=(x_val - (3 - k) * cella,
+                                                    y)))
 
         # i quattro speciali, in fondo, due per riga
         y = y0 + meta * passo + B.s(6)
