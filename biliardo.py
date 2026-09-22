@@ -8283,19 +8283,35 @@ CATEGORIE = (("Pool", (0, 1, 5, 4, 8)),
              ("Pins", (3, 7)))
 
 
-def schermata_menu(sc, clock, logo):
+def schermata_menu(sc, clock, logo, inizio=None):
     """Il primo menu: prima la famiglia, poi la disciplina. Ritorna
     "gioca" quando se n'e' scelta una, se no "settings" o "quit"."""
     # tre piani: il menu principale (None), le famiglie ("fam") e i
     # giochi di una famiglia (il suo numero)
+    # piani: il casino' (None), il biliardo ("bil"), le famiglie ("fam")
+    # e i giochi di una famiglia (il suo numero). Tornando da regole,
+    # negozio o partita si riapre dove si era.
     categoria = None
     sel = 0
     rett = []
+    avviso = [-99999]       # quando si e' toccata una sezione che non c'e'
+    if inizio == "bil":
+        categoria = "bil"
+    elif inizio == "gioco":
+        categoria = "fam"
+        for i, (_, giochi) in enumerate(CATEGORIE):
+            if GIOCO[0] in giochi:
+                categoria, sel = i, giochi.index(GIOCO[0])
 
     def voci_ora():
         if categoria is None:
-            return [T("games"), T("rules"), T("shop"), T("bag"),
+            return [T("billiards"), "%s  (%s)" % (T("cards"), T("soon")),
+                    "%s  (%s)" % (T("roulette"), T("soon")),
+                    "%s  (%s)" % (T("slots"), T("soon")),
                     T("settings"), T("quit")]
+        if categoria == "bil":
+            return [T("games"), T("rules"), T("shop"), T("bag"),
+                    T("settings"), T("back")]
         if categoria == "fam":
             return [nome_categoria(i) for i in range(len(CATEGORIE))] + [
                 T("back")]
@@ -8303,8 +8319,10 @@ def schermata_menu(sc, clock, logo):
 
     def indietro():
         nonlocal categoria, sel
-        if categoria == "fam":
+        if categoria == "bil":
             categoria, sel = None, 0
+        elif categoria == "fam":
+            categoria, sel = "bil", 0
         elif categoria is not None:
             sel, categoria = categoria, "fam"
 
@@ -8312,9 +8330,20 @@ def schermata_menu(sc, clock, logo):
         nonlocal categoria, sel
         if categoria is None:
             if i == 0:
+                categoria, sel = "bil", 0
+                return None
+            if i in (1, 2, 3):
+                avviso[0] = pygame.time.get_ticks()     # non c'e' ancora
+                return None
+            return ("settings", "quit")[i - 4]
+        if categoria == "bil":
+            if i == 0:
                 categoria, sel = "fam", 0
                 return None
-            return ("regole", "negozio", "borsa", "settings", "quit")[i - 1]
+            if i == 5:
+                indietro()
+                return None
+            return ("regole", "negozio", "borsa", "bil_settings")[i - 1]
         if categoria == "fam":
             if i < len(CATEGORIE):
                 categoria, sel = i, 0
@@ -8365,8 +8394,12 @@ def schermata_menu(sc, clock, logo):
         font, grande, small = FONTS["font"], FONTS["grande"], FONTS["small"]
         sfondo_menu(sc, logo)
         scritta_logo(sc, WIN_W // 2, s(340))
-        sotto = ("" if categoria is None else T("sub_disc")
+        sotto = ("" if categoria is None else T("billiards")
+                 if categoria == "bil" else T("sub_disc")
                  if categoria == "fam" else nome_categoria(categoria))
+        if categoria is None and \
+                pygame.time.get_ticks() - avviso[0] < 1500:
+            sotto = T("soon")
         t = small.render(sotto, True, ORO_SOTTO)
         sc.blit(t, t.get_rect(center=(WIN_W // 2, s(396))))
 
@@ -9396,6 +9429,7 @@ for _l, _d in (
                 "st_power": "Power", "st_spin": "Spin",
                 "st_count": "%d of %d cues", "chalk": "CHALK",
                 "k_chalk": "Chalk the cue", "shop": "Shop", "games": "Games",
+                "billiards": "Billiards", "cards": "Cards", "roulette": "Roulette", "slots": "Slots",
                 "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Keyboard",
                 "precision": "PRECISION", "accuracy": "ACCURACY",
                 "wallet": "Wallet: %s", "buy": "Buy", "use": "Use",
@@ -9421,6 +9455,7 @@ for _l, _d in (
                 "p_mouse": "Mouse", "p_pad": "Controller", "p_tastiera": "Tastiera",
                 "precision": "PRECISIONE", "accuracy": "A SEGNO",
                 "games": "Giochi",
+                "billiards": "Biliardo", "cards": "Carte", "roulette": "Roulette", "slots": "Slot",
                 "wallet": "Portafoglio: %s", "buy": "Compra", "use": "Usa",
                 "in_use": "In uso", "chalk_row": "Gessetto",
                 "buy_chalk": "Compra gessetto",
@@ -9445,6 +9480,7 @@ for _l, _d in (
                 "p_mouse": "Souris", "p_pad": "Manette", "p_tastiera": "Clavier",
                 "precision": "PRECISION", "accuracy": "REUSSITE",
                 "games": "Jeux",
+                "billiards": "Billard", "cards": "Cartes", "roulette": "Roulette", "slots": "Slots",
                 "wallet": "Porte-monnaie : %s", "buy": "Acheter",
                 "use": "Utiliser", "in_use": "Utilisee",
                 "chalk_row": "Craie", "buy_chalk": "Acheter une craie",
@@ -9471,6 +9507,7 @@ for _l, _d in (
                 "p_mouse": "Raton", "p_pad": "Mando", "p_tastiera": "Teclado",
                 "precision": "PRECISION", "accuracy": "ACIERTO",
                 "games": "Juegos",
+                "billiards": "Billar", "cards": "Cartas", "roulette": "Ruleta", "slots": "Slots",
                 "use": "Usar", "in_use": "En uso", "chalk_row": "Tiza",
                 "buy_chalk": "Comprar tiza",
                 "no_money": "Dinero insuficiente",
@@ -9569,6 +9606,17 @@ def righe_setting(pagina, blocca_tavolo):
                 ("pieno", T("screen"),
                  T("s_pieno") if PIENO else T("s_finestra"))]
     nomi_l = dict(LINGUE)
+    if pagina == "generale":
+        # quelle che valgono per tutto il casino'
+        return [("lingua", T("language"),
+                 nomi_l.get(CFG["lingua"], CFG["lingua"])),
+                ("p_audio", T("p_audio"), None),
+                ("p_grafica", T("p_grafica"), None)]
+    if pagina == "biliardo":
+        # quelle del biliardo: regole, tavolo e palle, comandi
+        return [("p_regole", T("p_regole"), None),
+                ("p_tavolo", T("p_tavolo"), None),
+                ("p_comandi", T("p_comandi"), None)]
     return [("lingua", T("language"),
              nomi_l.get(CFG["lingua"], CFG["lingua"])),
             ("p_audio", T("p_audio"), None),
@@ -9652,6 +9700,10 @@ def cambia_setting(nome, cambia, blocca_tavolo):
         salva_config()
 
 
+# le prime pagine: da qui "indietro" torna al menu e non alla pagina sopra
+RADICI = ("radice", "generale", "biliardo")
+
+
 def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                       puo_riaprire=False):
     """Le impostazioni, divise in pagine: la prima ha la lingua, le tre
@@ -9698,18 +9750,18 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                               pygame.K_SPACE):
                     if sel == indietro:
                         salva_config()
-                        if pagina == "radice" and puo_riaprire \
+                        if pagina in RADICI and puo_riaprire \
                                 and ris_cambiata():
                             riapri_il_gioco()
-                        return "menu" if pagina == "radice" else "su"
+                        return "menu" if pagina in RADICI else "su"
                     entra = True
                     cambia = 1
                 if ev.key == pygame.K_ESCAPE:
                     salva_config()
-                    if pagina == "radice" and puo_riaprire \
+                    if pagina in RADICI and puo_riaprire \
                             and ris_cambiata():
                         riapri_il_gioco()
-                    return "menu" if pagina == "radice" else "su"
+                    return "menu" if pagina in RADICI else "su"
             if ev.type == pygame.MOUSEWHEEL:
                 for i, r in enumerate(rett):
                     if r.collidepoint(mouse) and i < indietro:
@@ -9722,10 +9774,10 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                     sel = i
                     if i == indietro:
                         salva_config()
-                        if pagina == "radice" and puo_riaprire \
+                        if pagina in RADICI and puo_riaprire \
                                 and ris_cambiata():
                             riapri_il_gioco()
-                        return "menu" if pagina == "radice" else "su"
+                        return "menu" if pagina in RADICI else "su"
                     entra = True
                     # meta' destra aumenta, meta' sinistra diminuisce:
                     # la riga e' fatta per essere toccata sulle freccette
@@ -9758,7 +9810,7 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
         # Sulla prima pagina il logo del gioco, come nel menu principale;
         # il tavolo col panno e il legno scelti si vede solo nella pagina
         # del tavolo, dove si sceglie. Sulle altre il nome della pagina.
-        sfondo_menu(sc, logo if pagina == "radice" else None)
+        sfondo_menu(sc, logo if pagina in RADICI else None)
         mini = None
         if pagina == "tavolo":
             vp = (CFG["panno"] if 0 <= CFG["panno"] < len(PANNI)
@@ -9774,14 +9826,14 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                              max(1, s(1)))
             sotto_y = r.bottom + s(22)
         else:
-            titolo = T("settings_t") if pagina == "radice" \
+            titolo = T("settings_t") if pagina in RADICI \
                 else T("p_" + pagina)
             t = FONTS["elegante"].render(tit_el(titolo), True, (240, 240, 244))
             # i comandi hanno tante righe: il titolo sale per fargli posto
             alto_t = (s(84) if pagina in ("tastiera", "pad") else
-                      s(326) if pagina == "radice" else s(244))
+                      s(326) if pagina in RADICI else s(244))
             sc.blit(t, t.get_rect(center=(WIN_W // 2, alto_t)))
-            sotto_y = alto_t + (s(50) if pagina == "radice" else s(56))
+            sotto_y = alto_t + (s(50) if pagina in RADICI else s(56))
         t = small.render(T("sub_set"), True, ORO_SOTTO)
         sc.blit(t, t.get_rect(center=(WIN_W // 2, sotto_y)))
 
@@ -9799,7 +9851,7 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                                 frecce=True, ante=ante, porte=porte)
         else:
             rett = disegna_voci(sc, voci, sel, font, small,
-                                s(436) if pagina == "radice" else s(408),
+                                s(436) if pagina in RADICI else s(408),
                                 s(44), frecce=True, ante=ante, porte=porte)
         # la stecca scelta, disegnata per intero sotto le righe
         if pagina == "tavolo" and 0 <= CFG.get("stecca", 0) < len(STECCHE):
@@ -11884,16 +11936,29 @@ def main():
     while dove != "quit":
         if dove == "menu":
             dove = schermata_menu(sc, clock, logo)
+        elif dove == "biliardo":
+            dove = schermata_menu(sc, clock, logo, "bil")
+        elif dove == "discipline":
+            dove = schermata_menu(sc, clock, logo, "gioco")
         elif dove == "gioca":
             dove = schermata_modo(sc, clock, logo)
+            if dove == "menu":
+                dove = "discipline"
         elif dove == "settings":
-            dove = schermata_setting(sc, clock, logo, puo_riaprire=True)
-        elif dove == "regole":
-            dove = schermata_regole(sc, clock, logo)
-        elif dove == "negozio":
-            dove = schermata_vetrina(sc, clock, logo, True)
-        elif dove == "borsa":
-            dove = schermata_vetrina(sc, clock, logo, False)
+            dove = schermata_setting(sc, clock, logo, pagina="generale",
+                                     puo_riaprire=True)
+        elif dove == "bil_settings":
+            dove = schermata_setting(sc, clock, logo, pagina="biliardo",
+                                     puo_riaprire=True)
+            if dove == "menu":
+                dove = "biliardo"
+        elif dove in ("regole", "negozio", "borsa"):
+            if dove == "regole":
+                dove = schermata_regole(sc, clock, logo)
+            else:
+                dove = schermata_vetrina(sc, clock, logo, dove == "negozio")
+            if dove == "menu":
+                dove = "biliardo"
         elif dove == "torneo":
             dove = torneo(sc, clock, logo)
             if dove == "menu":
