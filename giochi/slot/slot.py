@@ -758,26 +758,27 @@ class Macchina:
             nome_v = self.vinte[self.mostra][0] if self.vinte else None
             col = tuple(colore_simbolo(nome_v)) if nome_v else \
                 COLORI_VINTE[self.mostra % len(COLORI_VINTE)]
-            # i fili che legano i simboli della combinazione, da un rullo
-            # al successivo, nel colore di questa vincita
+            # una linea sola, da sinistra a destra: rullo per rullo si
+            # prende la casella piu' vicina a quella di prima
             per_col = {}
             for c, i in acceso:
                 if 0 <= i < RIGHE:
                     per_col.setdefault(c, []).append(i)
-            fili = pygame.Surface(vetro.size, pygame.SRCALPHA)
+            punti = []
+            prima = None
             for c in sorted(per_col):
-                if c + 1 not in per_col:
-                    continue
-                for i in per_col[c]:
-                    for j in per_col[c + 1]:
-                        a_x = c * cw + cw // 2
-                        a_y = i * ch + ch // 2
-                        b_x = (c + 1) * cw + cw // 2
-                        b_y = j * ch + ch // 2
-                        pygame.draw.line(fili,
-                                         col + (int(130 + 125 * respiro),),
-                                         (a_x, a_y), (b_x, b_y),
-                                         max(2, B.s(4)))
+                righe_c = sorted(per_col[c])
+                riga = righe_c[0] if prima is None else \
+                    min(righe_c, key=lambda x: abs(x - prima))
+                prima = riga
+                punti.append((vetro.x + c * cw + cw // 2,
+                              vetro.y + riga * ch + ch // 2))
+            fili = pygame.Surface(vetro.size, pygame.SRCALPHA)
+            if len(punti) > 1:
+                pygame.draw.lines(
+                    fili, col + (int(130 + 125 * respiro),), False,
+                    [(x - vetro.x, y - vetro.y) for x, y in punti],
+                    max(2, B.s(4)))
             sc.blit(fili, vetro)
             for c, i in sorted(acceso):
                 if not 0 <= i < RIGHE:
@@ -827,17 +828,20 @@ class Macchina:
         r = pygame.Rect(self.cassa.x, 0, self.cassa.w, B.s(44))
         r.bottom = self.cassa.top - B.s(12)
         pygame.draw.rect(sc, (13, 15, 21), r, border_radius=B.s(10))
+        k = 0.5 + 0.5 * math.sin(self.t_vinta * 9.0)
         if self.lampo > 0:
-            k = 0.5 + 0.5 * math.sin(self.t_vinta * 9.0)
             col = tuple(int(c * (0.45 + 0.55 * k)) for c in (255, 236, 150))
             pygame.draw.rect(sc, col, r, max(1, B.s(2)),
                              border_radius=B.s(10))
         else:
             cornice_neon(sc, r, self.t_neon + 0.5, B.s(10))
-        nome = B.FONTS["small"].render(T("jackpot").upper(), True,
-                                       (190, 196, 208))
-        soldi = B.FONTS["font"].render(B.dollari(jackpot()), True,
-                                       (255, 255, 255))
+        if self.lampo > 0:
+            col_t = tuple(int(c * (0.55 + 0.45 * k))
+                          for c in (255, 236, 150))
+        else:
+            col_t = colore_neon(self.t_neon + 0.5)
+        nome = B.FONTS["small"].render(T("jackpot").upper(), True, col_t)
+        soldi = B.FONTS["font"].render(B.dollari(jackpot()), True, col_t)
         insieme = nome.get_width() + soldi.get_width() + B.s(16)
         x = r.centerx - insieme // 2
         sc.blit(nome, nome.get_rect(midleft=(x, r.centery)))
