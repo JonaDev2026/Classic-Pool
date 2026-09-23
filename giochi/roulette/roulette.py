@@ -222,6 +222,27 @@ def carica_suoni():
             pass
 
 
+def carica_voce():
+    """Le frasi del croupier, da audio/roulette/voce: si infilano fra
+    quelle dell'arbitro, cosi' le dice la stessa coda. I numeri da 1 a
+    36 sono gia' quelli del biliardo; qui c'e' lo zero e il resto."""
+    if not B.MUSICA_OK:
+        return
+    cartella = os.path.join(B.SUONI_DIR, "roulette", "voce")
+    if not os.path.isdir(cartella):
+        return
+    for f in sorted(os.listdir(cartella)):
+        if not f.lower().endswith((".ogg", ".wav", ".mp3")):
+            continue
+        nome = os.path.splitext(f)[0].lower()
+        if nome in B.VOCI:
+            continue
+        try:
+            B.VOCI[nome] = pygame.mixer.Sound(os.path.join(cartella, f))
+        except pygame.error:
+            pass
+
+
 def suona(nome, quanto=0.9):
     s = SUONI.get(nome)
     if s is None:
@@ -236,13 +257,15 @@ def suona(nome, quanto=0.9):
 
 def croupier(n):
     """Il numero uscito, detto con la voce dell'arbitro del biliardo:
-    sono le stesse registrazioni, da n_001 a n_036. Lo zero non ce l'ha
-    e resta muto."""
-    if n > 0:
-        try:
-            B.dice("n_%03d" % n)
-        except AttributeError:
-            pass
+    sono le stesse registrazioni, da n_001 a n_036. Lo zero e i colori
+    stanno in audio/roulette/voce."""
+    try:
+        if n == 0:
+            B.dice("n_000", "v_zero")
+        else:
+            B.dice("n_%03d" % n, "v_red" if n in ROSSI else "v_black")
+    except AttributeError:
+        pass
 
 
 def dura_pallina():
@@ -702,6 +725,7 @@ def gioca_roulette(sc, clock, logo):
     """Si muove la fiche sul tappeto, si appoggia dove si vuole - anche
     sulle linee - poi si lancia la pallina."""
     carica_suoni()
+    carica_voce()
     tap = Tappeto()
     ruota = Ruota((B.s(345), B.ALTO + B.s(255)), B.s(360))
     puntate = {}
@@ -761,6 +785,10 @@ def gioca_roulette(sc, clock, logo):
             return
         ruota.lancia(random.choice(RUOTA))
         msg, sotto, vinto = T("ball"), "", 0
+        try:
+            B.dice("v_nomore")
+        except AttributeError:
+            pass
         if suona("pallina", 0.85) is None:
             B.suona_fx("menu_apri", 0.8)
 
