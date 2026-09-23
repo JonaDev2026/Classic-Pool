@@ -4531,12 +4531,21 @@ def nome_mazzo(cartella):
     return NOMI_MAZZI.get(cartella, cartella.replace("_", " ").title())
 
 
+# il dorso che parte in automatico, gioco per gioco
+MAZZO_PREDEFINITO = {"texas": "francesi_texas_verde-acqua",
+                     "blackjack": "francesi_texas_nero",
+                     "bridge": "francesi_texas_viola"}
+
+
 def mazzo_del_gioco(chiave, tipo):
     """Il mazzo scelto per quel gioco (ognuno si ricorda il suo)."""
     m = mazzi_per(tipo)
     if not m:
         return 0
     voglio = B.CFG.get("mazzo_" + chiave)
+    if not any(x[0] == voglio for x in m):
+        # mai scelto, o scelto un mazzo che non c'e' piu'
+        voglio = MAZZO_PREDEFINITO.get(chiave, voglio)
     if chiave == "ramino":
         # nel ramino il mazzo non si sceglie da solo: lo dicono il
         # disegno e i due colori, e le facce sono quelle del primo
