@@ -534,17 +534,38 @@ def cornice_neon(sc, r, t, raggio=None):
 VETRO = [None]
 
 
+# i rulli: chiari come le macchine di una volta, o scuri come quelle
+# moderne. Basta cambiare questa riga.
+RULLI_CHIARI = False
+
+
 def vetro_fondo(misura):
-    """Il fondo dei rulli: crema, come i rulli veri delle macchine di una
-    volta, con un'ombra leggera in alto e in basso."""
+    """Il fondo dei rulli fatto come un cilindro vero: si scurisce verso
+    l'alto e verso il basso, dove il rullo gira via, e in mezzo prende la
+    luce, con un filo di riflesso sul vetro."""
     if VETRO[0] is None or VETRO[0].get_size() != misura:
         w, h = misura
         q = pygame.Surface(misura)
+        if RULLI_CHIARI:
+            mezzo, bordo = (250, 246, 236), (188, 180, 164)
+        else:
+            mezzo, bordo = (54, 50, 74), (10, 10, 16)
         for y in range(h):
-            k = abs(y - h * 0.5) / (h * 0.5)      # 0 in mezzo, 1 ai bordi
-            v = 1.0 - 0.18 * k * k
-            q.fill((int(246 * v), int(241 * v), int(228 * v)),
-                   (0, y, w, 1))
+            k = abs(y - h * 0.5) / (h * 0.5)
+            k = k ** 1.6                       # il buio si stringe ai bordi
+            q.fill(tuple(int(mezzo[i] + (bordo[i] - mezzo[i]) * k)
+                         for i in range(3)), (0, y, w, 1))
+        # il riflesso del vetro: una fascia chiara che taglia in alto
+        luce = pygame.Surface(misura, pygame.SRCALPHA)
+        alto = int(h * 0.30)
+        for y in range(alto):
+            a = int(26 * (1 - y / float(alto)))
+            luce.fill((255, 255, 255, a), (0, y, w, 1))
+        basso = int(h * 0.16)
+        for y in range(basso):
+            a = int(16 * (y / float(basso)))
+            luce.fill((255, 255, 255, a), (0, h - basso + y, w, 1))
+        q.blit(luce, (0, 0))
         VETRO[0] = q
     return VETRO[0]
 
@@ -751,7 +772,8 @@ class Macchina:
             # le caselle che non c'entrano si spengono, cosi' si vede
             # bene la combinazione che sta pagando
             velo = pygame.Surface(vetro.size, pygame.SRCALPHA)
-            velo.fill((246, 241, 228, 170))
+            velo.fill((246, 241, 228, 170) if RULLI_CHIARI
+                      else (14, 13, 20, 185))
             sc.blit(velo, vetro)
             respiro = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0)
             k = 1.0 + 0.12 * respiro
@@ -795,7 +817,8 @@ class Macchina:
         sc.set_clip(vecchio)
         for c in range(1, COLONNE):
             x = vetro.x + c * cw
-            pygame.draw.line(sc, (206, 198, 180), (x, vetro.y),
+            col_r = (206, 198, 180) if RULLI_CHIARI else (86, 82, 110)
+            pygame.draw.line(sc, col_r, (x, vetro.y),
                              (x, vetro.bottom), max(1, B.s(1)))
 
     def disegna_scelte(self, voci, sel):
