@@ -16,7 +16,10 @@ B = C.B
 
 # --------------------------------------------------------------- testi
 TXT = {
-    "en": {"c_tavolo": "Table games", "c_solitari": "Solitaire",
+    "en": {"k_win": "You did it", "k_draw": "Draw", "k_one": "one card",
+           "k_three": "three cards",
+           "k_help": "arrows / mouse  move     click / ENTER  take and put     %s  to base     %s  auto     ESC  back",
+           "c_tavolo": "Table games", "c_solitari": "Solitaire",
            "klondike": "Klondike", "spider": "Spider",
            "freecell": "FreeCell", "piramide": "Pyramid",
            "cards": "Cards", "blackjack": "Blackjack",
@@ -103,7 +106,10 @@ TXT = {
            "r_ncards": "Cards",
            "r_back": "%d points short: cards back in hand",
            "help_game": "click / ENTER  play      ESC  back"},
-    "it": {"c_tavolo": "Giochi da tavolo", "c_solitari": "Solitari",
+    "it": {"k_win": "Ce l'hai fatta", "k_draw": "Pescata", "k_one": "una carta",
+           "k_three": "tre carte",
+           "k_help": "frecce / mouse  muovi     clic / INVIO  prendi e posa     %s  alla base     %s  auto     ESC  indietro",
+           "c_tavolo": "Giochi da tavolo", "c_solitari": "Solitari",
            "klondike": "Klondike", "spider": "Spider",
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Carte", "blackjack": "Blackjack",
@@ -190,7 +196,10 @@ TXT = {
            "r_ncards": "Carte",
            "r_back": "Ti mancano %d punti: carte di nuovo in mano",
            "help_game": "clic / INVIO  gioca      ESC  indietro"},
-    "fr": {"c_tavolo": "Jeux de table", "c_solitari": "Reussites",
+    "fr": {"k_win": "Vous avez reussi", "k_draw": "Pioche", "k_one": "une carte",
+           "k_three": "trois cartes",
+           "k_help": "fleches / souris  bouger     clic / ENTREE  prendre et poser     %s  a la base     %s  auto     ECHAP  retour",
+           "c_tavolo": "Jeux de table", "c_solitari": "Reussites",
            "klondike": "Klondike", "spider": "Spider",
            "freecell": "FreeCell", "piramide": "Pyramide",
            "cards": "Cartes", "blackjack": "Blackjack",
@@ -277,7 +286,10 @@ TXT = {
            "r_ncards": "Cartes",
            "r_back": "Il manque %d points : cartes reprises en main",
            "help_game": "clic / ENTREE  jouer      ECHAP  retour"},
-    "es": {"c_tavolo": "Juegos de mesa", "c_solitari": "Solitarios",
+    "es": {"k_win": "Lo has logrado", "k_draw": "Reparto", "k_one": "una carta",
+           "k_three": "tres cartas",
+           "k_help": "flechas / raton  mover     clic / INTRO  coger y poner     %s  a la base     %s  auto     ESC  atras",
+           "c_tavolo": "Juegos de mesa", "c_solitari": "Solitarios",
            "klondike": "Klondike", "spider": "Spider",
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Cartas", "blackjack": "Blackjack",
@@ -474,6 +486,8 @@ class Tavolo:
         self.mira = None        # ramino: il cursore sul mazzo o sullo scarto
         self.mira_col = VERDE   # verde se si puo' pescare, rosso se no
         self.pannello = []      # ramino: i punti, nella fascia a destra
+        self.sagome = []        # solitario: i posti vuoti, in filigrana
+        self.segna = []         # solitario: l'alone su un posto vuoto
         self.aiuto = None       # la riga dei comandi, se il gioco ne vuole una
         self.aiuto_pad = None   # la stessa riga col joystick, con le icone
         self.sel_carta = 0
@@ -925,6 +939,20 @@ class Tavolo:
                 al = C.alone(int(w * g * k), int(h * g * k),
                              max(4, int(B.s(12) * k)), self.mira_col,
                              max(3, int(B.s(6) * g * k)))
+                sup.blit(al, al.get_rect(center=(int(centro[0] * k),
+                                                 int(centro[1] * k))))
+        if self.sagome or self.segna:
+            w, h = C.misura_carta()
+            for centro, gg in self.sagome:
+                r = pygame.Rect(0, 0, int(w * gg * k), int(h * gg * k))
+                r.center = (int(centro[0] * k), int(centro[1] * k))
+                pygame.draw.rect(sup, (255, 255, 255, 46), r,
+                                 max(1, int(B.s(2) * k)),
+                                 border_radius=max(2, int(B.s(6) * k)))
+            for centro, gg, col in self.segna:
+                al = C.alone(int(w * gg * k), int(h * gg * k),
+                             max(4, int(B.s(12) * k)), col,
+                             max(3, int(B.s(6) * gg * k)))
                 sup.blit(al, al.get_rect(center=(int(centro[0] * k),
                                                  int(centro[1] * k))))
         scelta = self.scegli[self.sel_carta] if self.scegli else None
@@ -1677,6 +1705,13 @@ def partita_blackjack(tv):
 
 REGOLE_CARTE = {
     "en": {
+        "klondike": """The classic solitaire, one French deck, no money.
+- Seven columns: the first has one card, the last seven, and only the top card of each is face up.
+- Four bases, one per suit, to be filled from the Ace up to the King. When all four are done you have won.
+- On the columns you build down, always alternating red and black. You can move a single card or a whole run.
+- An empty column takes a King, on its own or with its run.
+- The stock deals to the waste; when it runs out the waste goes back under and you start again, as many times as you like.
+- ENTER or a click takes the card and puts it down; pressing it again on the same column takes the card underneath as well.""",
         "texas": """Heads-up against the dealer with a French deck, fixed limit.
 - Both post the blinds, then you get two cards each and five come face up in the middle: three (flop), one (turn), one (river).
 - After each stage there is a round of betting: check, bet, call, raise or fold. Up to three raises per round.
@@ -1722,6 +1757,13 @@ REGOLE_CARTE = {
 - The first to reach the match points loses.""",
     },
     "it": {
+        "klondike": """Il solitario classico, un mazzo francese, senza soldi.
+- Sette colonne: la prima ha una carta, l'ultima sette, e di ognuna e' scoperta solo quella in cima.
+- Quattro basi, una per seme, da riempire dall'asso al re. Quando sono tutte e quattro finite hai vinto.
+- Sulle colonne si cala a scendere, alternando sempre rosso e nero. Si sposta una carta sola o tutta la fila.
+- Sul posto vuoto ci va solo un re, da solo o con la sua fila.
+- Il tallone da' le carte allo scarto; quando finisce lo scarto torna sotto e si ricomincia, quante volte vuoi.
+- INVIO o il clic prende la carta e la posa; premendolo di nuovo sulla stessa colonna prende anche quella sotto.""",
         "texas": """Testa a testa contro il banco con le carte francesi, a puntate fisse.
 - Si mettono i bui, poi due carte a testa e cinque scoperte in mezzo: tre (flop), una (turn), una (river).
 - Dopo ogni fase c'e' un giro di puntate: check, punto, vedo, rilancio o passo. Al massimo tre rilanci per giro.
@@ -1767,6 +1809,13 @@ REGOLE_CARTE = {
 - Perde chi arriva per primo ai punti della partita.""",
     },
     "fr": {
+        "klondike": """La reussite classique, un jeu francais, sans argent.
+- Sept colonnes : la premiere a une carte, la derniere sept, et seule celle du dessus est retournee.
+- Quatre bases, une par couleur, a remplir de l'As au Roi. Quand les quatre sont pleines, c'est gagne.
+- Sur les colonnes on descend en alternant rouge et noir. On deplace une carte ou toute une suite.
+- Une colonne vide n'accepte qu'un Roi, seul ou avec sa suite.
+- La pioche donne les cartes a la defausse ; quand elle est vide la defausse repasse dessous, autant de fois que vous voulez.
+- ENTREE ou un clic prend la carte et la pose ; en appuyant encore sur la meme colonne on prend aussi celle du dessous.""",
         "texas": """Tete-a-tete contre la banque avec un jeu francais, a limite fixe.
 - On pose les blindes, puis deux cartes chacun et cinq au milieu : trois (flop), une (turn), une (river).
 - Apres chaque etape il y a un tour d'encheres : parole, miser, suivre, relancer ou se coucher. Trois relances au maximum.
@@ -1812,6 +1861,13 @@ REGOLE_CARTE = {
 - Le premier a atteindre les points de la partie perd.""",
     },
     "es": {
+        "klondike": """El solitario clasico, una baraja francesa, sin dinero.
+- Siete columnas: la primera con una carta, la ultima con siete, y solo la de arriba esta descubierta.
+- Cuatro bases, una por palo, que se llenan del As al Rey. Cuando estan las cuatro has ganado.
+- En las columnas se baja alternando siempre rojo y negro. Se mueve una carta o toda la serie.
+- En un hueco vacio solo va un Rey, solo o con su serie.
+- El mazo reparte al descarte; cuando se acaba el descarte vuelve debajo y se empieza otra vez, las veces que quieras.
+- INTRO o un clic coge la carta y la pone; pulsando otra vez en la misma columna coge tambien la de debajo.""",
         "texas": """Mano a mano contra la banca con baraja francesa, a limite fijo.
 - Se ponen las ciegas, luego dos cartas cada uno y cinco en el centro: tres (flop), una (turn), una (river).
 - Tras cada fase hay una ronda de apuestas: pasar, apostar, igualar, subir o retirarse. Maximo tres subidas por ronda.
@@ -3167,6 +3223,388 @@ def mossa_cpu_texas(mano, comuni, da_pareggiare, rilanci):
 
 # ----------------------------------------------------------------- menu
 # (chiave, partita, che carte usa)
+# ------------------------------------------------------ solitario Klondike
+# Sette colonne, quattro basi, il tallone e lo scarto. Si gioca da soli,
+# senza soldi: e' un solitario.
+RIGA_PAD_KLONDIKE = ((("croce",), "k_move"), (("a",), "k_take"),
+                     (("y",), "k_base"), (("x",), "k_auto"),
+                     (("b",), "pa_back"))
+for _l, _d in (
+        ("en", {"k_move": "move", "k_take": "take / put", "k_base": "to base",
+                "k_auto": "auto"}),
+        ("it", {"k_move": "muovi", "k_take": "prendi / posa",
+                "k_base": "alla base", "k_auto": "auto"}),
+        ("fr", {"k_move": "bouger", "k_take": "prendre / poser",
+                "k_base": "a la base", "k_auto": "auto"}),
+        ("es", {"k_move": "mover", "k_take": "coger / poner",
+                "k_base": "a la base", "k_auto": "auto"})):
+    B.TESTI.setdefault(_l, {}).update(_d)
+
+
+def aiuto_klondike():
+    return T("k_help") % (B.nome_tasto(B.tasto("cambia")),
+                          B.nome_tasto(B.tasto("gesso")))
+
+
+def carta_rossa(cod):
+    return seme(cod) in "HD"
+
+
+def quante_pesca():
+    n = B.CFG.get("klondike_pesca", 3)
+    return n if n in (1, 3) else 3
+
+
+def partita_klondike(tv):
+    """Il solitario: si scoprono le carte e si portano le quattro basi
+    dall'asso al re. Sulle colonne si cala a scendere, alternando i
+    colori; sul posto vuoto ci va solo un re."""
+    w0, h0 = C.misura_carta()
+    g = tv.g
+    w, h = w0 * g, h0 * g
+    passo_x = w * 1.16
+    x0 = tv.z.centerx - passo_x * 3.0
+    y_su = tv.z.top + h * 0.58
+    y_col = y_su + h * 1.16
+    tv.aiuto = aiuto_klondike
+    tv.aiuto_pad = RIGA_PAD_KLONDIKE
+
+    POSTI = [("tallone", 0), ("scarto", 0)] + \
+        [("base", i) for i in range(4)] + \
+        [("colonna", i) for i in range(7)]
+
+    def x_di(p):
+        tipo, i = p
+        if tipo == "tallone":
+            return 0
+        if tipo == "scarto":
+            return 1
+        if tipo == "base":
+            return 3 + i
+        return i
+
+    def centro_di(p):
+        tipo, i = p
+        if tipo == "tallone":
+            return (x0, y_su)
+        if tipo == "scarto":
+            n = len(scarto)
+            f = min(n - 1, quante_mostra() - 1) if n else 0
+            return (x0 + passo_x + max(0, f) * w * 0.28, y_su)
+        if tipo == "base":
+            return (x0 + (3 + i) * passo_x, y_su)
+        cn = colonne[i]
+        if not cn:
+            return (x0 + i * passo_x, y_col)
+        return (cn[-1].a.x, cn[-1].a.y)
+
+    def carta_di(p):
+        tipo, i = p
+        pila = (tallone if tipo == "tallone" else scarto if tipo == "scarto"
+                else basi[i] if tipo == "base" else colonne[i])
+        return pila[-1] if pila else None
+
+    def quante_mostra():
+        return 3 if quante_pesca() > 1 else 1
+
+    def metti(c, dove, faccia, suono=None):
+        if abs(c.a.x - dove[0]) > 0.5 or abs(c.a.y - dove[1]) > 0.5 or \
+                c.gira_a != faccia or abs(c.g_a - g) > 0.01:
+            tv.sposta(c, dove, 0.0, scoperta=faccia, suono=suono, grande=g)
+        else:
+            tv.in_cima(c)
+
+    def passi_colonna(cn):
+        """Quanto scendono le carte: se la colonna e' lunga si stringono."""
+        coperte = sum(1 for c in cn if not c.gira_a)
+        scoperte = len(cn) - coperte
+        p1, p2 = h * 0.20, h * 0.30
+        spazio = tv.z.bottom - B.s(14) - (y_col + h / 2.0)
+        serve = coperte * p1 + max(0, scoperte - 1) * p2
+        if serve > spazio > 0:
+            k = spazio / serve
+            p1, p2 = p1 * k, p2 * k
+        return p1, p2
+
+    def sistema():
+        """Rimette tutto al suo posto, anche l'ordine di disegno."""
+        for c in tallone:
+            metti(c, (x0, y_su), False)
+        n, mostra = len(scarto), quante_mostra()
+        for k, c in enumerate(scarto):
+            f = max(0, k - (n - mostra))
+            metti(c, (x0 + passo_x + f * w * 0.28, y_su), True)
+        for i, b in enumerate(basi):
+            for c in b:
+                metti(c, (x0 + (3 + i) * passo_x, y_su), True)
+        for i, cn in enumerate(colonne):
+            p1, p2 = passi_colonna(cn)
+            y = y_col
+            for c in cn:
+                metti(c, (x0 + i * passo_x, y), c.gira_a)
+                y += p2 if c.gira_a else p1
+        for c in presi:                 # quelle in mano sempre sopra
+            tv.in_cima(c)
+
+    def scopri(c):
+        if not c.gira_a:
+            tv.sposta(c, (c.a.x, c.a.y), 0.0, scoperta=True, grande=g,
+                      suono="giocata")
+            return True
+        return False
+
+    def pila_di(c):
+        if c in scarto:
+            return scarto
+        for b in basi:
+            if c in b:
+                return b
+        for cn in colonne:
+            if c in cn:
+                return cn
+        return None
+
+    def puo_base(c, i):
+        return seme(c.codice) == "SHDC"[i] and \
+            rango(c.codice) == len(basi[i]) + 1
+
+    def puo_colonna(c, i):
+        cn = colonne[i]
+        if not cn:
+            return rango(c.codice) == 13
+        t = cn[-1]
+        return t.gira_a and rango(c.codice) == rango(t.codice) - 1 and \
+            carta_rossa(c.codice) != carta_rossa(t.codice)
+
+    def sposta_via(carte):
+        """Toglie le carte dalla pila dov'erano e scopre quella sotto."""
+        pila = pila_di(carte[0])
+        if pila is None:
+            return
+        for c in carte:
+            if c in pila:
+                pila.remove(c)
+        if pila in colonne and pila:
+            scopri(pila[-1])
+
+    def in_base(c, suono="giocata"):
+        """Porta una carta sulla sua base, se ci sta."""
+        i = "SHDC".index(seme(c.codice))
+        if not puo_base(c, i):
+            return False
+        sposta_via([c])
+        basi[i].append(c)
+        C.suona(suono)
+        return True
+
+    def auto():
+        """Manda in base tutto quello che ci puo' andare."""
+        fatto = False
+        while True:
+            giro = False
+            for pila in [scarto] + colonne:
+                if pila and pila[-1].gira_a and in_base(pila[-1]):
+                    giro = fatto = True
+            if not giro:
+                return fatto
+
+    def gira_tallone():
+        if tallone:
+            for _ in range(min(quante_pesca(), len(tallone))):
+                scarto.append(tallone.pop())
+            C.suona("servi")
+        elif scarto:
+            tallone[:] = list(reversed(scarto))
+            del scarto[:]
+            C.suona("cattura")
+
+    def posa(p):
+        tipo, i = p
+        if tipo == "base":
+            if len(presi) == 1 and puo_base(presi[0], i):
+                sposta_via(presi)
+                basi[i].append(presi[0])
+                del presi[:]
+                C.suona("giocata")
+                return True
+        elif tipo == "colonna":
+            if puo_colonna(presi[0], i):
+                carte = list(presi)
+                sposta_via(carte)
+                colonne[i].extend(carte)
+                del presi[:]
+                C.suona("giocata")
+                return True
+        return False
+
+    def prendi(p):
+        tipo, i = p
+        if tipo == "tallone":
+            gira_tallone()
+            return
+        if tipo == "scarto" and scarto:
+            presi[:] = [scarto[-1]]
+        elif tipo == "base" and basi[i]:
+            presi[:] = [basi[i][-1]]
+        elif tipo == "colonna" and colonne[i]:
+            cn = colonne[i]
+            if not cn[-1].gira_a:
+                scopri(cn[-1])
+                return
+            presi[:] = [cn[-1]]
+        if presi:
+            C.suona("cattura")
+
+    def azione(p):
+        """Il tasto A sul posto dove sta il cursore."""
+        tipo, i = p
+        if presi and tipo == "colonna" and presi[0] in colonne[i]:
+            # un altro invio sulla stessa colonna prende anche quella
+            # sotto; quando non si puo' piu', lascia
+            cn = colonne[i]
+            k = cn.index(presi[0])
+            if k > 0 and cn[k - 1].gira_a:
+                presi[:] = cn[k - 1:]
+                C.suona("cattura")
+            else:
+                del presi[:]
+            return
+        if presi:
+            if not posa(p):
+                C.suona("errore")
+                del presi[:]
+            return
+        prendi(p)
+
+    def posto_sotto():
+        """Su che posto sta il mouse."""
+        m = B.mouse_gioco()
+        for p in POSTI:
+            tipo, i = p
+            if tipo == "colonna":
+                cn = colonne[i]
+                alto = h if not cn else (cn[-1].a.y - y_col) + h
+                r = pygame.Rect(x0 + i * passo_x - w / 2, y_col - h / 2,
+                                w, alto)
+            else:
+                cx, cy = centro_di(p)
+                largo = w + (w * 0.28 * (quante_mostra() - 1)
+                             if tipo == "scarto" else 0)
+                r = pygame.Rect(cx - largo + w / 2 if tipo == "scarto"
+                                else cx - w / 2, cy - h / 2, largo, h)
+            if r.collidepoint(m):
+                return p
+        return None
+
+    def carta_sotto():
+        m = B.mouse_gioco()
+        for c in reversed(tv.carte):
+            r = pygame.Rect(c.pos.x - w / 2, c.pos.y - h / 2 - c.su, w, h)
+            if r.collidepoint(m):
+                return c
+        return None
+
+    while True:
+        tv.nuovo_mazzo(mazzo_francese(1))
+        random.shuffle(tv.mazzo)
+        for k, c in enumerate(tv.mazzo):
+            c.vai(tv.posto_mazzo(k), 0.0, scoperta=False)
+        tallone = list(tv.mazzo)
+        tv.mazzo = []
+        scarto = []
+        basi = [[], [], [], []]
+        colonne = [[] for _ in range(7)]
+        presi = []
+        cur = 6                     # il cursore parte sulla prima colonna
+        tv.sagome = [((x0, y_su), g), ((x0 + passo_x, y_su), g)] + \
+            [((x0 + (3 + i) * passo_x, y_su), g) for i in range(4)] + \
+            [((x0 + i * passo_x, y_col), g) for i in range(7)]
+        # si da': la prima colonna una carta, l'ultima sette
+        for i in range(7):
+            for j in range(i, 7):
+                colonne[j].append(tallone.pop())
+        for cn in colonne:
+            cn[-1].gira_a = True
+        sistema()
+        yield from tv.fermi()
+        C.suona("servi")
+        nuova = False
+        while not nuova:
+            tv.cursore = carta_di(POSTI[cur]) if not presi else None
+            tv.selezionate = list(presi)
+            c_cur = carta_di(POSTI[cur])
+            tv.segna = [] if c_cur is not None else \
+                [(centro_di(POSTI[cur]), g, VERDE)]
+            sistema()
+            yield
+            if sum(len(b) for b in basi) == 52:
+                break
+            sopra = posto_sotto() if B.MOUSE_VIVO[0] else None
+            if sopra is not None:
+                cur = POSTI.index(sopra)
+            for ev in tv.eventi:
+                if ev.type == pygame.KEYDOWN:
+                    if ev.key in (pygame.K_LEFT, pygame.K_a,
+                                  pygame.K_RIGHT, pygame.K_d):
+                        verso = -1 if ev.key in (pygame.K_LEFT,
+                                                 pygame.K_a) else 1
+                        if cur < 6:
+                            cur = (cur + verso) % 6
+                        else:
+                            cur = 6 + (cur - 6 + verso) % 7
+                    elif ev.key in (pygame.K_UP, pygame.K_w, pygame.K_DOWN,
+                                    pygame.K_s):
+                        x = x_di(POSTI[cur])
+                        if cur < 6:
+                            cur = 6 + min(6, x)
+                        else:
+                            cur = min(range(6), key=lambda k:
+                                      abs(x_di(POSTI[k]) - x))
+                    elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                                    pygame.K_SPACE):
+                        azione(POSTI[cur])
+                    elif ev.key == B.tasto("cambia"):
+                        # in base al volo: la carta sotto il cursore
+                        c = presi[0] if len(presi) == 1 else carta_di(
+                            POSTI[cur])
+                        if c is not None and c.gira_a and in_base(c):
+                            del presi[:]
+                        else:
+                            C.suona("errore")
+                    elif ev.key == B.tasto("gesso"):
+                        if not auto():
+                            C.suona("errore")
+                    elif ev.key == B.tasto("eff_via"):
+                        nuova = True
+                if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                    p = posto_sotto()
+                    if p is None:
+                        continue
+                    cur = POSTI.index(p)
+                    c = carta_sotto()
+                    tipo, i = p
+                    if not presi and tipo == "colonna" and c is not None \
+                            and c in colonne[i] and c.gira_a:
+                        k = colonne[i].index(c)
+                        presi[:] = colonne[i][k:]
+                        C.suona("cattura")
+                    else:
+                        azione(p)
+                if ev.type == pygame.MOUSEWHEEL and presi:
+                    del presi[:]
+        tv.cursore = None
+        tv.selezionate = []
+        tv.segna = []
+        del presi[:]
+        if not nuova:
+            C.suona("levelup")
+            tv.righe = [T("k_win")]
+            i = yield from tv.chiedi([T("again"), T("back")])
+            tv.righe = []
+            if i == 1:
+                return "menu"
+
+
 GIOCHI = (("blackjack", partita_blackjack, "francesi"),
           ("sette", partita_sette, "italiane"),
           ("scopa", partita_scopa, "italiane"),
@@ -3176,7 +3614,7 @@ GIOCHI = (("blackjack", partita_blackjack, "francesi"),
 
 # i solitari: si gioca da soli, senza avversario e senza soldi. Quelli
 # con None non ci sono ancora e nel menu dicono "presto"
-SOLITARI = (("klondike", None, "francesi"),
+SOLITARI = (("klondike", partita_klondike, "francesi"),
             ("spider", None, "francesi"),
             ("freecell", None, "francesi"),
             ("piramide", None, "francesi"))
@@ -3211,10 +3649,13 @@ def mazzo_del_gioco(chiave, tipo):
 
 def gioca_gioco(sc, clock, chiave, partita, tipo):
     mazzo_del_gioco(chiave, tipo)
-    nomi = [nome_giocatore(),
-            T("banker") if partita is partita_sette else
-            T("dealer") if partita in (partita_blackjack, partita_texas)
-            else random.choice(B.AVVERSARI)]
+    if any(chiave == k for k, _p, _t in SOLITARI):
+        nomi = [nome_giocatore()]       # il solitario si gioca da soli
+    else:
+        nomi = [nome_giocatore(),
+                T("banker") if partita is partita_sette else
+                T("dealer") if partita in (partita_blackjack, partita_texas)
+                else random.choice(B.AVVERSARI)]
     C.carica_suoni()
     C.musica_carte()
     tv = Tavolo(sc, clock, nomi, chiave)
@@ -3413,10 +3854,14 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
                     (T("col_a"), colore(due[0])),
                     (T("col_b"), colore(due[1])),
                     (T("limite"), str(punti_partita()))]
+        righe = []
         if ha_mazzi():
             i = mazzo_del_gioco(chiave, tipo)
-            return [(T("deck"), nome_mazzo(mazzi()[i][0]))]
-        return []
+            righe.append((T("deck"), nome_mazzo(mazzi()[i][0])))
+        if chiave == "klondike":
+            righe.append((T("k_draw"), T("k_one") if quante_pesca() == 1
+                          else T("k_three")))
+        return righe
 
     def voci():
         return [(T("play"), None)] + righe_mazzo() + \
@@ -3448,12 +3893,20 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
             B.salva_config()
             B.suona_fx("menu_tic", 0.6)
             return
+        righe = righe_mazzo()
+        if not 1 <= i <= len(righe):
+            return
+        et = righe[i - 1][0]
         m = mazzi()
-        if i == 1 and len(m) > 1:
+        if et == T("deck") and len(m) > 1:
             k = (mazzo_del_gioco(chiave, tipo) + verso) % len(m)
             B.CFG["mazzo_" + chiave] = m[k][0]
-            B.salva_config()
-            B.suona_fx("menu_tic", 0.6)
+        elif et == T("k_draw"):
+            B.CFG["klondike_pesca"] = 1 if quante_pesca() == 3 else 3
+        else:
+            return
+        B.salva_config()
+        B.suona_fx("menu_tic", 0.6)
 
     def scelta(i):
         if i == 0:
@@ -3475,7 +3928,7 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
             if dis is None:
                 return
             anteprima_due(sc, due, centro)
-        else:
+        elif righe_mazzo()[sel - 1][0] == T("deck"):
             anteprima_mazzo(sc, tipo, centro)
 
     while True:
