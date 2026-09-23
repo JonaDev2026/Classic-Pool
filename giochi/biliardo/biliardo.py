@@ -9713,12 +9713,11 @@ def righe_setting(pagina, blocca_tavolo):
     nomi_l = dict(LINGUE)
     if pagina == "generale":
         # quelle che valgono per tutto il casino'
-        stato = ("", T("car_sure"), T("car_done"))[CARRIERA_CONF[0]]
         return [("lingua", T("language"),
                  nomi_l.get(CFG["lingua"], CFG["lingua"])),
                 ("p_audio", T("p_audio"), None),
                 ("p_grafica", T("p_grafica"), None),
-                ("carriera", T("career"), stato)]
+                ("carriera", T("career"), None)]
     if pagina == "biliardo":
         # quelle del biliardo: regole, tavolo e palle, comandi
         return [("p_regole", T("p_regole"), None),
@@ -10007,6 +10006,13 @@ def schermata_setting(sc, clock, logo, blocca_tavolo=False, pagina="radice",
                 if q is not None:
                     sc.blit(q, q.get_rect(center=(x0 + i_p * passo + passo // 2,
                                                   y)))
+        # la carriera non ha un valore accanto: quello che c'e' da dire
+        # si legge sotto le righe, in rosso
+        if CARRIERA_CONF[0]:
+            c = font.render(("", T("car_sure"), T("car_done"))[
+                CARRIERA_CONF[0]], True, (240, 96, 96))
+            sc.blit(c, c.get_rect(center=(WIN_W // 2,
+                                          rett[-1].bottom + s(40))))
         # chi ha fatto la musica, sotto le righe dell'audio
         if pagina == "audio":
             c = FONTS["mini"].render(CREDITI_MUSICA, True, (140, 148, 160))
