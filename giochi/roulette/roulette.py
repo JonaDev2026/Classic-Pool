@@ -203,6 +203,27 @@ def aiuto_roulette():
 RUOTA_GFX = [None]
 
 
+# sulla ruota fotografica lo zero non sta esattamente in cima: misurato,
+# e' spostato di cinque gradi, e la pallina deve tenerne conto
+SCARTO_PNG = math.radians(-4.9)
+
+
+def ruota_png(lato):
+    """La ruota fotografica, se c'e' il file: immagini/roulette/ruota.png,
+    con lo zero in cima e i numeri in senso orario."""
+    f = os.path.join(GFX, "ruota.png")
+    if not os.path.isfile(f):
+        return None
+    if RUOTA_GFX[0] is not None and RUOTA_GFX[0].get_width() == lato:
+        return RUOTA_GFX[0]
+    try:
+        img = pygame.image.load(f).convert_alpha()
+    except (pygame.error, OSError):
+        return None
+    RUOTA_GFX[0] = pygame.transform.smoothscale(img, (lato, lato))
+    return RUOTA_GFX[0]
+
+
 def disegna_ruota(lato):
     """La ruota vista dall'alto: la corona di legno, le trentasette
     caselle coi numeri, il mozzo dorato in mezzo. Si disegna una volta
@@ -318,8 +339,13 @@ class Ruota:
         sulla pista esterna, poi molla e scende sui numeri, con un paio
         di rimbalzi."""
         k = min(1.0, self.t / self.durata) if self.gira else 1.0
-        fuori, dentro = self.lato * 0.475, self.lato * 0.335
-        cade = 0.62                     # quando lascia la pista
+        if ruota_png(self.lato) is not None:
+            # misurati sulla ruota vera: la pista di legno e la corona
+            # dove stanno i numeri
+            fuori, dentro = self.lato * 0.468, self.lato * 0.385
+        else:
+            fuori, dentro = self.lato * 0.475, self.lato * 0.335
+        cade = 0.78                     # sta sulla pista quasi fino in fondo
         if k < cade:
             r = fuori
         else:
@@ -329,11 +355,13 @@ class Ruota:
                 self.lato * 0.035
             r = fuori + (dentro - fuori) * m + rimbalzo
         a = -math.pi / 2 + self.off + self.ang
+        if ruota_png(self.lato) is not None:
+            a += SCARTO_PNG
         return (self.centro[0] + math.cos(a) * r,
                 self.centro[1] + math.sin(a) * r)
 
     def disegna(self, sc):
-        base = disegna_ruota(self.lato)
+        base = ruota_png(self.lato) or disegna_ruota(self.lato)
         girata = pygame.transform.rotozoom(base, -math.degrees(self.ang), 1.0)
         sc.blit(girata, girata.get_rect(center=self.centro))
         if self.uscito is None and not self.gira:
