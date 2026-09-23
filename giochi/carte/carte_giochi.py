@@ -54,6 +54,7 @@ TXT = {
            "r_keep": "Keep one card to discard",
            "r_40": "Your first meld must be worth 50", "r_open_first": "Open with 50 points before you lay off", "r_one": "Pick one card to discard",
            "r_use_taken": "Use the card you took first",
+           "r_only_taken": "You must discard the card you took",
            "r_left": "Cards left",
            "r_pay": "Points",
            "cloth": "Cloth",
@@ -136,6 +137,7 @@ TXT = {
            "r_keep": "Tieni una carta da scartare",
            "r_40": "La prima calata deve fare 50", "r_open_first": "Devi aprire con 50 punti prima di attaccare", "r_one": "Scegli una carta da scartare",
            "r_use_taken": "Prima usa la carta che hai preso",
+           "r_only_taken": "Devi scartare la carta che hai preso",
            "r_left": "Carte in mano",
            "r_pay": "Punti",
            "cloth": "Panno",
@@ -218,6 +220,7 @@ TXT = {
            "r_keep": "Gardez une carte a defausser",
            "r_40": "La premiere pose doit valoir 50", "r_open_first": "Ouvrez avec 50 points avant d'ajouter", "r_one": "Choisissez une carte a defausser",
            "r_use_taken": "Utilisez d'abord la carte prise",
+           "r_only_taken": "Vous devez defausser la carte prise",
            "r_left": "Cartes en main",
            "r_pay": "Points",
            "cloth": "Tapis",
@@ -300,6 +303,7 @@ TXT = {
            "r_keep": "Guarda una carta para descartar",
            "r_40": "La primera bajada debe valer 50", "r_open_first": "Abre con 50 puntos antes de anadir", "r_one": "Elige una carta para descartar",
            "r_use_taken": "Primero usa la carta que tomaste",
+           "r_only_taken": "Debes descartar la carta que has tomado",
            "r_left": "Cartas en mano",
            "r_pay": "Puntos",
            "cloth": "Tapete",
@@ -2787,8 +2791,9 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
             if tipo == "mano":
                 # scarta: finisce il turno
                 if not aperto[0] and punti_calate[0]:
-                    # non sei arrivato a 50: torna tutto indietro, anche
-                    # la carta presa dallo scarto
+                    # non sei arrivato a 50: le carte tornano in mano.
+                    # Quella presa dallo scarto resta tua e ti tocca
+                    # scartarla: il turno l'hai buttato
                     manca = APERTURA - punti_calate[0]
                     for i, carta in reversed(attacchi):
                         if carta in tavola[i]:
@@ -2799,23 +2804,23 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                         if tavola[i] in calate:
                             riprendi(i)
                     punti_calate[0] = 0
-                    if preso_scarto[0] is not None and \
-                            preso_scarto[0] in mano:
-                        c = preso_scarto[0]
-                        mano.remove(c)
-                        scarti.append(c)
-                        tv.sposta(c, tv.P["scarti"], 0.0, scoperta=True)
-                        preso_scarto[0] = None
-                        fase[0] = "pesca"
                     a_mano[0] = True
                     rifai_tavola()
                     rifai_mano(0)
                     tv.messaggio(T("r_back") % manca, 2.0)
                     C.suona("errore")
                     continue
-                if preso_scarto[0] is dato:
-                    messaggio("r_use_taken")
-                    continue
+                if preso_scarto[0] is not None:
+                    if not aperto[0]:
+                        # hai preso dallo scarto senza essere aperto: o
+                        # apri con quella carta, o l'unica che puoi
+                        # scartare e' proprio quella, e il turno finisce
+                        if dato is not preso_scarto[0]:
+                            messaggio("r_only_taken")
+                            continue
+                    elif dato is preso_scarto[0]:
+                        messaggio("r_use_taken")
+                        continue
                 scarta(0, dato)
                 yield from tv.fermi()
                 return "chiuso" if not mano else None
