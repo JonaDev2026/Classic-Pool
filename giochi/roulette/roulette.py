@@ -224,64 +224,100 @@ def ruota_png(lato):
     return RUOTA_GFX[0]
 
 
+def _anello(q, c, r1, r2, col1, col2, passi=26):
+    """Un anello sfumato da r1 a r2: serve per dare il tondo all'ottone."""
+    for i in range(passi):
+        k = i / float(passi - 1)
+        r = int(r1 + (r2 - r1) * k)
+        col = tuple(int(col1[j] + (col2[j] - col1[j]) * k) for j in range(3))
+        pygame.draw.circle(q, col, (c, c), r,
+                           max(1, int(abs(r2 - r1) / passi) + 2))
+
+
 def disegna_ruota(lato):
-    """La ruota vista dall'alto: la corona di legno, le trentasette
-    caselle coi numeri, il mozzo dorato in mezzo. Si disegna una volta
-    sola e poi si gira."""
+    """La ruota vista dall'alto, disegnata come quelle vere: la cornice di
+    ottone, la pista larga dove corre la pallina coi suoi diamanti, la
+    corona dei numeri e la torretta in mezzo."""
     if RUOTA_GFX[0] is not None and RUOTA_GFX[0].get_width() == lato:
         return RUOTA_GFX[0]
     q = pygame.Surface((lato, lato), pygame.SRCALPHA)
     c = lato // 2
-    r_fuori = int(lato * 0.5)
-    r_banda = int(lato * 0.455)      # dove comincia la corona dei numeri
-    r_caselle = int(lato * 0.30)     # dove finisce, verso il centro
-    r_mozzo = int(lato * 0.27)
-    # la corona di legno
-    pygame.draw.circle(q, (74, 46, 28), (c, c), r_fuori)
-    pygame.draw.circle(q, (104, 68, 40), (c, c), r_fuori - max(1, lato // 80))
-    pygame.draw.circle(q, (52, 34, 22), (c, c), r_banda + max(1, lato // 110))
-    # la pista dove corre la pallina, appena dentro il bordo
-    pygame.draw.circle(q, (126, 86, 52), (c, c), int(lato * 0.492))
-    pygame.draw.circle(q, (150, 108, 66), (c, c), int(lato * 0.492),
-                       max(1, lato // 120))
-    pygame.draw.circle(q, (74, 46, 28), (c, c), int(lato * 0.462))
+    R = lato * 0.5
+    r_bordo = int(R * 0.995)
+    r_pista_f = int(R * 0.86)       # dove comincia la pista
+    r_pista_d = int(R * 0.68)       # dove finisce, verso i numeri
+    r_num_f = int(R * 0.66)
+    r_num_d = int(R * 0.45)
+    r_mozzo = int(R * 0.43)
+    ottone_c = (214, 178, 108)
+    ottone_s = (150, 112, 58)
+    # la cornice esterna, tonda
+    pygame.draw.circle(q, ottone_s, (c, c), r_bordo)
+    _anello(q, c, r_bordo, r_pista_f, (244, 222, 168), ottone_s, 34)
+    # la pista: liscia, un filo piu' scura verso il centro
+    _anello(q, c, r_pista_f, r_pista_d, (196, 158, 92), (236, 208, 150), 34)
+    pygame.draw.circle(q, (120, 88, 44), (c, c), r_pista_f, max(1, lato // 200))
+    # i diamantini che fanno ballare la pallina
+    for k in range(8):
+        a = -math.pi / 2 + k * math.pi / 4 + math.pi / 8
+        rr = (r_pista_f + r_pista_d) / 2
+        x, y = c + math.cos(a) * rr, c + math.sin(a) * rr
+        d = lato * 0.022
+        punti = [(x, y - d), (x + d * 0.62, y), (x, y + d), (x - d * 0.62, y)]
+        pygame.draw.polygon(q, (238, 214, 160), punti)
+        pygame.draw.polygon(q, (128, 94, 46), punti, max(1, lato // 300))
+    # la corona dei numeri
+    pygame.draw.circle(q, (92, 68, 34), (c, c), r_num_f)
     passo = 2 * math.pi / len(RUOTA)
-    f = pygame.font.SysFont("dejavusans", max(9, int(lato * 0.042)), bold=True)
+    f = pygame.font.SysFont("dejavusans", max(9, int(lato * 0.036)), bold=True)
     for i, n in enumerate(RUOTA):
         a0 = -math.pi / 2 + (i - 0.5) * passo
         punti = []
         for k in range(7):
             a = a0 + passo * k / 6.0
-            punti.append((c + math.cos(a) * r_banda,
-                          c + math.sin(a) * r_banda))
+            punti.append((c + math.cos(a) * (r_num_f - lato * 0.004),
+                          c + math.sin(a) * (r_num_f - lato * 0.004)))
         for k in range(6, -1, -1):
             a = a0 + passo * k / 6.0
-            punti.append((c + math.cos(a) * r_caselle,
-                          c + math.sin(a) * r_caselle))
+            punti.append((c + math.cos(a) * r_num_d,
+                          c + math.sin(a) * r_num_d))
         pygame.draw.polygon(q, colore_numero(n), punti)
-        pygame.draw.line(q, (206, 200, 190),
-                         (c + math.cos(a0) * r_caselle,
-                          c + math.sin(a0) * r_caselle),
-                         (c + math.cos(a0) * r_banda,
-                          c + math.sin(a0) * r_banda), max(1, lato // 200))
+        pygame.draw.line(q, (206, 172, 104),
+                         (c + math.cos(a0) * r_num_d,
+                          c + math.sin(a0) * r_num_d),
+                         (c + math.cos(a0) * r_num_f,
+                          c + math.sin(a0) * r_num_f),
+                         max(1, lato // 300))
         a = a0 + passo / 2
-        t = f.render(str(n), True, (255, 255, 255))
+        t = f.render(str(n), True, (250, 248, 244))
         t = pygame.transform.rotate(t, -math.degrees(a) + 90)
-        rr = int((r_banda + r_caselle) / 2)
+        rr = int(r_num_f * 0.82 + r_num_d * 0.18)
         q.blit(t, t.get_rect(center=(c + math.cos(a) * rr,
                                      c + math.sin(a) * rr)))
-    # il mozzo: ottone lucido con le razze
-    pygame.draw.circle(q, (150, 118, 62), (c, c), r_mozzo)
-    for k in range(8):
-        a = k * math.pi / 4
-        pygame.draw.line(q, (188, 154, 88), (c, c),
-                         (c + math.cos(a) * r_mozzo * 0.92,
-                          c + math.sin(a) * r_mozzo * 0.92),
-                         max(2, lato // 90))
-    pygame.draw.circle(q, (92, 70, 42), (c, c), r_mozzo, max(1, lato // 70))
-    pygame.draw.circle(q, (196, 164, 96), (c, c), int(r_mozzo * 0.42))
-    pygame.draw.circle(q, (120, 92, 50), (c, c), int(r_mozzo * 0.42),
-                       max(1, lato // 110))
+    pygame.draw.circle(q, (206, 172, 104), (c, c), r_num_f,
+                       max(1, lato // 220))
+    # il cono di mezzo e la torretta
+    _anello(q, c, r_mozzo, int(r_mozzo * 0.30), (232, 202, 142), (176, 138, 74),
+            30)
+    pygame.draw.circle(q, (150, 112, 58), (c, c), r_mozzo, max(1, lato // 260))
+    for k in range(4):
+        a = k * math.pi / 2
+        lung = r_mozzo * 0.86
+        largo = lato * 0.018
+        dx, dy = math.cos(a), math.sin(a)
+        px, py = -dy, dx
+        punti = [(c + dx * lung, c + dy * lung),
+                 (c + px * largo, c + py * largo),
+                 (c - px * largo, c - py * largo)]
+        pygame.draw.polygon(q, (238, 212, 156), punti)
+        pygame.draw.polygon(q, (140, 104, 52), punti, max(1, lato // 340))
+        pygame.draw.circle(q, (244, 224, 176),
+                           (int(c + dx * lung), int(c + dy * lung)),
+                           max(2, int(lato * 0.012)))
+    pygame.draw.circle(q, (226, 196, 136), (c, c), int(lato * 0.055))
+    pygame.draw.circle(q, (150, 112, 58), (c, c), int(lato * 0.055),
+                       max(1, lato // 300))
+    pygame.draw.circle(q, (246, 228, 184), (c, c), int(lato * 0.022))
     RUOTA_GFX[0] = q
     return q
 
@@ -340,20 +376,19 @@ class Ruota:
         di rimbalzi."""
         k = min(1.0, self.t / self.durata) if self.gira else 1.0
         if ruota_png(self.lato) is not None:
-            # misurati sulla ruota vera: la pista di legno e la corona
-            # dove stanno i numeri
             fuori, dentro = self.lato * 0.468, self.lato * 0.385
         else:
-            fuori, dentro = self.lato * 0.475, self.lato * 0.335
-        cade = 0.78                     # sta sulla pista quasi fino in fondo
+            # la pista larga e la corona dei numeri della ruota disegnata
+            fuori, dentro = self.lato * 0.385, self.lato * 0.277
+        cade = 0.68                     # fin qui corre sulla pista
         if k < cade:
             r = fuori
         else:
             t = (k - cade) / (1 - cade)
-            m = 1 - (1 - t) ** 2
-            rimbalzo = math.sin(t * math.pi * 3) * (1 - t) ** 2 * \
-                self.lato * 0.035
-            r = fuori + (dentro - fuori) * m + rimbalzo
+            # scende svelta, poi saltella sulle caselle smorzandosi
+            m = 1 - (1 - t) ** 1.6
+            salti = abs(math.sin(t * math.pi * 4.5)) * (1 - t) ** 1.4
+            r = fuori + (dentro - fuori) * m + salti * self.lato * 0.055
         a = -math.pi / 2 + self.off + self.ang
         if ruota_png(self.lato) is not None:
             a += SCARTO_PNG
@@ -616,16 +651,35 @@ def gioca_roulette(sc, clock, logo):
         lampo = (lampo + dt) % 1.0
         mouse = B.mouse_gioco()
         tasti = pygame.key.get_pressed()
-        # con le frecce la fiche scivola, col mouse la segue
+        # con le frecce, con la levetta o con la croce la fiche scivola;
+        # col mouse la segue
         passo = B.s(420) * dt
+        vx = vy = 0.0
         if tasti[pygame.K_LEFT] or tasti[pygame.K_a]:
-            mano[0] -= passo
+            vx -= 1
         if tasti[pygame.K_RIGHT] or tasti[pygame.K_d]:
-            mano[0] += passo
+            vx += 1
         if tasti[pygame.K_UP] or tasti[pygame.K_w]:
-            mano[1] -= passo
+            vy -= 1
         if tasti[pygame.K_DOWN] or tasti[pygame.K_s]:
-            mano[1] += passo
+            vy += 1
+        c = B.pad()
+        if c is not None:
+            lx = B.pad_asse(c, pygame.CONTROLLER_AXIS_LEFTX)
+            ly = B.pad_asse(c, pygame.CONTROLLER_AXIS_LEFTY)
+            if abs(lx) > 0.15 or abs(ly) > 0.15:
+                vx += lx
+                vy += ly
+            if B.pad_tasto(c, pygame.CONTROLLER_BUTTON_DPAD_LEFT):
+                vx -= 1
+            if B.pad_tasto(c, pygame.CONTROLLER_BUTTON_DPAD_RIGHT):
+                vx += 1
+            if B.pad_tasto(c, pygame.CONTROLLER_BUTTON_DPAD_UP):
+                vy -= 1
+            if B.pad_tasto(c, pygame.CONTROLLER_BUTTON_DPAD_DOWN):
+                vy += 1
+        mano[0] += vx * passo
+        mano[1] += vy * passo
         if B.MOUSE_VIVO[0]:
             largo = zona.inflate(B.s(60), B.s(60))
             if largo.collidepoint(mouse):
@@ -643,6 +697,16 @@ def gioca_roulette(sc, clock, logo):
                 if ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
                               pygame.K_SPACE):
                     punta()
+                elif ev.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP,
+                                pygame.K_DOWN) and getattr(ev, "dal_pad",
+                                                           False):
+                    # uno scatto di mezza casella, per chi va a scatti
+                    mano[0] += (tap.w // 2) * (1 if ev.key == pygame.K_RIGHT
+                                               else -1 if ev.key == pygame.K_LEFT
+                                               else 0)
+                    mano[1] += (tap.h // 2) * (1 if ev.key == pygame.K_DOWN
+                                               else -1 if ev.key == pygame.K_UP
+                                               else 0)
                 elif ev.key == B.tasto("cambia"):
                     cambia_fiche(1)
                 elif ev.key == B.tasto("gesso"):
