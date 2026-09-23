@@ -34,6 +34,40 @@ RUOTA = (0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
          26)
 ROSSI = (1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36)
 
+# la ruota americana: trentotto caselle, c'e' anche lo zero doppio, e
+# i numeri stanno in un ordine tutto suo
+ZERO2 = 37                  # dentro al programma lo zero doppio e' 37
+RUOTA_US = (0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36,
+            13, 1, ZERO2, 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16,
+            4, 23, 35, 14, 2)
+
+# nome, come si chiama, che ruota, zero doppio, meta' indietro sullo zero
+TAVOLI = (("europea", "t_eu", RUOTA, False, False),
+          ("francese", "t_fr", RUOTA, False, True),
+          ("americana", "t_us", RUOTA_US, True, False))
+
+ORDINE = [RUOTA]            # la ruota in uso adesso
+DOPPIO = [False]
+PARTAGE = [False]
+TIPO = ["europea"]
+
+
+def scegli_tavolo(nome):
+    """Cambia tavolo: ruota, zeri e regola della meta'."""
+    for n, _t, ordine, doppio, partage in TAVOLI:
+        if n != nome:
+            continue
+        TIPO[0], ORDINE[0] = n, ordine
+        DOPPIO[0], PARTAGE[0] = doppio, partage
+        SCODELLA[0] = None
+        ROTORE[0] = None
+        return
+
+
+def scritto(n):
+    """Come si scrive un numero: lo zero doppio e' "00"."""
+    return "00" if n == ZERO2 else str(n)
+
 VERDE_PANNO = (16, 88, 56)
 VERDE_SCURO = (11, 64, 41)
 ROSSO_N = (176, 32, 40)
@@ -42,7 +76,7 @@ ORO = (214, 178, 94)
 
 
 def colore_numero(n):
-    if n == 0:
+    if n in (0, ZERO2):
         return VERDE_PANNO
     return ROSSO_N if n in ROSSI else NERO_N
 
@@ -75,7 +109,7 @@ PAGA_PIENO = 35             # il numero secco
 FICHES = (5, 10, 25, 100, 500)
 
 
-PAGA_QUANTI = {1: 35, 2: 17, 3: 11, 4: 8, 6: 5}
+PAGA_QUANTI = {1: 35, 2: 17, 3: 11, 4: 8, 5: 6, 6: 5}
 
 
 def copre(chiave):
@@ -105,16 +139,24 @@ def vincita(puntate, uscito):
     """Quanto rende il colpo: la puntata torna indietro piu' il premio."""
     tot = 0
     vinte = []
+    meta = ("rosso", "nero", "pari", "dispari", "basso", "alto")
     for chiave, soldi in puntate.items():
         if uscito in copre(chiave):
             tot += soldi + soldi * quanto_paga(chiave)
             vinte.append(chiave)
+        elif PARTAGE[0] and uscito == 0 and chiave in meta:
+            # tavolo francese: sullo zero le puntate semplici tornano
+            # indietro a meta'
+            tot += soldi // 2
     return tot, vinte
 
 
 # -------------------------------------------------------------- i testi
 TXT = {
-    "en": {"roulette": "Roulette", "spin": "Spin", "chip": "Chip",
+    "en": {"t_eu": "European", "t_fr": "French", "t_us": "American",
+           "t_eu_d": "Single zero", "t_fr_d": "Single zero, half back on zero",
+           "t_us_d": "Double zero", "table": "Choose the table",
+           "roulette": "Roulette", "spin": "Spin", "chip": "Chip",
            "clear": "Clear", "back": "Back", "bet": "Bet",
            "win": "You win %s", "no_win": "Nothing", "broke": "Not enough money",
            "last": "Last numbers", "place": "Place your bets",
@@ -124,7 +166,10 @@ TXT = {
            "help": "arrows / mouse  move     click / ENTER  bet     %s  chip     %s  spin     ESC  back",
            "rl_move": "choose", "rl_bet": "bet", "rl_spin": "spin",
            "rl_chip": "chip"},
-    "it": {"roulette": "Roulette", "spin": "Gira", "chip": "Fiche",
+    "it": {"t_eu": "Europea", "t_fr": "Francese", "t_us": "Americana",
+           "t_eu_d": "Uno zero", "t_fr_d": "Uno zero, meta' indietro sullo zero",
+           "t_us_d": "Due zeri", "table": "Scegli il tavolo",
+           "roulette": "Roulette", "spin": "Gira", "chip": "Fiche",
            "clear": "Pulisci", "back": "Indietro", "bet": "Puntata",
            "win": "Vinci %s", "no_win": "Niente", "broke": "Non hai abbastanza soldi",
            "last": "Ultimi numeri", "place": "Fate il vostro gioco",
@@ -135,7 +180,10 @@ TXT = {
            "help": "frecce / mouse  muovi     clic / INVIO  punta     %s  fiche     %s  gira     ESC  indietro",
            "rl_move": "scegli", "rl_bet": "punta", "rl_spin": "gira",
            "rl_chip": "fiche"},
-    "fr": {"roulette": "Roulette", "spin": "Tourner", "chip": "Jeton",
+    "fr": {"t_eu": "Europeenne", "t_fr": "Francaise", "t_us": "Americaine",
+           "t_eu_d": "Un seul zero", "t_fr_d": "Un zero, moitie rendue sur le zero",
+           "t_us_d": "Double zero", "table": "Choisissez la table",
+           "roulette": "Roulette", "spin": "Tourner", "chip": "Jeton",
            "clear": "Effacer", "back": "Retour", "bet": "Mise",
            "win": "Vous gagnez %s", "no_win": "Rien",
            "broke": "Pas assez d'argent", "last": "Derniers numeros",
@@ -146,7 +194,10 @@ TXT = {
            "help": "fleches / souris  deplacer     clic / ENTREE  miser     %s  jeton     %s  tourner     ECHAP  retour",
            "rl_move": "choisir", "rl_bet": "miser", "rl_spin": "tourner",
            "rl_chip": "jeton"},
-    "es": {"roulette": "Ruleta", "spin": "Girar", "chip": "Ficha",
+    "es": {"t_eu": "Europea", "t_fr": "Francesa", "t_us": "Americana",
+           "t_eu_d": "Un cero", "t_fr_d": "Un cero, mitad devuelta en el cero",
+           "t_us_d": "Doble cero", "table": "Elige la mesa",
+           "roulette": "Ruleta", "spin": "Girar", "chip": "Ficha",
            "clear": "Limpiar", "back": "Atras", "bet": "Apuesta",
            "win": "Ganas %s", "no_win": "Nada",
            "broke": "No tienes bastante dinero", "last": "Ultimos numeros",
@@ -172,10 +223,11 @@ def T(k):
 def nome_puntata(chiave):
     if isinstance(chiave, tuple):
         if len(chiave) == 2:
-            return "%d-%d" % chiave
-        return "%d-%d (%d)" % (chiave[0], chiave[-1], len(chiave))
+            return "%s-%s" % (scritto(chiave[0]), scritto(chiave[1]))
+        return "%s-%s (%d)" % (scritto(chiave[0]), scritto(chiave[-1]),
+                               len(chiave))
     if isinstance(chiave, int):
-        return str(chiave)
+        return scritto(chiave)
     return T(NOMI_FUORI.get(chiave, chiave))
 
 
@@ -267,7 +319,7 @@ def croupier(n):
     """Il numero uscito, detto con la voce dell'arbitro del biliardo:
     sono le stesse registrazioni, da n_001 a n_036. Lo zero e i colori
     li fa croupier.py, stessa voce, in audio/roulette/voce."""
-    if n == 0:
+    if n in (0, ZERO2):
         voce("v_zero")
     else:
         voce("n_%03d" % n, "v_red" if n in ROSSI else "v_black")
@@ -318,27 +370,39 @@ def _anello(q, c, r1, r2, col1, col2, passi=26):
 SCODELLA = [None]
 ROTORE = [None]
 
-LEGNO_C = (56, 33, 20)
-LEGNO_S = (24, 14, 9)
-BRONZO = (216, 178, 98)   # l'oro dei diamanti, delle righe e della croce
+# ogni tavolo ha il suo legno: fuori, dentro, la pista, il fondo della
+# corona, e il metallo di diamanti, righe e croce
+LEGNI = {
+    "europea": ((56, 33, 20), (28, 16, 10), (46, 27, 17), (30, 18, 11),
+                (34, 20, 13), (216, 178, 98)),
+    "francese": ((74, 26, 26), (34, 13, 13), (58, 22, 22), (36, 14, 14),
+                 (40, 16, 16), (226, 190, 110)),
+    "americana": ((40, 40, 46), (18, 18, 22), (34, 34, 40), (20, 20, 25),
+                  (24, 24, 29), (198, 204, 214)),
+}
+
+
+def legno():
+    return LEGNI.get(TIPO[0], LEGNI["europea"])
 
 
 def scodella(lato):
     """La parte ferma: la cornice di legno scuro e la pista larga dove
     corre la pallina, coi diamantini che la fanno ballare."""
-    if SCODELLA[0] is not None and SCODELLA[0].get_width() == lato:
-        return SCODELLA[0]
+    if SCODELLA[0] is not None and SCODELLA[0][0] == (lato, TIPO[0]):
+        return SCODELLA[0][1]
     q = pygame.Surface((lato, lato), pygame.SRCALPHA)
     c = lato // 2
     R = lato * 0.5
     r_bordo = int(R * 0.995)
     r_pista_f = int(R * 0.86)       # dove comincia la pista
     r_pista_d = int(R * 0.68)       # dove finisce, verso i numeri
-    pygame.draw.circle(q, LEGNO_S, (c, c), r_bordo)
-    _anello(q, c, r_bordo, r_pista_f, LEGNO_C, (28, 16, 10), 34)
+    fuori, dentro, pista1, pista2, _fondo, oro = legno()
+    pygame.draw.circle(q, dentro, (c, c), r_bordo)
+    _anello(q, c, r_bordo, r_pista_f, fuori, dentro, 34)
     # la pista: liscia e scura, un filo piu' chiara sul fondo
-    _anello(q, c, r_pista_f, r_pista_d, (46, 27, 17), (30, 18, 11), 34)
-    pygame.draw.circle(q, BRONZO, (c, c), r_pista_f, max(1, lato // 240))
+    _anello(q, c, r_pista_f, r_pista_d, pista1, pista2, 34)
+    pygame.draw.circle(q, oro, (c, c), r_pista_f, max(1, lato // 240))
     pygame.draw.circle(q, (28, 16, 10), (c, c), r_pista_d, max(1, lato // 280))
     for k in range(8):
         a = -math.pi / 2 + k * math.pi / 4 + math.pi / 8
@@ -346,15 +410,16 @@ def scodella(lato):
         x, y = c + math.cos(a) * rr, c + math.sin(a) * rr
         d = lato * 0.022
         punti = [(x, y - d), (x + d * 0.62, y), (x, y + d), (x - d * 0.62, y)]
-        pygame.draw.polygon(q, (238, 206, 126), punti)
-        pygame.draw.polygon(q, (150, 112, 44), punti, max(1, lato // 300))
-    SCODELLA[0] = q
+        pygame.draw.polygon(q, tuple(min(255, v + 26) for v in oro), punti)
+        pygame.draw.polygon(q, tuple(int(v * 0.62) for v in oro), punti,
+                            max(1, lato // 300))
+    SCODELLA[0] = ((lato, TIPO[0]), q)
     return q
 
 
 def rotore(lato):
     """La parte che gira: la corona dei numeri e la torretta in mezzo."""
-    if ROTORE[0] is not None and ROTORE[0][0] == lato:
+    if ROTORE[0] is not None and ROTORE[0][0] == (lato, TIPO[0]):
         return ROTORE[0][1]
     R = lato * 0.5
     r_num_f = int(R * 0.66)
@@ -363,10 +428,14 @@ def rotore(lato):
     l2 = r_num_f * 2 + 4
     q = pygame.Surface((l2, l2), pygame.SRCALPHA)
     c = l2 // 2
-    pygame.draw.circle(q, (34, 20, 13), (c, c), r_num_f)
-    passo = 2 * math.pi / len(RUOTA)
-    f = pygame.font.SysFont("dejavusans", max(9, int(lato * 0.036)), bold=True)
-    for i, n in enumerate(RUOTA):
+    _f1, _f2, _p1, _p2, fondo, oro = legno()
+    pygame.draw.circle(q, fondo, (c, c), r_num_f)
+    quante = len(ORDINE[0])
+    passo = 2 * math.pi / quante
+    f = pygame.font.SysFont("dejavusans",
+                            max(8, int(lato * (0.036 if quante < 38 else
+                                               0.032))), bold=True)
+    for i, n in enumerate(ORDINE[0]):
         a0 = -math.pi / 2 + (i - 0.5) * passo
         punti = []
         for k in range(7):
@@ -378,22 +447,22 @@ def rotore(lato):
             punti.append((c + math.cos(a) * r_num_d,
                           c + math.sin(a) * r_num_d))
         pygame.draw.polygon(q, colore_numero(n), punti)
-        pygame.draw.line(q, BRONZO,
+        pygame.draw.line(q, oro,
                          (c + math.cos(a0) * r_num_d,
                           c + math.sin(a0) * r_num_d),
                          (c + math.cos(a0) * r_num_f,
                           c + math.sin(a0) * r_num_f),
                          max(1, lato // 300))
         a = a0 + passo / 2
-        t = f.render(str(n), True, (250, 248, 244))
+        t = f.render(scritto(n), True, (250, 248, 244))
         t = pygame.transform.rotate(t, -math.degrees(a) + 90)
         rr = int(r_num_f * 0.82 + r_num_d * 0.18)
         q.blit(t, t.get_rect(center=(c + math.cos(a) * rr,
                                      c + math.sin(a) * rr)))
-    pygame.draw.circle(q, BRONZO, (c, c), r_num_f, max(1, lato // 220))
-    # il cono di mezzo e la torretta, sempre legno scuro
-    _anello(q, c, r_mozzo, int(r_mozzo * 0.30), (54, 32, 19), (26, 15, 9), 30)
-    pygame.draw.circle(q, (30, 18, 11), (c, c), r_mozzo, max(1, lato // 260))
+    pygame.draw.circle(q, oro, (c, c), r_num_f, max(1, lato // 220))
+    # il cono di mezzo e la torretta
+    _anello(q, c, r_mozzo, int(r_mozzo * 0.30), _f1, _f2, 30)
+    pygame.draw.circle(q, _f2, (c, c), r_mozzo, max(1, lato // 260))
     for k in range(4):
         a = k * math.pi / 2
         lung = r_mozzo * 0.86
@@ -403,16 +472,19 @@ def rotore(lato):
         punti = [(c + dx * lung, c + dy * lung),
                  (c + px * largo, c + py * largo),
                  (c - px * largo, c - py * largo)]
-        pygame.draw.polygon(q, (222, 184, 104), punti)
-        pygame.draw.polygon(q, (148, 110, 42), punti, max(1, lato // 340))
-        pygame.draw.circle(q, (246, 222, 156),
+        pygame.draw.polygon(q, oro, punti)
+        pygame.draw.polygon(q, tuple(int(v * 0.6) for v in oro), punti,
+                            max(1, lato // 340))
+        pygame.draw.circle(q, tuple(min(255, v + 30) for v in oro),
                            (int(c + dx * lung), int(c + dy * lung)),
                            max(2, int(lato * 0.012)))
-    pygame.draw.circle(q, (206, 168, 88), (c, c), int(lato * 0.055))
-    pygame.draw.circle(q, (140, 104, 40), (c, c), int(lato * 0.055),
-                       max(1, lato // 300))
-    pygame.draw.circle(q, (248, 228, 168), (c, c), int(lato * 0.022))
-    ROTORE[0] = (lato, q)
+    pygame.draw.circle(q, tuple(int(v * 0.92) for v in oro), (c, c),
+                       int(lato * 0.055))
+    pygame.draw.circle(q, tuple(int(v * 0.6) for v in oro), (c, c),
+                       int(lato * 0.055), max(1, lato // 300))
+    pygame.draw.circle(q, tuple(min(255, v + 34) for v in oro), (c, c),
+                       int(lato * 0.022))
+    ROTORE[0] = ((lato, TIPO[0]), q)
     return q
 
 
@@ -436,7 +508,7 @@ class Ruota:
         self.off_a = 0.0
 
     def passo_casella(self):
-        return 2 * math.pi / len(RUOTA)
+        return 2 * math.pi / len(ORDINE[0])
 
     def lancia(self, numero, durata=None):
         """Butta la pallina: si sa gia' dove finisce, ci arriva girando."""
@@ -444,7 +516,7 @@ class Ruota:
         self.gira = True
         self.t = 0.0
         self.durata = dura_pallina() if durata is None else durata
-        posto = RUOTA.index(numero)
+        posto = ORDINE[0].index(numero)
         self.off_da = self.off
         # la pallina gira al contrario della ruota: tanti giri quanto
         # basta per restare svelta per tutta la durata del suono
@@ -467,7 +539,7 @@ class Ruota:
         self.off = self.off_da + (self.off_a - self.off_da) * m
         if k >= 1.0:
             self.gira = False
-            self.off = RUOTA.index(self.uscito) * self.passo_casella()
+            self.off = ORDINE[0].index(self.uscito) * self.passo_casella()
             return True
         return False
 
@@ -512,7 +584,7 @@ class Ruota:
         if self.uscito is None and not self.gira:
             return
         x, y = self.dove_palla()
-        raggio = max(2, int(self.lato * 0.015))
+        raggio = max(2, int(self.lato * 0.0125))
         pygame.draw.circle(sc, (18, 18, 22), (int(x) + 2, int(y) + 2), raggio)
         pygame.draw.circle(sc, (245, 245, 240), (int(x), int(y)), raggio)
 
@@ -546,7 +618,14 @@ class Tappeto:
 
     def fai(self):
         w, h, x0, y0 = self.w, self.h, self.x0, self.y0
-        self.celle = [(0, pygame.Rect(x0, y0, w, h * 3), "0")]
+        if DOPPIO[0]:
+            # tavolo americano: lo zero e lo zero doppio, uno sull'altro
+            mezzo = h * 3 // 2
+            self.celle = [(0, pygame.Rect(x0, y0, w, mezzo), "0"),
+                          (ZERO2, pygame.Rect(x0, y0 + mezzo, w,
+                                              h * 3 - mezzo), "00")]
+        else:
+            self.celle = [(0, pygame.Rect(x0, y0, w, h * 3), "0")]
         for n in range(1, 37):
             self.celle.append((n, self.cella_numero(n), str(n)))
         for i in range(3):
@@ -561,6 +640,15 @@ class Tappeto:
         for i, (chiave, testo) in enumerate(fuori):
             r = pygame.Rect(x0 + w + i * 2 * w, y0 + 4 * h, 2 * w, h)
             self.celle.append((chiave, r, testo))
+
+    def cella_di(self, n):
+        """Il rettangolo di un numero, zeri compresi."""
+        if n in (0, ZERO2):
+            for k, r, _t in self.celle:
+                if k == n:
+                    return r
+            return self.celle[0][1]
+        return self.cella_numero(n)
 
     def zona(self):
         return self.celle[0][1].unionall([c[1] for c in self.celle])
@@ -609,6 +697,9 @@ class Tappeto:
                 return tuple(sorted((self.numero_di(j, i),
                                      self.numero_di(j, i2))))
             if su_x and fuori_x and j2 < 0:
+                if DOPPIO[0]:
+                    # il cesto: zero, zero doppio e i primi tre
+                    return (0, 1, 2, 3, ZERO2)
                 # fra lo zero e la prima colonna
                 return tuple(sorted((0, self.numero_di(j, i))))
             return self.numero_di(j, i)
@@ -620,8 +711,7 @@ class Tappeto:
     def dove_sta(self, chiave):
         """Il punto dove appoggiare la fiche di quella puntata."""
         if isinstance(chiave, tuple):
-            punti = [self.cella_numero(n).center if n else
-                     self.celle[0][1].center for n in chiave]
+            punti = [self.cella_di(n).center for n in chiave]
             return (sum(p[0] for p in punti) // len(punti),
                     sum(p[1] for p in punti) // len(punti))
         for k, r, _t in self.celle:
@@ -825,7 +915,7 @@ def gioca_roulette(sc, clock, logo):
         nonlocal msg, sotto, vinto
         if ruota.gira or not puntate:
             return
-        ruota.lancia(random.choice(RUOTA))
+        ruota.lancia(random.choice(ORDINE[0]))
         msg, sotto, vinto = T("ball"), "", 0
         voce("v_nomore")
         if suona("pallina", 0.85) is None:
@@ -1060,5 +1150,70 @@ def disegna_colonna(sc, voci, sel, fiche, puntate, msg, sotto, vinto, tap):
 
 
 def schermata_roulette(sc, clock, logo):
-    """Il menu della roulette: si gioca e basta, per ora."""
-    return gioca_roulette(sc, clock, logo)
+    """Il menu della roulette: si sceglie a che tavolo giocare."""
+    nomi = [t[0] for t in TAVOLI]
+    scelto = B.CFG.get("roul_tavolo", "europea")
+    sel = nomi.index(scelto) if scelto in nomi else 0
+    f = B.FONTS["font"]
+    small = B.FONTS["small"]
+    rett = []
+    while True:
+        clock.tick(60)
+        mouse = B.mouse_gioco()
+        for ev in B.eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            scegli = False
+            if ev.type == pygame.KEYDOWN:
+                if ev.key == pygame.K_ESCAPE:
+                    return "su"
+                if ev.key in (pygame.K_UP, pygame.K_LEFT):
+                    sel = (sel - 1) % len(TAVOLI)
+                    B.suona_fx("menu_tic", 0.6)
+                elif ev.key in (pygame.K_DOWN, pygame.K_RIGHT):
+                    sel = (sel + 1) % len(TAVOLI)
+                    B.suona_fx("menu_tic", 0.6)
+                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                                pygame.K_SPACE):
+                    scegli = True
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                for i, r in enumerate(rett):
+                    if r.collidepoint(mouse):
+                        sel, scegli = i, True
+            if scegli:
+                scegli_tavolo(nomi[sel])
+                B.CFG["roul_tavolo"] = nomi[sel]
+                B.salva_config()
+                B.suona_fx("menu_apri", 0.8)
+                r = gioca_roulette(sc, clock, logo)
+                if r == "quit":
+                    return r
+        if B.MOUSE_VIVO[0]:
+            for i, r in enumerate(rett):
+                if r.collidepoint(mouse):
+                    sel = i
+        sc.blit(B.fondo(), (0, 0))
+        t = B.FONTS.get("elegante_voce", f).render(T("table"), True, ORO)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(90))))
+        rett = []
+        y = B.ALTO + B.s(200)
+        for i, (_n, et, ordine, doppio, _p) in enumerate(TAVOLI):
+            r = pygame.Rect(B.WIN_W // 2 - B.s(230), y - B.s(30),
+                            B.s(460), B.s(60))
+            if i == sel:
+                q = pygame.Surface(r.size, pygame.SRCALPHA)
+                q.fill((255, 255, 255, 18))
+                sc.blit(q, r)
+                pygame.draw.rect(sc, ORO, (r.x, r.y, max(1, B.s(3)), r.h))
+            n = f.render(T(et), True,
+                         (255, 255, 255) if i == sel else (170, 176, 188))
+            sc.blit(n, n.get_rect(midleft=(r.x + B.s(24), y - B.s(8))))
+            d = small.render("%s   -   %d" % (T(et + "_d"), len(ordine)),
+                             True, (150, 156, 168))
+            sc.blit(d, d.get_rect(midleft=(r.x + B.s(24), y + B.s(16))))
+            rett.append(r)
+            y += B.s(82)
+        B.tic_menu(tuple(n for n, _e, _o, _d, _p in TAVOLI), sel)
+        r = small.render(T("back"), True, (150, 156, 168))
+        sc.blit(r, r.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(30))))
+        B.presenta()
