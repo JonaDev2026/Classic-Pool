@@ -2,7 +2,8 @@
 
 A casino game for Mac, Windows and Linux, written in Python with pygame.
 Billiards with nine disciplines, tournaments and 55 cues, six card games
-on a real card table, three roulette tables and a slot machine.
+and four solitaires on a real card table, three roulette tables and a
+slot machine.
 
 ## Requirements
 
@@ -118,6 +119,26 @@ its own cloth and real decks.
 | Briscola | Italian 40 | 120 points, the trump lies across under the deck |
 | Rummy | French, two decks and four jokers | Opening at 50, laying off, buying jokers, stake of 50 and the "closed in one turn" rule. See the rules below |
 | Texas Hold'em | French | Heads-up against the dealer, blinds, flop, turn and river, fixed limit betting |
+
+### Solitaire
+
+Four of them, in their own section of the Cards menu, played for nothing
+- no wallet, no opponent.
+
+| Game | Table | How it goes |
+|---|---|---|
+| Klondike | One French deck | Seven columns, four bases from Ace to King, stock and waste. Build down alternating colours; an empty column takes a King. Deal one card or three, your choice |
+| Spider | Two decks, 10 columns | One suit, two or four. Build down by number, move only same suit runs. A King down to Ace leaves the table; eight of them and you have won |
+| FreeCell | One French deck | Everything face up from the start. Four free cells, eight columns, four bases. A run passes only if there is room: one card plus one per free cell, doubled per empty column |
+| Pyramid | One French deck | Twenty-eight cards in a pyramid: remove pairs that add up to thirteen, the King goes on its own. Three passes through the stock |
+
+The controls are the same everywhere: arrows or mouse to move, ENTER or a
+click to take and put down. On a column press ENTER again to take the
+card underneath as well, so you move a whole run; with the mouse you just
+click the card you want to start from. The keys set in the controls page
+do the rest - send a card to its base, deal from the stock, run the
+automatic moves or start a new deal - and the help line at the bottom
+always shows the keys you are actually using.
 
 **Stakes**: Scopa, Briscola and Rummy are played for money. You choose
 the stake before the match starts, from 10 to 1000, and the winner takes
