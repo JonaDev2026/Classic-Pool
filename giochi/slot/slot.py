@@ -605,6 +605,28 @@ def colore_simbolo(nome):
     return col
 
 
+ALONI = {}
+
+
+def alone_radiale(lato, col):
+    """Un alone tondo e sfumato, del colore del simbolo: si accende
+    dietro le icone che stanno pagando."""
+    chiave = (lato, tuple(col))
+    if chiave in ALONI:
+        return ALONI[chiave]
+    q = pygame.Surface((lato, lato), pygame.SRCALPHA)
+    passi = max(10, lato // 4)
+    for i in range(passi):
+        k = 1 - i / float(passi)          # 1 fuori, 0 dentro
+        r = int(lato * 0.5 * k)
+        a = int(230 * (1 - k) ** 1.7)
+        if r > 0:
+            pygame.draw.circle(q, tuple(col) + (a,),
+                               (lato // 2, lato // 2), r)
+    ALONI[chiave] = q
+    return q
+
+
 NEON = {}
 
 
@@ -780,33 +802,16 @@ class Macchina:
             nome_v = self.vinte[self.mostra][0] if self.vinte else None
             col = tuple(colore_simbolo(nome_v)) if nome_v else \
                 COLORI_VINTE[self.mostra % len(COLORI_VINTE)]
-            # una linea sola, da sinistra a destra: rullo per rullo si
-            # prende la casella piu' vicina a quella di prima
-            per_col = {}
-            for c, i in acceso:
-                if 0 <= i < RIGHE:
-                    per_col.setdefault(c, []).append(i)
-            punti = []
-            prima = None
-            for c in sorted(per_col):
-                righe_c = sorted(per_col[c])
-                riga = righe_c[0] if prima is None else \
-                    min(righe_c, key=lambda x: abs(x - prima))
-                prima = riga
-                punti.append((vetro.x + c * cw + cw // 2,
-                              vetro.y + riga * ch + ch // 2))
-            fili = pygame.Surface(vetro.size, pygame.SRCALPHA)
-            if len(punti) > 1:
-                pygame.draw.lines(
-                    fili, col + (int(130 + 125 * respiro),), False,
-                    [(x - vetro.x, y - vetro.y) for x, y in punti],
-                    max(2, B.s(4)))
-            sc.blit(fili, vetro)
             for c, i in sorted(acceso):
                 if not 0 <= i < RIGHE:
                     continue
                 nome = self.griglia[c][i]
                 r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
+                al = alone_radiale(int(min(cw, ch) * 1.35), col)
+                al = al.copy()
+                al.fill((255, 255, 255, int(150 + 105 * respiro)),
+                        special_flags=pygame.BLEND_RGBA_MULT)
+                sc.blit(al, al.get_rect(center=r.center))
                 img = figura(nome, (int(cw * GRANDE * k),
                                     int(ch * GRANDE * k))).copy()
                 # l'alfa si moltiplica sui pixel: set_alpha su una
