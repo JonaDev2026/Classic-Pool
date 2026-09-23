@@ -1,8 +1,8 @@
 # Golden Break
 
 A casino game for Mac, Windows and Linux, written in Python with pygame.
-Billiards with nine disciplines, tournaments and 55 cues, plus six card
-games on a real card table. Roulette and slots are on the way.
+Billiards with nine disciplines, tournaments and 55 cues, six card games
+on a real card table, three roulette tables and a slot machine.
 
 ## Requirements
 
@@ -116,8 +116,13 @@ its own cloth and real decks.
 | Sette e Mezzo | Italian 40 | Bets from your wallet, the King of Coins is wild, sette e mezzo reale pays double, a tie replays the hand |
 | Scopa | Italian 40 | Up to 11 points: cards, coins, settebello, primiera and scope. When a card can be taken in more than one way you choose, and the cards light up |
 | Briscola | Italian 40 | 120 points, the trump lies across under the deck |
-| Rummy | French, two decks and four jokers | Opening at 50, laying off after you open, buying a joker with the card it stands for, stake of 50 and the "closed in one turn" rule |
+| Rummy | French, two decks and four jokers | Opening at 50, laying off, buying jokers, stake of 50 and the "closed in one turn" rule. See the rules below |
 | Texas Hold'em | French | Heads-up against the dealer, blinds, flop, turn and river, fixed limit betting |
+
+**Stakes**: Scopa, Briscola and Rummy are played for money. You choose
+the stake before the match starts, from 10 to 1000, and the winner takes
+the pot; in Rummy the losing hand also pays the 50 point stake. Blackjack,
+Sette e Mezzo and Texas Hold'em take their bets hand by hand.
 
 **Decks**: 43 of them, Italian (Napoletane, Toscane) and French (Poker 98,
 Texas, Jumbo, Bridge, Club, Golden Trophy, Bike Trophy). Each game
@@ -127,6 +132,28 @@ you pick which two colours, with the double box when the pack has one.
 **Table**: the cloth is chosen in the Cards menu, from the same textures as
 the billiards tables, or left on random.
 
+**Rummy rules the game enforces**
+
+- You open at 50 points. Before you open you can still take the discard,
+  lay off and buy jokers, but only if you reach 50 in that same turn: if
+  you don't, everything goes back when you discard - your melds return to
+  your hand, your lay-offs are pulled out and a joker you bought goes back
+  to its place in the meld.
+- Anything you take from the table has to go back down. The card you take
+  from the discard pile and every joker you buy must end up on the table,
+  melded or laid off. While one of them is still in your hand the only
+  card you are allowed to discard is that same card - and there goes your
+  turn.
+- A joker is worth the slot it sits in, recounted every time it moves: a
+  joker in a run of tens is worth 10, the same joker next to a 2 is worth
+  2. Left in your hand at the end of the hand it costs you 25.
+- To buy a joker from a run you play the exact card it stands for. To buy
+  one from a set you have to close the set: with two kings and a joker on
+  the table you need both missing kings, not one. With three kings and a
+  joker the last king is enough.
+- Before you open, a meld you laid this turn can be taken back: hold Y on
+  it for three seconds, or press Y with the cursor on it.
+
 **Controls in Rummy**: one cursor for everything, deck, discard, your hand
 and the melds on the table. With the pad: A draws, discards or melds, Y
 picks cards for melding, X moves a card in your hand or lays it off, RB
@@ -135,21 +162,66 @@ keyboard the same things are a click or ENTER, and the keys set in the
 controls page (C, G and E by default); the help line at the bottom always
 shows the keys you are actually using.
 
-## Slots
+### Roulette
 
-Five reels by four rows, twenty fixed lines, paid left to right. Nine
-symbols, with a wild that stands for any of them and a bonus that pays
-anywhere on the total bet. You pick the bet per spin (20 to 400) and the
-game spreads it over the lines. Every spin feeds a progressive jackpot
-that lives in your profile and keeps growing until someone lands five
-jackpot symbols on a line or you restart your career. Each machine keeps
-its own symbols and its own paytable; for now there is one, the test
-machine.
+Three tables, chosen from the roulette menu:
 
-Symbols are drawn as placeholders until a theme is added: drop nine PNGs
-named after the symbols in `immagini/slot/<theme>/` and the game picks
-them up. Sounds live in `audio/slot/fx`, and the reels are timed to stop
-exactly when the spin sound ends.
+| Table | Wheel | Rule |
+|---|---|---|
+| European | 37 numbers, a single zero | House edge 2.70% |
+| French | 37 numbers, a single zero | La partage: on the zero, even money bets get half back, house edge 1.35% |
+| American | 38 numbers, zero and double zero | Its own number order, the basket bet (0-00-1-2-3) pays 6 to 1, house edge 5.26% |
+
+Each table has its own wheel, drawn from scratch: cherry wood on the
+European, rosewood on the French, black and chrome on the American, with
+the wide ball track, the diamonds and the gold cross of the turret. The
+bowl stays still and only the number ring turns, the way a real wheel
+does.
+
+The chip moves freely over the layout with the mouse, the arrows or the
+stick, so you bet on a number or on a line: straight, split, street,
+corner, six line, the dozens, the columns and the even money bets. Chips
+come in 5, 10, 25, 100 and 500 and stack in real denominations - two
+fives stay two fives. The ball runs on the outer track for as long as the
+sound lasts, then drops in and bounces its way onto the numbers, and the
+croupier calls the number and the colour with the same voice as the
+billiards referee. After every spin the chips stay on the layout for a
+few seconds, winners with a gold halo, and under the table you read what
+each bet paid.
+
+`giochi/roulette/croupier.py` regenerates the croupier phrases (needs
+`edge-tts` and an internet connection). The numbers themselves are the
+snooker ones, already in the game.
+
+### Slots
+
+Five reels by four rows and 1024 ways to win, paid left to right: no
+lines to pick, any symbol on any row counts. Twenty-three paying symbols,
+from the fruit that pays from two up to the eight ball, plus a wild that
+stands for all of them, the dice that give three free spins, the gift box
+that drops a random prize and the jackpot symbol. The wild never pays on
+its own: at least two real symbols have to be there.
+
+You pick the bet per spin (20, 50, 100, 250, 500 or 1000) and the
+paytable inside the machine shows what every symbol pays in real money at
+the bet you chose. Every spin feeds a progressive jackpot that lives in
+your profile and keeps growing until someone fills all five reels with
+the jackpot symbol, or until you restart your career.
+
+Winning symbols pulse with a glow taken from their own colours while the
+rest fade, the neon frame cycles, the marquee bulbs run around the
+cabinet, and the reels stop exactly when the spin sound ends. There is
+one machine for now, Classic Slot, with its 26 symbols in
+`immagini/slot/classica`; a new machine is a folder of PNGs plus its own
+paytable. Sounds live in `audio/slot/fx`.
+
+### Wallet
+
+Billiards is free, everything else is played with the wallet. A new
+career starts with 1000 and the money is saved in your profile, together
+with the progressive jackpot. If you run dry, Settings > Restart career
+wipes the profile and deals you a fresh 1000: it is a free game and the
+money is imaginary.
 
 **Languages**
 
@@ -163,12 +235,17 @@ game.
 | `golden_break.py` | Start the game from here |
 | `giochi/biliardo` | Casino menu and billiards code, referee voice generator |
 | `giochi/carte` | Card games code (table, cards, games) |
+| `giochi/roulette` | Roulette code and croupier voice generator |
+| `giochi/slot` | Slot machine code |
 | `immagini/comune` | Fonts, controller icons, flags, background |
 | `immagini/biliardo` | Tables, cloths, rails, crests, trophies, clock |
 | `immagini/carte` | Card table, card faces and decks |
+| `immagini/slot` | Slot symbols, one folder per machine |
 | `audio/comune` | Menu sounds |
 | `audio/biliardo` | Music, sound effects, referee voice |
 | `audio/carte` | Music and card sounds |
+| `audio/roulette` | Ball sound and croupier phrases |
+| `audio/slot` | Spin, wins, bonus and jackpot |
 
 `giochi/biliardo/arbitro.py` regenerates the referee voice files (needs `edge-tts` and an
 internet connection).
