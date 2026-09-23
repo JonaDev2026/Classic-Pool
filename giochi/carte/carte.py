@@ -225,7 +225,17 @@ def cartella_carte():
 
 # I tipi di facce: il nome della cartella del mazzo dice quali usare.
 # Vanno in ordine, il primo che sta dentro al nome vince.
-TIPI_FACCE = ("provasvg", "napoletane", "toscane", "francesi")
+TIPI_FACCE = ("provasvg", "provapoker", "napoletane", "toscane", "francesi")
+
+# A che famiglia appartengono: i mazzi di prova si comportano come quelli
+# veri, cosi' finiscono nei giochi giusti.
+FAMIGLIE = {"provasvg": "napoletane", "provapoker": "francesi"}
+
+
+def famiglia(tipo=None):
+    """Se le carte sono francesi o italiane, mazzi di prova compresi."""
+    t = MAZZO_ORA[1] if tipo is None else tipo
+    return FAMIGLIE.get(t, t)
 
 
 def mazzi_disponibili():
@@ -323,7 +333,7 @@ def misura_carta():
     """Alta sempre uguale; larga come le carte del mazzo scelto (le
     napoletane sono piu' strette delle francesi)."""
     h = B.s(CARTA_H)
-    prima = "AS" if MAZZO_ORA[1] == "francesi" else "1d"
+    prima = "AS" if famiglia() == "francesi" else "1d"
     img = immagine_carta(prima) or immagine_mazzo("dorso")
     if img is not None:
         return max(1, int(h * img.get_width() / float(img.get_height()))), h

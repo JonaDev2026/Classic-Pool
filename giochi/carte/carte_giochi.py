@@ -4537,8 +4537,8 @@ CATEGORIE_CARTE = (("c_tavolo", GIOCHI), ("c_solitari", SOLITARI))
 def mazzi_per(tipo):
     m = C.mazzi_disponibili()
     if tipo == "francesi":
-        return [x for x in m if x[1] == "francesi"]
-    return [x for x in m if x[1] != "francesi"]
+        return [x for x in m if C.famiglia(x[1]) == "francesi"]
+    return [x for x in m if C.famiglia(x[1]) != "francesi"]
 
 
 def nome_mazzo(cartella):
@@ -4608,7 +4608,7 @@ def anteprima_panno(sc, i, centro):
 def anteprima_mazzo(sc, tipo, centro):
     """Il dorso e una figura del mazzo scelto, uno accanto all'altra."""
     alto = B.s(190)
-    figura = "KH" if tipo == "francesi" else "10d"
+    figura = "KH" if C.famiglia(tipo) == "francesi" else "10d"
     pezzi = []
     for img in (C.immagine_mazzo("dorso"), C.immagine_carta(figura)):
         if img is None:
@@ -4713,6 +4713,8 @@ def famiglie_francesi():
     che colori accoppiare."""
     fam = {}
     for cartella, _ in mazzi_per("francesi"):
+        if cartella.startswith("prova"):
+            continue        # i mazzi di prova non si accoppiano nel ramino
         pezzi = cartella.split("_")
         disegno = pezzi[1] if len(pezzi) > 2 else cartella
         colore = "_".join(pezzi[2:]) if len(pezzi) > 2 else ""
