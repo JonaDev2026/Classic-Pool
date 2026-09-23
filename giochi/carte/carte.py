@@ -614,14 +614,41 @@ def posti(n_mano, g=1.0):
     return out
 
 
-# i colori dei quattro posti: il pallino sul legno e quello nella
-# targhetta sono dello stesso colore, cosi' si capisce chi e' chi
-COL_POSTI = ((236, 186, 64), (72, 142, 232), (222, 72, 72), (86, 190, 112))
+# I quattro posti hanno ognuno il suo seme, coi colori tedeschi: quadri
+# arancione, fiori blu, cuori rosso, picche verde. Il segno sul legno e
+# quello nella targhetta sono lo stesso, cosi' si capisce chi e' chi.
+SEMI_POSTI = ("quadri", "fiori", "cuori", "picche")
+COL_POSTI = ((255, 136, 0), (20, 70, 210), (221, 26, 30), (0, 136, 0))
+SEMI_IMG = {}
 
 
-def rombo(sc, centro, col, rx, ry):
-    """Un diamantino piatto, intarsiato: niente luci, solo il colore."""
+def simbolo_posto(chi, alto):
+    """Il simbolo del seme di quel posto, alto cosi'."""
+    alto = max(4, int(alto))
+    chiave = (chi, alto)
+    if chiave not in SEMI_IMG:
+        f = os.path.join(cartella_carte(), "semi",
+                         SEMI_POSTI[chi % 4] + ".png")
+        img = _immagine(f)
+        if img is None:
+            SEMI_IMG[chiave] = None
+        else:
+            largo = max(4, int(alto * img.get_width() / img.get_height()))
+            SEMI_IMG[chiave] = pygame.transform.smoothscale(img,
+                                                            (largo, alto))
+    return SEMI_IMG[chiave]
+
+
+def rombo(sc, centro, col, rx, ry, chi=None):
+    """Il segno di un posto: il simbolo del seme se c'e', se no il
+    vecchio diamantino piatto."""
     x, y = centro
+    if chi is not None:
+        # il simbolo non si schiaccia: sempre alto quanto il lato lungo
+        q = simbolo_posto(chi, max(rx, ry) * 2.1)
+        if q is not None:
+            sc.blit(q, q.get_rect(center=(int(x), int(y))))
+            return
     pygame.draw.polygon(sc, col, [(x, y - ry), (x + rx, y), (x, y + ry),
                                   (x - rx, y)])
 
@@ -669,10 +696,10 @@ def diamanti_posti(base):
             3: ((p.right + e.right) / 2.0, p.centery, False)}
     for chi, (x, y, in_piedi) in dove.items():
         rx, ry = (a, b) if in_piedi else (b, a)
-        rombo(base, (x, y), COL_POSTI[chi], rx, ry)
+        rombo(base, (x, y), COL_POSTI[chi], rx, ry, chi)
 
 
-def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
+def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo, chi=None):
     """Meta' fascia per un giocatore: diamantino e nome dalla parte del
     bordo, poi un filo d'oro corto e subito il riquadro verde col
     punteggio. Il centro della fascia resta libero. A destra a specchio."""
@@ -681,7 +708,7 @@ def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo):
     alto = r.h - B.s(8)
     y = r.centery
     xd = r.left + B.s(26) if sinistra else r.right - B.s(26)
-    rombo(sc, (xd, y), col, B.s(6), B.s(10))
+    rombo(sc, (xd, y), col, B.s(6), B.s(10), chi)
     if attivo:
         m, d = B.s(7), B.s(18)
         xf = xd - d if sinistra else xd + d
@@ -733,7 +760,7 @@ def fila_targhette(sc, nomi, punti, attivo=0):
         r = pygame.Rect(fascia.x + (0 if sinistra else meta), fascia.y,
                         meta, fascia.h)
         cella_giocatore(sc, r, nomi[chi], punti[chi], COL_POSTI[chi],
-                        sinistra, chi == attivo)
+                        sinistra, chi == attivo, chi)
 
 
 def prova_carte(sc, clock, logo):
