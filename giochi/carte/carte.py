@@ -223,6 +223,11 @@ def cartella_carte():
     return os.path.join(B.IMMAGINI, "carte")
 
 
+# I tipi di facce: il nome della cartella del mazzo dice quali usare.
+# Vanno in ordine, il primo che sta dentro al nome vince.
+TIPI_FACCE = ("provasvg", "napoletane", "toscane", "francesi")
+
+
 def mazzi_disponibili():
     """I mazzi che ci sono: (nome della cartella, tipo di facce)."""
     base = os.path.join(cartella_carte(), "mazzi")
@@ -231,8 +236,8 @@ def mazzi_disponibili():
         for nome in sorted(os.listdir(base)):
             if not os.path.isdir(os.path.join(base, nome)):
                 continue
-            tipo = next((t for t in ("napoletane", "toscane", "francesi")
-                         if t in nome.lower()), "napoletane")
+            tipo = next((t for t in TIPI_FACCE if t in nome.lower()),
+                        "napoletane")
             fuori.append((nome, tipo))
     return fuori
 
