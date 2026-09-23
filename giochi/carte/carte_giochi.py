@@ -4524,8 +4524,7 @@ def mazzi_per(tipo):
 
 
 # i nomi che si leggono nel menu, quando quello automatico non va bene
-NOMI_MAZZI = {"poker_gb_rosso": "Poker Golden Break Rosso",
-              "poker_gb_blu": "Poker Golden Break Blu"}
+NOMI_MAZZI = {}
 
 
 def nome_mazzo(cartella):

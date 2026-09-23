@@ -225,11 +225,10 @@ def cartella_carte():
 
 # I tipi di facce: il nome della cartella del mazzo dice quali usare.
 # Vanno in ordine, il primo che sta dentro al nome vince.
-TIPI_FACCE = ("poker", "napoletane", "toscane", "francesi")
+TIPI_FACCE = ("napoletane", "toscane", "francesi")
 
-# A che famiglia appartengono: i mazzi nostri si comportano come quelli
-# veri, cosi' finiscono nei giochi giusti.
-FAMIGLIE = {"poker": "francesi"}
+# A che famiglia appartengono, quando il nome del tipo non lo dice gia'.
+FAMIGLIE = {}
 
 
 def tipo_di(nome):
