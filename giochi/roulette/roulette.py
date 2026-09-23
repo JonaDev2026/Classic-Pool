@@ -352,9 +352,9 @@ class Tappeto:
     fondo a una terzina o fra due terzine."""
 
     def __init__(self):
-        self.w, self.h = B.s(50), B.s(50)
-        self.x0 = B.s(232)
-        self.y0 = B.ALTO + B.s(380)
+        self.w, self.h = B.s(37), B.s(44)
+        self.x0 = B.s(548)
+        self.y0 = B.ALTO + B.s(130)
         self.celle = []
         self.fai()
 
@@ -515,7 +515,7 @@ def gioca_roulette(sc, clock, logo):
     """Si muove la fiche sul tappeto, si appoggia dove si vuole - anche
     sulle linee - poi si lancia la pallina."""
     tap = Tappeto()
-    ruota = Ruota((B.s(420), B.ALTO + B.s(210)), B.s(300))
+    ruota = Ruota((B.s(345), B.ALTO + B.s(255)), B.s(360))
     puntate = {}
     usciti = []
     fiche = B.CFG.get("roul_fiche", FICHES[1])
