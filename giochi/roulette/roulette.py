@@ -320,7 +320,7 @@ ROTORE = [None]
 
 LEGNO_C = (56, 33, 20)
 LEGNO_S = (24, 14, 9)
-BRONZO = (138, 104, 58)
+BRONZO = (216, 178, 98)   # l'oro dei diamanti, delle righe e della croce
 
 
 def scodella(lato):
@@ -346,8 +346,8 @@ def scodella(lato):
         x, y = c + math.cos(a) * rr, c + math.sin(a) * rr
         d = lato * 0.022
         punti = [(x, y - d), (x + d * 0.62, y), (x, y + d), (x - d * 0.62, y)]
-        pygame.draw.polygon(q, (134, 102, 60), punti)
-        pygame.draw.polygon(q, (38, 22, 13), punti, max(1, lato // 300))
+        pygame.draw.polygon(q, (238, 206, 126), punti)
+        pygame.draw.polygon(q, (150, 112, 44), punti, max(1, lato // 300))
     SCODELLA[0] = q
     return q
 
@@ -403,15 +403,15 @@ def rotore(lato):
         punti = [(c + dx * lung, c + dy * lung),
                  (c + px * largo, c + py * largo),
                  (c - px * largo, c - py * largo)]
-        pygame.draw.polygon(q, (124, 94, 54), punti)
-        pygame.draw.polygon(q, (34, 20, 12), punti, max(1, lato // 340))
-        pygame.draw.circle(q, (146, 116, 72),
+        pygame.draw.polygon(q, (222, 184, 104), punti)
+        pygame.draw.polygon(q, (148, 110, 42), punti, max(1, lato // 340))
+        pygame.draw.circle(q, (246, 222, 156),
                            (int(c + dx * lung), int(c + dy * lung)),
                            max(2, int(lato * 0.012)))
-    pygame.draw.circle(q, (86, 62, 36), (c, c), int(lato * 0.055))
-    pygame.draw.circle(q, (40, 24, 14), (c, c), int(lato * 0.055),
+    pygame.draw.circle(q, (206, 168, 88), (c, c), int(lato * 0.055))
+    pygame.draw.circle(q, (140, 104, 40), (c, c), int(lato * 0.055),
                        max(1, lato // 300))
-    pygame.draw.circle(q, (150, 120, 76), (c, c), int(lato * 0.022))
+    pygame.draw.circle(q, (248, 228, 168), (c, c), int(lato * 0.022))
     ROTORE[0] = (lato, q)
     return q
 
@@ -525,9 +525,11 @@ class Tappeto:
     fondo a una terzina o fra due terzine."""
 
     def __init__(self):
-        self.w, self.h = B.s(37), B.s(44)
-        self.x0 = B.s(548)
-        self.y0 = B.ALTO + B.s(130)
+        # il tappeto sta sotto, largo e centrato: quattordici colonne
+        # (lo zero, i dodici, il "2 a 1") e cinque righe
+        self.w, self.h = B.s(56), B.s(52)
+        self.x0 = (B.WIN_W - 14 * self.w) // 2
+        self.y0 = B.ALTO + B.s(356)
         self.celle = []
         self.fai()
 
@@ -733,7 +735,7 @@ def gioca_roulette(sc, clock, logo):
     carica_voce()
     voce("v_place")
     tap = Tappeto()
-    ruota = Ruota((B.s(345), B.ALTO + B.s(255)), B.s(360))
+    ruota = Ruota((B.WIN_W // 2, B.ALTO + B.s(176)), B.s(320))
     puntate = {}
     usciti = []
     fiche = B.CFG.get("roul_fiche", FICHES[1])
