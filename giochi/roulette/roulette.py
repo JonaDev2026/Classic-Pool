@@ -156,8 +156,8 @@ def vincita(puntate, uscito):
 # -------------------------------------------------------------- i testi
 TXT = {
     "en": {"t_eu": "European", "t_fr": "French", "t_us": "American",
-           "t_eu_d": "Single zero", "t_fr_d": "Single zero, half back on zero",
-           "t_us_d": "Double zero", "table": "Choose the table",
+           "t_eu_d": "37  single zero", "t_fr_d": "37  la partage",
+           "t_us_d": "38  double zero", "table": "Choose the table",
            "roulette": "Roulette", "spin": "Spin", "chip": "Chip",
            "clear": "Clear", "back": "Back", "bet": "Bet",
            "win": "You win %s", "no_win": "Nothing", "broke": "Not enough money",
@@ -169,8 +169,8 @@ TXT = {
            "rl_move": "choose", "rl_bet": "bet", "rl_spin": "spin",
            "rl_chip": "chip"},
     "it": {"t_eu": "Europea", "t_fr": "Francese", "t_us": "Americana",
-           "t_eu_d": "Uno zero", "t_fr_d": "Uno zero, meta' indietro sullo zero",
-           "t_us_d": "Due zeri", "table": "Scegli il tavolo",
+           "t_eu_d": "37  uno zero", "t_fr_d": "37  la partage",
+           "t_us_d": "38  due zeri", "table": "Scegli il tavolo",
            "roulette": "Roulette", "spin": "Gira", "chip": "Fiche",
            "clear": "Pulisci", "back": "Indietro", "bet": "Puntata",
            "win": "Vinci %s", "no_win": "Niente", "broke": "Non hai abbastanza soldi",
@@ -183,8 +183,8 @@ TXT = {
            "rl_move": "scegli", "rl_bet": "punta", "rl_spin": "gira",
            "rl_chip": "fiche"},
     "fr": {"t_eu": "Europeenne", "t_fr": "Francaise", "t_us": "Americaine",
-           "t_eu_d": "Un seul zero", "t_fr_d": "Un zero, moitie rendue sur le zero",
-           "t_us_d": "Double zero", "table": "Choisissez la table",
+           "t_eu_d": "37  un seul zero", "t_fr_d": "37  la partage",
+           "t_us_d": "38  double zero", "table": "Choisissez la table",
            "roulette": "Roulette", "spin": "Tourner", "chip": "Jeton",
            "clear": "Effacer", "back": "Retour", "bet": "Mise",
            "win": "Vous gagnez %s", "no_win": "Rien",
@@ -197,8 +197,8 @@ TXT = {
            "rl_move": "choisir", "rl_bet": "miser", "rl_spin": "tourner",
            "rl_chip": "jeton"},
     "es": {"t_eu": "Europea", "t_fr": "Francesa", "t_us": "Americana",
-           "t_eu_d": "Un cero", "t_fr_d": "Un cero, mitad devuelta en el cero",
-           "t_us_d": "Doble cero", "table": "Elige la mesa",
+           "t_eu_d": "37  un cero", "t_fr_d": "37  la partage",
+           "t_us_d": "38  doble cero", "table": "Elige la mesa",
            "roulette": "Ruleta", "spin": "Girar", "chip": "Ficha",
            "clear": "Limpiar", "back": "Atras", "bet": "Apuesta",
            "win": "Ganas %s", "no_win": "Nada",
@@ -1177,70 +1177,57 @@ def disegna_colonna(sc, voci, sel, fiche, puntate, msg, sotto, vinto, tap):
 
 
 def schermata_roulette(sc, clock, logo):
-    """Il menu della roulette: si sceglie a che tavolo giocare."""
+    """Il menu della roulette: si sceglie a che tavolo giocare. Stesso
+    vestito degli altri menu: sfondo, carattere elegante, valori in oro."""
     nomi = [t[0] for t in TAVOLI]
     scelto = B.CFG.get("roul_tavolo", "europea")
     sel = nomi.index(scelto) if scelto in nomi else 0
-    f = B.FONTS["font"]
-    small = B.FONTS["small"]
     rett = []
+
+    def scelta(i):
+        if i >= len(TAVOLI):
+            return "su"
+        scegli_tavolo(nomi[i])
+        B.CFG["roul_tavolo"] = nomi[i]
+        B.salva_config()
+        B.suona_fx("menu_apri", 0.8)
+        return gioca_roulette(sc, clock, logo)
+
     while True:
         clock.tick(60)
         mouse = B.mouse_gioco()
+        n = len(TAVOLI) + 1
         for ev in B.eventi():
             if ev.type == pygame.QUIT:
                 return "quit"
-            scegli = False
             if ev.type == pygame.KEYDOWN:
+                if ev.key in (pygame.K_DOWN, pygame.K_s):
+                    sel = (sel + 1) % n
+                if ev.key in (pygame.K_UP, pygame.K_w):
+                    sel = (sel - 1) % n
+                if ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                              pygame.K_SPACE):
+                    q = scelta(sel)
+                    if q in ("quit", "su"):
+                        return q
+                    break
                 if ev.key == pygame.K_ESCAPE:
                     return "su"
-                if ev.key in (pygame.K_UP, pygame.K_LEFT):
-                    sel = (sel - 1) % len(TAVOLI)
-                    B.suona_fx("menu_tic", 0.6)
-                elif ev.key in (pygame.K_DOWN, pygame.K_RIGHT):
-                    sel = (sel + 1) % len(TAVOLI)
-                    B.suona_fx("menu_tic", 0.6)
-                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
-                                pygame.K_SPACE):
-                    scegli = True
             if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 for i, r in enumerate(rett):
                     if r.collidepoint(mouse):
-                        sel, scegli = i, True
-            if scegli:
-                scegli_tavolo(nomi[sel])
-                B.CFG["roul_tavolo"] = nomi[sel]
-                B.salva_config()
-                B.suona_fx("menu_apri", 0.8)
-                r = gioca_roulette(sc, clock, logo)
-                if r == "quit":
-                    return r
-        if B.MOUSE_VIVO[0]:
-            for i, r in enumerate(rett):
-                if r.collidepoint(mouse):
-                    sel = i
-        sc.blit(B.fondo(), (0, 0))
-        t = B.FONTS.get("elegante_voce", f).render(T("table"), True, ORO)
-        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(90))))
-        rett = []
-        y = B.ALTO + B.s(200)
-        for i, (_n, et, ordine, doppio, _p) in enumerate(TAVOLI):
-            r = pygame.Rect(B.WIN_W // 2 - B.s(230), y - B.s(30),
-                            B.s(460), B.s(60))
-            if i == sel:
-                q = pygame.Surface(r.size, pygame.SRCALPHA)
-                q.fill((255, 255, 255, 18))
-                sc.blit(q, r)
-                pygame.draw.rect(sc, ORO, (r.x, r.y, max(1, B.s(3)), r.h))
-            n = f.render(T(et), True,
-                         (255, 255, 255) if i == sel else (170, 176, 188))
-            sc.blit(n, n.get_rect(midleft=(r.x + B.s(24), y - B.s(8))))
-            d = small.render("%s   -   %d" % (T(et + "_d"), len(ordine)),
-                             True, (150, 156, 168))
-            sc.blit(d, d.get_rect(midleft=(r.x + B.s(24), y + B.s(16))))
-            rett.append(r)
-            y += B.s(82)
-        B.tic_menu(tuple(n for n, _e, _o, _d, _p in TAVOLI), sel)
-        r = small.render(T("back"), True, (150, 156, 168))
-        sc.blit(r, r.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(30))))
+                        q = scelta(i)
+                        if q in ("quit", "su"):
+                            return q
+                        break
+        font, small = B.FONTS["font"], B.FONTS["small"]
+        B.sfondo_menu(sc, logo)
+        t = small.render(T("roulette"), True, B.ORO_SOTTO)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.s(270))))
+        voci = [(T(et), T(et + "_d")) for _n, et, _o, _d, _p in TAVOLI]
+        voci.append((T("back"), None))
+        rett = B.disegna_voci(sc, voci, sel, font, small, B.s(360), B.s(56))
+        for i, r in enumerate(rett):
+            if B.MOUSE_VIVO[0] and r.collidepoint(mouse):
+                sel = i
         B.presenta()
