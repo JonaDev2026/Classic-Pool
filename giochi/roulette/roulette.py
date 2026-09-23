@@ -255,17 +255,22 @@ def suona(nome, quanto=0.9):
     return s
 
 
+def voce(*codici):
+    """Mette in coda una frase del croupier, se c'e'."""
+    try:
+        B.dice(*codici)
+    except AttributeError:
+        pass
+
+
 def croupier(n):
     """Il numero uscito, detto con la voce dell'arbitro del biliardo:
     sono le stesse registrazioni, da n_001 a n_036. Lo zero e i colori
     li fa croupier.py, stessa voce, in audio/roulette/voce."""
-    try:
-        if n == 0:
-            B.dice("v_zero")
-        else:
-            B.dice("n_%03d" % n, "v_red" if n in ROSSI else "v_black")
-    except AttributeError:
-        pass
+    if n == 0:
+        voce("v_zero")
+    else:
+        voce("n_%03d" % n, "v_red" if n in ROSSI else "v_black")
 
 
 def dura_pallina():
@@ -726,6 +731,7 @@ def gioca_roulette(sc, clock, logo):
     sulle linee - poi si lancia la pallina."""
     carica_suoni()
     carica_voce()
+    voce("v_place")
     tap = Tappeto()
     ruota = Ruota((B.s(345), B.ALTO + B.s(255)), B.s(360))
     puntate = {}
@@ -785,10 +791,7 @@ def gioca_roulette(sc, clock, logo):
             return
         ruota.lancia(random.choice(RUOTA))
         msg, sotto, vinto = T("ball"), "", 0
-        try:
-            B.dice("v_nomore")
-        except AttributeError:
-            pass
+        voce("v_nomore")
         if suona("pallina", 0.85) is None:
             B.suona_fx("menu_apri", 0.8)
 
@@ -901,6 +904,7 @@ def gioca_roulette(sc, clock, logo):
             del usciti[10:]
             croupier(n)
             vinto, vinte = vincita(puntate, n)
+            voce("v_win" if vinto else "v_nothing", "v_place")
             if vinto:
                 B.soldi(vinto)
                 msg = T("win") % B.dollari(vinto)
