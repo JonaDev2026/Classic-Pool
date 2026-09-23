@@ -29,7 +29,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Pyramid",
            "cards": "Cards", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
-           "briscola": "Briscola", "ramino": "Rummy", "deck": "Back",
+           "briscola": "Briscola", "ramino": "Rummy", "deck": "Deck",
            "back": "Back", "soon": "soon",
            "need_fr": "French cards needed: coming soon",
            "card": "Card", "stand": "Stand", "leave": "Leave",
@@ -124,7 +124,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Carte", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
-           "briscola": "Briscola", "ramino": "Ramino", "deck": "Dorso",
+           "briscola": "Briscola", "ramino": "Ramino", "deck": "Mazzo",
            "back": "Indietro", "soon": "presto",
            "need_fr": "Servono le carte francesi: presto",
            "card": "Carta", "stand": "Sto", "leave": "Esci",
@@ -219,7 +219,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Pyramide",
            "cards": "Cartes", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
-           "briscola": "Briscola", "ramino": "Rami", "deck": "Dos",
+           "briscola": "Briscola", "ramino": "Rami", "deck": "Jeu",
            "back": "Retour", "soon": "bientot",
            "need_fr": "Cartes francaises requises : bientot",
            "card": "Carte", "stand": "Reste", "leave": "Quitter",
@@ -314,7 +314,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Cartas", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Escoba",
-           "briscola": "Brisca", "ramino": "Rummy", "deck": "Dorso",
+           "briscola": "Brisca", "ramino": "Rummy", "deck": "Baraja",
            "back": "Atras", "soon": "pronto",
            "need_fr": "Faltan las cartas francesas: pronto",
            "card": "Carta", "stand": "Me planto", "leave": "Salir",
@@ -4531,10 +4531,18 @@ def nome_mazzo(cartella):
     return NOMI_MAZZI.get(cartella, cartella.replace("_", " ").title())
 
 
-# il dorso che parte in automatico, gioco per gioco
+# dove il dorso si sceglie: solo i giochi italiani, che hanno le
+# napoletane e le toscane. Tutti gli altri ce l'hanno fisso
+SCELTA_MAZZO = ("scopa", "briscola", "sette")
+
+# il dorso di ogni gioco che non si sceglie
 MAZZO_PREDEFINITO = {"texas": "francesi_texas_verde-acqua",
                      "blackjack": "francesi_texas_nero",
-                     "bridge": "francesi_texas_viola"}
+                     "bridge": "francesi_texas_viola",
+                     "klondike": "francesi_poker98_blu",
+                     "spider": "francesi_poker98_rosso",
+                     "freecell": "francesi_texas_verde-acqua",
+                     "piramide": "francesi_texas_nero"}
 
 
 def mazzo_del_gioco(chiave, tipo):
@@ -4774,20 +4782,16 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
     doppio = chiave == "ramino"     # due mazzi dello stesso disegno
 
     def ha_mazzi():
-        return len(mazzi()) > 1 and not doppio
+        # il dorso si sceglie solo dove c'e' davvero un'alternativa: nei
+        # giochi italiani, fra napoletane e toscane. Gli altri hanno il
+        # loro mazzo fisso
+        return chiave in SCELTA_MAZZO and len(mazzi()) > 1 and not doppio
 
     def righe_mazzo():
         """Le righe in piu' fra Gioca e Regole."""
         if doppio:
-            dis, due = mazzi_ramino()
-            if dis is None:
-                return [(T("limite"), str(punti_partita()))]
-            colore = lambda c: nome_mazzo("_".join(c.split("_")[2:])
-                                          or c)
-            return [(T("family"), nome_mazzo(dis)),
-                    (T("col_a"), colore(due[0])),
-                    (T("col_b"), colore(due[1])),
-                    (T("limite"), str(punti_partita()))]
+            # il ramino ha i suoi due mazzi fissi: resta solo il limite
+            return [(T("limite"), str(punti_partita()))]
         righe = []
         if ha_mazzi():
             i = mazzo_del_gioco(chiave, tipo)
@@ -4807,27 +4811,11 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
 
     def gira(i, verso):
         if doppio:
-            fam = famiglie_francesi()
-            nomi = sorted(fam)
-            dis, due = mazzi_ramino()
-            if dis is None:
+            if i != 1:
                 return
-            if i == 1:
-                dis = nomi[(nomi.index(dis) + verso) % len(nomi)]
-                B.CFG["ramino_disegno"] = dis
-                B.CFG.pop("ramino_a", None)
-                B.CFG.pop("ramino_b", None)
-            elif i in (2, 3):
-                colori = [c for c, _ in fam[dis]]
-                ora = due[i - 2]
-                k = (colori.index(ora) + verso) % len(colori)
-                B.CFG["ramino_a" if i == 2 else "ramino_b"] = colori[k]
-            elif i == 4:
-                scelte = (100, 200, 300, 500)
-                k = (scelte.index(punti_partita()) + verso) % len(scelte)
-                B.CFG["ramino_punti"] = scelte[k]
-            else:
-                return
+            scelte = (100, 200, 300, 500)
+            k = (scelte.index(punti_partita()) + verso) % len(scelte)
+            B.CFG["ramino_punti"] = scelte[k]
             B.salva_config()
             B.suona_fx("menu_tic", 0.6)
             return
@@ -4864,13 +4852,8 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
         if not (1 <= sel <= n):
             return
         if doppio:
-            if sel == 4:
-                return
-            dis, due = mazzi_ramino()
-            if dis is None:
-                return
-            anteprima_due(sc, due, centro)
-        elif righe_mazzo()[sel - 1][0] == T("deck"):
+            return
+        if righe_mazzo()[sel - 1][0] == T("deck"):
             anteprima_mazzo(sc, tipo, centro)
 
     while True:

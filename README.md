@@ -283,12 +283,13 @@ which set of faces it uses. To add a type, put its name in `TIPI_FACCE`
 in `giochi/carte/carte.py`; if it is a French pack, say so in `FAMIGLIE`
 next to it, so the games that need 52 cards can see it.
 
-Seven decks. The faces never change, so what the menu offers is the
-**back**: the preview shows the back you picked with a card of the deck
-peeking out from under it, and every game remembers its own. Rummy plays
-with Poker 98 blue and red paired, Texas Hold'em opens on Texas
-verde-acqua, Blackjack on Texas nero, and the Italian games pick between
-Napoletane Marrone 150 and Toscane N93.
+Seven decks, and every game has its own. Rummy plays with Poker 98 blue
+and red paired, Texas Hold'em with Texas verde-acqua, Blackjack with Texas
+nero, the solitaires each with one of them: none of these is a choice, the
+deck is simply theirs. The only game menu that still offers one is the
+Italian table (Scopa, Briscola, Sette e Mezzo), where you pick between
+Napoletane Marrone 150 and Toscane N93 - two different sets of faces. The
+preview shows the deck with a card peeking out from under its back.
 
 ## Credits
 
