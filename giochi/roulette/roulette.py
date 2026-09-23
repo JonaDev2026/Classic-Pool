@@ -710,7 +710,7 @@ def _fiche_gfx(soldi, r):
 
 def disegna_fiche(sc, centro, soldi, grande=False):
     """Una fiche col suo valore sopra."""
-    r = B.s(19) if grande else B.s(15)
+    r = B.s(13) if grande else B.s(10)
     img = _fiche_gfx(soldi, r)
     om = pygame.Surface(img.get_size(), pygame.SRCALPHA)
     om.fill((0, 0, 0, 110))
@@ -943,7 +943,7 @@ def fiche_in_mano(sc, mano, fiche, tap):
     if dove is not None:
         # il posto dove finirebbe, segnato in chiaro
         p = tap.dove_sta(dove)
-        pygame.draw.circle(sc, (255, 255, 255), p, B.s(17), max(1, B.s(2)))
+        pygame.draw.circle(sc, (255, 255, 255), p, B.s(12), max(1, B.s(2)))
     disegna_fiche(sc, (x, y), fiche, grande=True)
     if dove is None:
         return
