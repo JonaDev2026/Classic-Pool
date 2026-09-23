@@ -55,6 +55,7 @@ TXT = {
            "r_40": "Your first meld must be worth 50", "r_open_first": "Open with 50 points before you lay off", "r_one": "Pick one card to discard",
            "r_use_taken": "Use the card you took first",
            "r_only_taken": "You must discard the card you took",
+           "r_use_jolly": "Play the joker you took",
            "r_left": "Cards left",
            "r_pay": "Points",
            "cloth": "Cloth",
@@ -138,6 +139,7 @@ TXT = {
            "r_40": "La prima calata deve fare 50", "r_open_first": "Devi aprire con 50 punti prima di attaccare", "r_one": "Scegli una carta da scartare",
            "r_use_taken": "Prima usa la carta che hai preso",
            "r_only_taken": "Devi scartare la carta che hai preso",
+           "r_use_jolly": "Gioca il jolly che hai preso",
            "r_left": "Carte in mano",
            "r_pay": "Punti",
            "cloth": "Panno",
@@ -221,6 +223,7 @@ TXT = {
            "r_40": "La premiere pose doit valoir 50", "r_open_first": "Ouvrez avec 50 points avant d'ajouter", "r_one": "Choisissez une carte a defausser",
            "r_use_taken": "Utilisez d'abord la carte prise",
            "r_only_taken": "Vous devez defausser la carte prise",
+           "r_use_jolly": "Jouez le joker que vous avez pris",
            "r_left": "Cartes en main",
            "r_pay": "Points",
            "cloth": "Tapis",
@@ -304,6 +307,7 @@ TXT = {
            "r_40": "La primera bajada debe valer 50", "r_open_first": "Abre con 50 puntos antes de anadir", "r_one": "Elige una carta para descartar",
            "r_use_taken": "Primero usa la carta que tomaste",
            "r_only_taken": "Debes descartar la carta que has tomado",
+           "r_use_jolly": "Juega el comodin que has tomado",
            "r_left": "Cartas en mano",
            "r_pay": "Puntos",
            "cloth": "Tapete",
@@ -2294,6 +2298,10 @@ def partita_ramino(tv):
                 mani[chi].remove(c)
                 meld[meld.index(jk)] = c
                 mani[chi].append(jk)
+                if chi == 0:
+                    # il jolly comprato va rigiocato in tavola, come la
+                    # carta presa dallo scarto
+                    jolly_presi.append(jk)
                 ultima[0] = c
                 return "jolly"
             return False
@@ -2336,18 +2344,20 @@ def partita_ramino(tv):
         turno = chi_inizia
         chiude = None
         ultima = [None]         # l'ultima carta messa in tavola
+        jolly_presi = []        # i jolly comprati in tavola in questo turno
         in_mano = [False]       # chi chiude ha aperto e chiuso in un turno
         while chiude is None:
             tv.attivo = turno
             if turno == 0:
                 prima = aperto[0]
                 del calate[:]
+                del jolly_presi[:]
                 punti_calate[0] = 0
                 esito = yield from turno_umano_ramino(
                     tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                     cala, attacca, rifai_mano, rifai_tavola, ordina,
                     ordine_semi, a_mano, calate, punti_calate,
-                    ordina_meglio)
+                    ordina_meglio, jolly_presi)
                 if esito == "chiuso":
                     chiude = 0
                     in_mano[0] = not prima      # aperto e chiuso in un turno
@@ -2487,7 +2497,7 @@ def partita_ramino(tv):
 def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                        cala, attacca, rifai_mano, rifai_tavola, ordina,
                        ordine_semi, a_mano, calate, punti_calate,
-                       ordina_meglio):
+                       ordina_meglio, jolly_presi):
     """Il turno del giocatore, tutto con tre tasti.
 
     Sinistra e destra portano il cursore su tutto: il mazzo, lo scarto, le
@@ -2825,12 +2835,15 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                     tv.messaggio(T("r_back") % manca, 2.0)
                     C.suona("errore")
                     continue
-                if preso_scarto[0] is not None and dato is not preso_scarto[0]:
-                    # la carta presa dallo scarto va giocata in tavola,
-                    # sempre: calata o attaccata. Se non ci riesci
-                    # l'unica che puoi scartare e' proprio quella, e il
-                    # turno te lo sei giocato
-                    messaggio("r_only_taken")
+                # quello che hai preso dal tavolo - la carta dello
+                # scarto e i jolly comprati - va rigiocato in tavola,
+                # calato o attaccato. Se non ci riesci l'unica cosa che
+                # puoi scartare e' proprio quello, e il turno l'hai buttato
+                dovute = [c for c in [preso_scarto[0]] + jolly_presi
+                          if c is not None and c in mano]
+                if dovute and dato not in dovute:
+                    messaggio("r_only_taken" if preso_scarto[0] in dovute
+                              else "r_use_jolly")
                     continue
                 scarta(0, dato)
                 yield from tv.fermi()
