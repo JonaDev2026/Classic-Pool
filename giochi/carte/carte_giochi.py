@@ -2825,17 +2825,13 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                     tv.messaggio(T("r_back") % manca, 2.0)
                     C.suona("errore")
                     continue
-                if preso_scarto[0] is not None:
-                    if not aperto[0]:
-                        # hai preso dallo scarto senza essere aperto: o
-                        # apri con quella carta, o l'unica che puoi
-                        # scartare e' proprio quella, e il turno finisce
-                        if dato is not preso_scarto[0]:
-                            messaggio("r_only_taken")
-                            continue
-                    elif dato is preso_scarto[0]:
-                        messaggio("r_use_taken")
-                        continue
+                if preso_scarto[0] is not None and dato is not preso_scarto[0]:
+                    # la carta presa dallo scarto va giocata in tavola,
+                    # sempre: calata o attaccata. Se non ci riesci
+                    # l'unica che puoi scartare e' proprio quella, e il
+                    # turno te lo sei giocato
+                    messaggio("r_only_taken")
+                    continue
                 scarta(0, dato)
                 yield from tv.fermi()
                 return "chiuso" if not mano else None
