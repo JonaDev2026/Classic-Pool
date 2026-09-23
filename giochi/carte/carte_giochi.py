@@ -29,7 +29,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Pyramid",
            "cards": "Cards", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
-           "briscola": "Briscola", "ramino": "Rummy", "deck": "Deck",
+           "briscola": "Briscola", "ramino": "Rummy", "deck": "Back",
            "back": "Back", "soon": "soon",
            "need_fr": "French cards needed: coming soon",
            "card": "Card", "stand": "Stand", "leave": "Leave",
@@ -124,7 +124,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Carte", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
-           "briscola": "Briscola", "ramino": "Ramino", "deck": "Mazzo",
+           "briscola": "Briscola", "ramino": "Ramino", "deck": "Dorso",
            "back": "Indietro", "soon": "presto",
            "need_fr": "Servono le carte francesi: presto",
            "card": "Carta", "stand": "Sto", "leave": "Esci",
@@ -219,7 +219,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Pyramide",
            "cards": "Cartes", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
-           "briscola": "Briscola", "ramino": "Rami", "deck": "Jeu",
+           "briscola": "Briscola", "ramino": "Rami", "deck": "Dos",
            "back": "Retour", "soon": "bientot",
            "need_fr": "Cartes francaises requises : bientot",
            "card": "Carte", "stand": "Reste", "leave": "Quitter",
@@ -314,7 +314,7 @@ TXT = {
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Cartas", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Escoba",
-           "briscola": "Brisca", "ramino": "Rummy", "deck": "Baraja",
+           "briscola": "Brisca", "ramino": "Rummy", "deck": "Dorso",
            "back": "Atras", "soon": "pronto",
            "need_fr": "Faltan las cartas francesas: pronto",
            "card": "Carta", "stand": "Me planto", "leave": "Salir",
@@ -4597,26 +4597,47 @@ def anteprima_panno(sc, i, centro):
     cornice(sc, r)
 
 
+# la carta che si vede sotto il dorso nell'anteprima: cambia a ogni
+# giro di menu, cosi' si capisce che le facce non si scelgono
+CARTA_ANTEPRIMA = [None, None]
+
+
+def carta_a_caso(tipo):
+    """Una carta qualsiasi del mazzo, tenuta finche' non si cambia
+    tipo di facce."""
+    if CARTA_ANTEPRIMA[0] != tipo:
+        if C.famiglia(tipo) == "francesi":
+            quali = [r + sm for sm in "SHDC" for r in "A23456789TJQK"]
+        else:
+            quali = ["%d%s" % (n, sm) for sm in "bcds" for n in range(1, 11)]
+        CARTA_ANTEPRIMA[0] = tipo
+        CARTA_ANTEPRIMA[1] = random.choice(quali)
+    return CARTA_ANTEPRIMA[1]
+
+
 def anteprima_mazzo(sc, tipo, centro):
-    """Il dorso e una figura del mazzo scelto, uno accanto all'altra."""
+    """Il dorso scelto, e sotto una carta a caso che spunta per meta':
+    le facce sono sempre quelle, si cambia solo la copertina."""
     alto = B.s(190)
-    figura = "KH" if C.famiglia(tipo) == "francesi" else "10d"
-    pezzi = []
-    for img in (C.immagine_mazzo("dorso"), C.immagine_carta(figura)):
-        if img is None:
-            continue
-        largo = max(1, int(img.get_width() * alto / float(img.get_height())))
-        pezzi.append(C._riduci(img, largo, alto))
-    if not pezzi:
+    dorso = C.immagine_mazzo("dorso")
+    faccia = C.immagine_carta(carta_a_caso(tipo))
+    if dorso is None:
         return
-    gap = B.s(12)
-    tot = sum(p.get_width() for p in pezzi) + gap * (len(pezzi) - 1)
-    x = centro[0] - tot // 2
-    for p in pezzi:
-        r = p.get_rect(midleft=(x, centro[1]))
-        sc.blit(p, r)
-        cornice(sc, r)
-        x += p.get_width() + gap
+    largo = max(1, int(dorso.get_width() * alto / float(dorso.get_height())))
+    d = C._riduci(dorso, largo, alto)
+    # il gruppo resta centrato: il dorso sale e va a sinistra, la carta
+    # spunta in basso a destra
+    sx, giu = int(largo * 0.40), int(alto * 0.26)
+    r = d.get_rect(topleft=(centro[0] - largo // 2 - sx // 2,
+                            centro[1] - alto // 2 - giu // 2))
+    if faccia is not None:
+        lf = max(1, int(faccia.get_width() * alto / float(faccia.get_height())))
+        q = C._riduci(faccia, lf, alto)
+        rf = q.get_rect(topleft=(r.x + sx, r.y + giu))
+        sc.blit(q, rf)
+        cornice(sc, rf)
+    sc.blit(d, r)
+    cornice(sc, r)
 
 
 def anteprima_due(sc, due, centro):
