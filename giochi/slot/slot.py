@@ -752,6 +752,7 @@ class Macchina:
         pygame.draw.rect(sc, (13, 15, 21), self.cassa,
                          border_radius=B.s(14))
         cornice_neon(sc, self.cassa, self.t_neon)
+        self.lampadine()
         self.disegna_jackpot()
         self.disegna_rulli()
         self.disegna_sotto()
@@ -812,7 +813,6 @@ class Macchina:
                 al.fill((255, 255, 255, int(150 + 105 * respiro)),
                         special_flags=pygame.BLEND_RGBA_MULT)
                 sc.blit(al, al.get_rect(center=r.center))
-                self.lucine(r, col)
                 img = figura(nome, (int(cw * GRANDE * k),
                                     int(ch * GRANDE * k))).copy()
                 # l'alfa si moltiplica sui pixel: set_alpha su una
@@ -877,25 +877,33 @@ class Macchina:
         sc.blit(soldi, soldi.get_rect(
             midleft=(x + nome.get_width() + B.s(16), r.centery)))
 
-    def lucine(self, r, col):
-        """Le lampadine attorno al simbolo che vince: quadratini che
-        girano in tondo e si accendono uno dopo l'altro, come le luci di
-        una macchina da sala."""
-        quante = 14
-        raggio = min(r.w, r.h) * 0.46
-        giro = self.t_vinta * 0.7
-        for j in range(quante):
-            ang = 2 * math.pi * j / quante + giro
-            f = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0 - j * 0.55)
-            lato = max(2, int(B.s(3) + B.s(4) * f))
+    def lampadine(self):
+        """Le lampadine tutto intorno alla macchina: quadratini piccoli,
+        appena fuori dalla cornice, che si accendono uno dopo l'altro e
+        cambiano colore girando, come le luci di una sala."""
+        sc = self.sc
+        r = self.cassa.inflate(-B.s(9), -B.s(9))   # dentro la cornice
+        passo = B.s(26)
+        punti = []
+        x = r.left
+        while x < r.right:                      # sopra e sotto
+            punti.append((x, r.top))
+            punti.append((r.right - (x - r.left), r.bottom))
+            x += passo
+        y = r.top + passo
+        while y < r.bottom - passo // 2:        # i due fianchi
+            punti.append((r.right, y))
+            punti.append((r.left, r.bottom - (y - r.top)))
+            y += passo
+        for i, (px, py) in enumerate(punti):
+            f = 0.5 + 0.5 * math.sin(self.t_neon * 4.0 - i * 0.45)
+            col = colore_neon(self.t_neon + i * 0.02)
+            c = tuple(int(col[j] + (255 - col[j]) * f * 0.7)
+                      for j in range(3))
+            lato = max(2, int(B.s(3) + B.s(5) * f))
             q = pygame.Surface((lato, lato), pygame.SRCALPHA)
-            # dal colore del simbolo al bianco, quando e' accesa
-            c = tuple(int(col[i] + (255 - col[i]) * f * 0.75)
-                      for i in range(3))
-            q.fill(c + (int(70 + 185 * f),))
-            self.sc.blit(q, q.get_rect(
-                center=(int(r.centerx + math.cos(ang) * raggio),
-                        int(r.centery + math.sin(ang) * raggio))))
+            q.fill(c + (int(60 + 195 * f),))
+            sc.blit(q, q.get_rect(center=(px, py)))
 
     def disegna_sotto(self):
         """La barra sotto la macchina: qui va la combinazione che sta
