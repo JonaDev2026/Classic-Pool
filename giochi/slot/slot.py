@@ -668,7 +668,7 @@ class Macchina:
     # ---- il disegno
     def disegna(self, voci, sel, per_linea):
         sc = self.sc
-        sc.blit(fondo_slot(), (0, 0))
+        sc.blit(B.fondo(), (0, 0))
         # la cassa: un pannello scuro pieno, con la luce che gira intorno
         pygame.draw.rect(sc, (13, 15, 21), self.cassa,
                          border_radius=B.s(14))
