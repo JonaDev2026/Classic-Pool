@@ -450,6 +450,22 @@ class Esci(Exception):
 
 
 # --------------------------------------------------------------- tavolo
+SAGOME = {}
+
+
+def sagoma_vuota(w, h, k):
+    """Il segno di un posto vuoto: un rettangolo in filigrana. Si
+    disegna su una sua superficie e poi si appoggia, perche' sul foglio
+    del Retina non si puo' disegnare direttamente."""
+    if (w, h) not in SAGOME:
+        q = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(q, (255, 255, 255, 46), q.get_rect(),
+                         max(1, int(B.s(2) * k)),
+                         border_radius=max(2, int(B.s(6) * k)))
+        SAGOME[(w, h)] = q
+    return SAGOME[(w, h)]
+
+
 class Tavolo:
     """Il tavolo comune a tutti i giochi."""
 
@@ -944,11 +960,9 @@ class Tavolo:
         if self.sagome or self.segna:
             w, h = C.misura_carta()
             for centro, gg in self.sagome:
-                r = pygame.Rect(0, 0, int(w * gg * k), int(h * gg * k))
-                r.center = (int(centro[0] * k), int(centro[1] * k))
-                pygame.draw.rect(sup, (255, 255, 255, 46), r,
-                                 max(1, int(B.s(2) * k)),
-                                 border_radius=max(2, int(B.s(6) * k)))
+                q = sagoma_vuota(int(w * gg * k), int(h * gg * k), k)
+                sup.blit(q, q.get_rect(center=(int(centro[0] * k),
+                                               int(centro[1] * k))))
             for centro, gg, col in self.segna:
                 al = C.alone(int(w * gg * k), int(h * gg * k),
                              max(4, int(B.s(12) * k)), col,
