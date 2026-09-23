@@ -8368,7 +8368,7 @@ def schermata_menu(sc, clock, logo, inizio=None):
     def voci_ora():
         if categoria is None:
             return [T("billiards"), T("cards"),
-                    "%s  (%s)" % (T("roulette"), T("soon")),
+                    T("roulette"),
                     T("slots"),
                     T("settings"), T("quit")]
         if categoria == "bil":
@@ -8399,8 +8399,7 @@ def schermata_menu(sc, clock, logo, inizio=None):
             if i == 3:
                 return "slot"
             if i == 2:
-                avviso[0] = pygame.time.get_ticks()     # non c'e' ancora
-                return None
+                return "roulette"
             return ("settings", "quit")[i - 4]
         if categoria == "bil":
             if i == 0:
@@ -12249,6 +12248,14 @@ def main():
                 sys.path.insert(0, os.path.join(RADICE, "giochi", "carte"))
             import carte
             dove = carte.schermata_carte(sc, clock, logo)
+        elif dove == "roulette":
+            # la roulette sta in giochi/roulette
+            if os.path.join(RADICE, "giochi", "roulette") not in sys.path:
+                sys.path.insert(0, os.path.join(RADICE, "giochi", "roulette"))
+            import roulette
+            dove = roulette.schermata_roulette(sc, clock, logo)
+            if dove == "su":
+                dove = "menu"
         elif dove == "slot":
             # la slot sta in giochi/slot
             if os.path.join(RADICE, "giochi", "slot") not in sys.path:
