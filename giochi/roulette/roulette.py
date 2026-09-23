@@ -199,6 +199,46 @@ def aiuto_roulette():
                         B.nome_tasto(B.tasto("gesso")))
 
 
+# ------------------------------------------------------------- i suoni
+SUONI = {}
+DURATE = {}
+
+
+def carica_suoni():
+    """I suoni della roulette, da audio/roulette/fx."""
+    if SUONI or not B.MUSICA_OK:
+        return
+    cartella = os.path.join(B.SUONI_DIR, "roulette", "fx")
+    if not os.path.isdir(cartella):
+        return
+    for f in sorted(os.listdir(cartella)):
+        if not f.lower().endswith((".ogg", ".wav", ".mp3")):
+            continue
+        try:
+            s = pygame.mixer.Sound(os.path.join(cartella, f))
+            SUONI[os.path.splitext(f)[0].lower()] = s
+            DURATE[os.path.splitext(f)[0].lower()] = s.get_length()
+        except pygame.error:
+            pass
+
+
+def suona(nome, quanto=0.9):
+    s = SUONI.get(nome)
+    if s is None:
+        return None
+    v = B.CFG.get("effetti", 100) / 100.0
+    if v <= 0.0:
+        return s
+    s.set_volume(min(1.0, v * quanto))
+    s.play()
+    return s
+
+
+def dura_pallina():
+    """Il giro dura esattamente quanto l'audio della pallina."""
+    return DURATE.get("pallina", 11.0)
+
+
 # ------------------------------------------------------------ la ruota
 RUOTA_GFX = [None]
 
@@ -359,17 +399,19 @@ class Ruota:
     def passo_casella(self):
         return 2 * math.pi / len(RUOTA)
 
-    def lancia(self, numero, durata=11.0):
+    def lancia(self, numero, durata=None):
         """Butta la pallina: si sa gia' dove finisce, ci arriva girando."""
         self.uscito = numero
         self.gira = True
         self.t = 0.0
-        self.durata = durata
+        self.durata = dura_pallina() if durata is None else durata
         posto = RUOTA.index(numero)
         self.off_da = self.off
-        # la pallina gira al contrario della ruota, un bel po' di giri
+        # la pallina gira al contrario della ruota: tanti giri quanto
+        # basta per restare svelta per tutta la durata del suono
         meta = posto * self.passo_casella()
-        self.off_a = meta - 26 * 2 * math.pi
+        giri = max(12, int(self.durata * 2.4))
+        self.off_a = meta - giri * 2 * math.pi
 
     def passo(self, dt):
         if self.gira:
@@ -648,6 +690,7 @@ def disegna_fiche(sc, centro, soldi, grande=False):
 def gioca_roulette(sc, clock, logo):
     """Si muove la fiche sul tappeto, si appoggia dove si vuole - anche
     sulle linee - poi si lancia la pallina."""
+    carica_suoni()
     tap = Tappeto()
     ruota = Ruota((B.s(345), B.ALTO + B.s(255)), B.s(360))
     puntate = {}
@@ -707,7 +750,8 @@ def gioca_roulette(sc, clock, logo):
             return
         ruota.lancia(random.choice(RUOTA))
         msg, sotto, vinto = T("ball"), "", 0
-        B.suona_fx("menu_apri", 0.8)
+        if suona("pallina", 0.85) is None:
+            B.suona_fx("menu_apri", 0.8)
 
     def cambia_fiche(verso):
         nonlocal fiche
