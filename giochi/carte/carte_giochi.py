@@ -1943,10 +1943,30 @@ def _ranghi_scala(ordine):
     return None
 
 
-def jolly_da_prendere(codici, codice):
+def valore_nel_meld(codici, i):
+    """Quanto vale la carta che sta al posto i di una combinazione."""
+    veri = [c for c in codici if not jolly(c)]
+    if not veri:
+        return 0
+    ranghi = set(rango(c) for c in veri)
+    if len(ranghi) == 1 and len(codici) <= 4:
+        r = ranghi.pop()
+        return 11 if r == 1 else valore_carta_ramino(r)
+    rs = _ranghi_scala(codici)
+    if rs is None or i >= len(rs):
+        return 0
+    return valore_carta_ramino(rs[i])
+
+
+def jolly_da_prendere(codici, codice, mano=None):
     """Nel ramino il jolly si compra: chi ha la carta vera che il jolly
     sta facendo la mette al suo posto e si prende il jolly in mano.
-    Torna il posto del jolly nella combinazione, o None."""
+    Torna il posto del jolly nella combinazione, o None.
+
+    In una scala il jolly fa una carta sola e si sa quale. In un tris
+    no: se al tris mancano due semi, il jolly puo' essere l'uno o
+    l'altro, e allora si compra solo avendo in mano tutte le carte che
+    mancano - se no il jolly lo si porterebbe via a caso."""
     if jolly(codice):
         return None
     # si guarda la combinazione com'e' messa in tavola: il jolly fa la
@@ -1960,9 +1980,18 @@ def jolly_da_prendere(codici, codice):
         return None
     if len(set(rango(c) for c in veri)) == 1 and len(ordine) <= 4:
         semi = set(seme(c) for c in veri)
-        if rango(codice) == rango(veri[0]) and seme(codice) not in semi:
-            return posti[0]
-        return None
+        if rango(codice) != rango(veri[0]) or seme(codice) in semi:
+            return None
+        mancano = set("SHDC") - semi - {seme(codice)}
+        if len(mancano) > len(posti) - 1:
+            # resterebbe un seme scoperto: servono anche quelle carte
+            if mano is None:
+                return None
+            ho = set(seme(c) for c in mano
+                     if not jolly(c) and rango(c) == rango(codice))
+            if not mancano <= ho:
+                return None
+        return posti[0]
     ranghi = _ranghi_scala(ordine)
     if ranghi is None:
         return None
@@ -2251,7 +2280,9 @@ def partita_ramino(tv):
             quali = [quale] if quale is not None else range(len(tavola))
             for i in quali:
                 meld = tavola[i]
-                dove = jolly_da_prendere([x.codice for x in meld], c.codice)
+                dove = jolly_da_prendere(
+                    [x.codice for x in meld], c.codice,
+                    [x.codice for x in mani[chi] if x is not c])
                 if dove is None:
                     continue
                 jk = meld[dove] if jolly(meld[dove].codice) else \
@@ -2260,7 +2291,7 @@ def partita_ramino(tv):
                 meld[meld.index(jk)] = c
                 mani[chi].append(jk)
                 ultima[0] = c
-                return True
+                return "jolly"
             return False
 
         def attacca(chi, c, quale=None):
@@ -2646,7 +2677,8 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                                     carta = sposta[0]
                                     prima = valida_meld(
                                         [x.codice for x in tavola[dato]])[1]
-                                    if attacca(0, carta, dato):
+                                    fatto = attacca(0, carta, dato)
+                                    if fatto:
                                         if carta in sel:
                                             sel.remove(carta)
                                         if carta is preso_scarto[0]:
@@ -2660,7 +2692,19 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                                                 [x.codice
                                                  for x in tavola[dato]])[1]
                                             attacchi.append((dato, carta))
-                                            punti_calate[0] += dopo - prima
+                                            vale = dopo - prima
+                                            if fatto == "jolly":
+                                                # il jolly esce e la carta
+                                                # entra: il totale non
+                                                # cambia, ma la carta
+                                                # calata vale i suoi punti
+                                                cod = [x.codice for x in
+                                                       tavola[dato]]
+                                                vale = valore_nel_meld(
+                                                    cod, [x.codice for x in
+                                                          tavola[dato]].index(
+                                                        carta.codice))
+                                            punti_calate[0] += vale
                                             if punti_calate[0] >= APERTURA:
                                                 aperto[0] = True
                                                 del calate[:]
