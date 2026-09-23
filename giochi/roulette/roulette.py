@@ -654,7 +654,7 @@ class Tappeto:
                         int(t.get_height() * (r.w - B.s(6)) / t.get_width())))
             sc.blit(t, t.get_rect(center=r.center))
         for chiave, soldi in puntate.items():
-            disegna_fiche(sc, self.dove_sta(chiave), soldi)
+            disegna_pila(sc, self.dove_sta(chiave), soldi)
 
 
 FICHE_COL = ((5, (178, 42, 48)), (10, (40, 86, 168)),
@@ -725,6 +725,40 @@ def disegna_fiche(sc, centro, soldi, grande=False):
         t = pygame.transform.smoothscale(
             t, (int(r * 1.1), int(t.get_height() * r * 1.1 / t.get_width())))
     sc.blit(t, t.get_rect(center=centro))
+
+
+def taglia(soldi):
+    """Spezza la puntata nelle fiches vere: 500, 100, 25, 10, 5. Una
+    puntata da 15 sono una da 10 e una da 5, non una fiche da 15."""
+    pila = []
+    resto = soldi
+    for v, _c in reversed(FICHE_COL):
+        while resto >= v:
+            pila.append(v)
+            resto -= v
+    return pila
+
+
+def disegna_pila(sc, centro, soldi):
+    """La puntata sul tappeto: le fiches una sopra l'altra, con sotto
+    quanto fa in tutto."""
+    pila = taglia(soldi)
+    if not pila:
+        return
+    r = B.s(10)
+    troppe = len(pila) > 6
+    mostra = pila[:6] if troppe else pila
+    alt = B.s(4)
+    x, y = centro[0], centro[1] + (len(mostra) - 1) * alt // 2
+    for i, v in enumerate(reversed(mostra)):
+        disegna_fiche(sc, (x, y - i * alt), v)
+    f = B.FONTS.get("mini") or B.FONTS["small"]
+    t = f.render(B.dollari(soldi), True, (255, 255, 255))
+    p = t.get_rect(center=(x, y + r + B.s(7)))
+    q = pygame.Surface(p.inflate(B.s(8), B.s(3)).size, pygame.SRCALPHA)
+    q.fill((12, 14, 20, 200))
+    sc.blit(q, p.inflate(B.s(8), B.s(3)))
+    sc.blit(t, p)
 
 
 # ------------------------------------------------------------- il gioco
