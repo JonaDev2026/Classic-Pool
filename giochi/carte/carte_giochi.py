@@ -496,11 +496,7 @@ class Tavolo:
         # le carte in gioco un terzo piu' grandi del mazzo, tranne nel
         # ramino, dove sul tavolo ce ne sono tante
         self.g = 1.0 if gioco == "ramino" else 4.0 / 3.0
-        self.g_mazzo = 4.0 / 3.0    # il mazzo e la scatola, in ogni gioco
-        # nel ramino si gioca con due mazzi: le scatole sono due (o una
-        # sola, se la confezione doppia c'e' gia')
-        self.scatole = list(mazzi_ramino()[1] or []) if gioco == "ramino" \
-            else []
+        self.g_mazzo = 4.0 / 3.0    # il mazzo, in ogni gioco
         self.nomi = nomi
         self.punti = [0] * len(nomi)
         self.attivo = 0
@@ -537,25 +533,13 @@ class Tavolo:
 
     # ---- posti
     def disponi(self):
-        """A sinistra del tavolo, dall'alto: la scatola, il mazzo e sotto
-        il numero delle carte. La fascia a destra e' per le scelte."""
-        sb = C.immagine_mazzo("scatola", self.scatole[0]
-                              if self.scatole else None)
-        legno_sx = int(B.TAV_POS[0] + C.LEGNO_FUORI.left * B.SCALA)
+        """A sinistra del tavolo il mazzo, e sotto quante carte restano.
+        La fascia a destra e' per le scelte."""
         _, h = C.misura_carta()
         h = int(h * self.g_mazzo)
-        alto = 0
-        if sb is not None:
-            largo = legno_sx - B.s(20)
-            alto = max(B.s(30), min(B.s(146), int(
-                largo * sb.get_height() / float(sb.get_width()))))
-        spazio = B.s(26)            # fra scatola e mazzo (la pila sale)
         conta = B.FONTS["small"].get_height() + B.s(16)
-        tutto = alto + spazio + h + conta
-        y0 = self.z.centery - tutto // 2
-        self.P["scatola"] = (self.x_lato, y0 + alto // 2)
-        self.P["mazzo"] = (self.x_lato, y0 + alto + spazio + h // 2)
-        self.P["alto"] = alto
+        y0 = self.z.centery - (h + conta) // 2
+        self.P["mazzo"] = (self.x_lato, y0 + h // 2)
 
     def posto_mazzo(self, k):
         return (self.P["mazzo"][0] + k * 0.2, self.P["mazzo"][1] - k * 0.35)
@@ -966,8 +950,6 @@ class Tavolo:
             y += passo
 
     def sopra_scena(self, sup, k):
-        C.disegna_scatola(sup, self.P["scatola"], self.P["alto"], k,
-                          self.scatole)
         if self.mira in ("mazzo", "scarto"):
             w, h = C.misura_carta()
             g = self.g_mazzo if self.mira == "mazzo" else self.g
@@ -4542,8 +4524,7 @@ def mazzi_per(tipo):
 
 
 # i nomi che si leggono nel menu, quando quello automatico non va bene
-NOMI_MAZZI = {"napoli_gb_marrone": "Napoletane Golden Break",
-              "poker_gb_rosso": "Poker Golden Break Rosso",
+NOMI_MAZZI = {"poker_gb_rosso": "Poker Golden Break Rosso",
               "poker_gb_blu": "Poker Golden Break Blu"}
 
 

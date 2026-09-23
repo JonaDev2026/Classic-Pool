@@ -145,7 +145,7 @@ the stake before the match starts, from 10 to 1000, and the winner takes
 the pot; in Rummy the losing hand also pays the 50 point stake. Blackjack,
 Sette e Mezzo and Texas Hold'em take their bets hand by hand.
 
-**Decks**: 46 of them, Italian (Napoletane, Toscane) and French (Poker 98,
+**Decks**: 41 of them, Italian (Napoletane, Toscane) and French (Poker 98,
 Texas, Jumbo, Bridge, Club, Golden Trophy, Bike Trophy). Each game
 remembers its own deck; Rummy plays with two decks of the same design and
 you pick which two colours, with the double box when the pack has one.
@@ -274,8 +274,7 @@ game.
 internet connection).
 
 Card faces live in `immagini/carte/facce/<type>` and decks in
-`immagini/carte/mazzi`, one folder per deck with `dorso.png`,
-`scatola.png` and, for a two deck pack, `scatola_doppia.png`. A deck
+`immagini/carte/mazzi`, one folder per deck with its `dorso.png`. A deck
 folder is named `<type>_<design>_<colour>`, for example
 `francesi_texas_rosso` or `napoletane_rosso_150`, and the type picks
 which set of faces it uses. To add a type, put its name in `TIPI_FACCE`

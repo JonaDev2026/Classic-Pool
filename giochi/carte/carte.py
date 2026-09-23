@@ -212,7 +212,7 @@ FACCIA = {}
 # Le carte vere: le facce stanno in biliardo_gfx/carte/facce/<tipo>/,
 # un file per carta col suo codice (1d = asso di denari, 10s = re di
 # spade: d denari, c coppe, s spade, b bastoni). Ogni mazzo ha la sua
-# cartella in carte/mazzi/<nome>/ con dorso.png e scatola.png; il tipo
+# cartella in carte/mazzi/<nome>/ con dorso.png; il tipo
 # di facce si capisce dal nome della cartella (napoletane, toscane,
 # francesi). Se una carta manca si disegna la sagoma bianca.
 SEMI_IT = ("d", "c", "s", "b")
@@ -225,11 +225,11 @@ def cartella_carte():
 
 # I tipi di facce: il nome della cartella del mazzo dice quali usare.
 # Vanno in ordine, il primo che sta dentro al nome vince.
-TIPI_FACCE = ("poker", "napoli", "napoletane", "toscane", "francesi")
+TIPI_FACCE = ("poker", "napoletane", "toscane", "francesi")
 
 # A che famiglia appartengono: i mazzi nostri si comportano come quelli
 # veri, cosi' finiscono nei giochi giusti.
-FAMIGLIE = {"napoli": "napoletane", "poker": "francesi"}
+FAMIGLIE = {"poker": "francesi"}
 
 
 def tipo_di(nome):
@@ -323,7 +323,7 @@ def _solo_pieno(img):
 
 
 def immagine_mazzo(che, cartella=None):
-    """dorso o scatola del mazzo scelto (o di quello dato: nel ramino si
+    """il dorso del mazzo scelto (o di quello dato: nel ramino si
     gioca con due mazzi, rosso e blu). Il dorso senza bordo vuoto."""
     cartella = cartella or MAZZO_ORA[0]
     if cartella is None:
@@ -441,61 +441,6 @@ def faccia_carta(scoperta, codice=None, k=1.0, dorso=None):
         pygame.draw.rect(sup, (150, 152, 160), corpo, 1, border_radius=r)
     FACCIA[chiave] = sup
     return sup
-
-
-def scatola_doppia(cartelle):
-    """La confezione doppia, quella rettangolare da due mazzi: si cerca
-    scatola_doppia.png nelle cartelle dei due mazzi. Se non c'e' si
-    disegnano le due scatole singole nello stesso spazio."""
-    for cartella in cartelle:
-        img = immagine_mazzo("scatola_doppia", cartella)
-        if img is not None:
-            return img
-    return None
-
-
-def disegna_scatola(sc, centro, alto, z=1.0, cartelle=None):
-    """La scatola accanto al mazzo. Con due mazzi (ramino): la confezione
-    doppia se c'e', se no le due scatoline affiancate nello stesso posto.
-    z: l'ingrandimento dello schermo."""
-    if alto <= 0:
-        return
-    alto = max(1, int(alto * z))
-    cartelle = [x for x in (cartelle or []) if x]
-    doppia = scatola_doppia(cartelle) if len(cartelle) > 1 else None
-    if doppia is not None or len(cartelle) < 2:
-        imgs = [doppia if doppia is not None
-                else immagine_mazzo("scatola", cartelle[0] if cartelle
-                                    else None)]
-        nomi = [cartelle[0] if cartelle else MAZZO_ORA[0]]
-        if doppia is not None:
-            nomi = ["doppia+" + "+".join(cartelle)]
-    else:
-        imgs = [immagine_mazzo("scatola", x) for x in cartelle]
-        nomi = list(cartelle)
-        alto = max(1, int(alto * 0.72))     # due scatole nello stesso spazio
-    imgs = [(n, i) for n, i in zip(nomi, imgs) if i is not None]
-    if not imgs:
-        return
-    pezzi = []
-    for nome, img in imgs:
-        k = alto / float(img.get_height())
-        chiave = ("scatola", nome, alto)
-        if chiave not in FACCIA:
-            FACCIA[chiave] = _riduci(img, max(1, int(img.get_width() * k)),
-                                     alto)
-        pezzi.append(FACCIA[chiave])
-    gap = max(2, int(B.s(4) * z))
-    largo = sum(p.get_width() for p in pezzi) + gap * (len(pezzi) - 1)
-    c = (int(centro[0] * z), int(centro[1] * z))
-    x = c[0] - largo // 2
-    for q in pezzi:
-        r = q.get_rect(midleft=(x, c[1]))
-        om = pygame.Surface(q.get_size(), pygame.SRCALPHA)
-        om.fill((0, 0, 0, 40))
-        sc.blit(om, r.move(int(B.s(2) * z), int(B.s(3) * z)))
-        sc.blit(q, r)
-        x += q.get_width() + gap
 
 
 def morbido(t):
@@ -802,19 +747,8 @@ def prova_carte(sc, clock, logo):
     P = {}
 
     def disponi():
-        """Dove stanno mazzo e scatola: si rifà quando si cambia mazzo."""
-        # il mazzo nella fascia a sinistra del tavolo, la scatola in
-        # quella a destra, sempre con le sue proporzioni
-        sb = immagine_mazzo("scatola")
-        legno_dx = int(B.TAV_POS[0] + LEGNO_FUORI.right * B.SCALA)
-        alto_sc = 0
-        if sb is not None:
-            largo = B.WIN_W - legno_dx - B.s(20)
-            alto_sc = max(B.s(30), min(B.s(150), int(
-                largo * sb.get_height() / float(sb.get_width()))))
-        P["scatola"] = ((legno_dx + B.WIN_W) // 2, z.centery)
+        """Dove sta il mazzo: nella fascia a sinistra del tavolo."""
         P["mazzo"] = (x_lato, z.centery + B.s(7))
-        P["alto"] = alto_sc
     disponi()
 
     def posto_mazzo(k):
@@ -885,9 +819,8 @@ def prova_carte(sc, clock, logo):
                 c.vai(posto_mazzo(k), 0.0, scoperta=False)
 
     def sopra_scena(sup, z):
-        """Scatola e carte si disegnano dopo l'ingrandimento, alla misura
-        vera dello schermo: cosi' restano nitide."""
-        disegna_scatola(sup, P["scatola"], P["alto"], z)
+        """Le carte si disegnano dopo l'ingrandimento, alla misura vera
+        dello schermo: cosi' restano nitide."""
         # prima quelle ferme nel mazzo, poi il centro, poi le mani
         for c in carte:
             c.disegna(sup, z)
