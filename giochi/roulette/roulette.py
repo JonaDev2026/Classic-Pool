@@ -812,6 +812,26 @@ FICHE_COL = ((5, (178, 42, 48)), (10, (40, 86, 168)),
              (25, (30, 128, 74)), (100, (30, 30, 36)),
              (500, (108, 54, 150)))
 FICHE_GFX = {}
+FICHE_IMG = {}
+
+
+def img_fiche(soldi, r):
+    """La fiche vera, se in immagini/roulette/fiches c'e' il suo file."""
+    chiave = (soldi, r)
+    if chiave not in FICHE_IMG:
+        f = os.path.join(GFX, "fiches", "%d.png" % soldi)
+        img = None
+        if os.path.isfile(f):
+            try:
+                img = pygame.image.load(f).convert_alpha()
+                largo = max(4, int(r * 2.35))
+                alto = max(4, int(largo * img.get_height() /
+                                  float(img.get_width())))
+                img = pygame.transform.smoothscale(img, (largo, alto))
+            except (pygame.error, OSError):
+                img = None
+        FICHE_IMG[chiave] = img
+    return FICHE_IMG[chiave]
 
 
 def colore_fiche(soldi):
@@ -862,8 +882,13 @@ def _fiche_gfx(soldi, r):
 
 
 def disegna_fiche(sc, centro, soldi, grande=False):
-    """Una fiche col suo valore sopra."""
+    """Una fiche col suo valore sopra. Se c'e' l'immagine si usa quella,
+    che il valore ce l'ha gia' stampato."""
     r = B.s(13) if grande else B.s(10)
+    vera = img_fiche(soldi, r)
+    if vera is not None:
+        sc.blit(vera, vera.get_rect(center=centro))
+        return
     img = _fiche_gfx(soldi, r)
     om = pygame.Surface(img.get_size(), pygame.SRCALPHA)
     om.fill((0, 0, 0, 110))

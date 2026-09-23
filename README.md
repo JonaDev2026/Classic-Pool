@@ -205,7 +205,9 @@ The chip moves freely over the layout with the mouse, the arrows or the
 stick, so you bet on a number or on a line: straight, split, street,
 corner, six line, the dozens, the columns and the even money bets. Chips
 come in 5, 10, 25, 100 and 500 and stack in real denominations - two
-fives stay two fives. The ball runs on the outer track for as long as the
+fives stay two fives. They are drawn from `immagini/roulette/fiches`
+(one PNG per value) and fall back to a drawn chip if the folder is
+missing. The ball runs on the outer track for as long as the
 sound lasts, then drops in and bounces its way onto the numbers, and the
 croupier calls the number and the colour with the same voice as the
 billiards referee. After every spin the chips stay on the layout for a
