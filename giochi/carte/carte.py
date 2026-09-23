@@ -549,7 +549,15 @@ class Carta:
             img = pygame.transform.smoothscale(
                 img, (max(1, int(img.get_width() * k)), img.get_height()))
         if abs(self.ang) > 0.1:
-            img = pygame.transform.rotozoom(img, self.ang, 1.0)
+            # a un quarto di giro esatto la rotazione e' solo uno scambio
+            # di righe e colonne: nitida. Rotozoom invece interpola e
+            # sfoca, e lo si usa solo per gli angoli storti
+            giro = self.ang % 360.0
+            if min(abs(giro - a) for a in (0.0, 90.0, 180.0, 270.0,
+                                           360.0)) < 0.4:
+                img = pygame.transform.rotate(img, round(giro / 90.0) * 90.0)
+            else:
+                img = pygame.transform.rotozoom(img, self.ang, 1.0)
         sc.blit(img, img.get_rect(center=(int(self.pos.x * z),
                                           int((self.pos.y - self.su) * z))))
 
