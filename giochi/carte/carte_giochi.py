@@ -16,7 +16,10 @@ B = C.B
 
 # --------------------------------------------------------------- testi
 TXT = {
-    "en": {"cards": "Cards", "blackjack": "Blackjack",
+    "en": {"c_tavolo": "Table games", "c_solitari": "Solitaire",
+           "klondike": "Klondike", "spider": "Spider",
+           "freecell": "FreeCell", "piramide": "Pyramid",
+           "cards": "Cards", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
            "briscola": "Briscola", "ramino": "Rummy", "deck": "Deck",
            "back": "Back", "soon": "soon",
@@ -100,7 +103,10 @@ TXT = {
            "r_ncards": "Cards",
            "r_back": "%d points short: cards back in hand",
            "help_game": "click / ENTER  play      ESC  back"},
-    "it": {"cards": "Carte", "blackjack": "Blackjack",
+    "it": {"c_tavolo": "Giochi da tavolo", "c_solitari": "Solitari",
+           "klondike": "Klondike", "spider": "Spider",
+           "freecell": "FreeCell", "piramide": "Piramide",
+           "cards": "Carte", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
            "briscola": "Briscola", "ramino": "Ramino", "deck": "Mazzo",
            "back": "Indietro", "soon": "presto",
@@ -184,7 +190,10 @@ TXT = {
            "r_ncards": "Carte",
            "r_back": "Ti mancano %d punti: carte di nuovo in mano",
            "help_game": "clic / INVIO  gioca      ESC  indietro"},
-    "fr": {"cards": "Cartes", "blackjack": "Blackjack",
+    "fr": {"c_tavolo": "Jeux de table", "c_solitari": "Reussites",
+           "klondike": "Klondike", "spider": "Spider",
+           "freecell": "FreeCell", "piramide": "Pyramide",
+           "cards": "Cartes", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
            "briscola": "Briscola", "ramino": "Rami", "deck": "Jeu",
            "back": "Retour", "soon": "bientot",
@@ -268,7 +277,10 @@ TXT = {
            "r_ncards": "Cartes",
            "r_back": "Il manque %d points : cartes reprises en main",
            "help_game": "clic / ENTREE  jouer      ECHAP  retour"},
-    "es": {"cards": "Cartas", "blackjack": "Blackjack",
+    "es": {"c_tavolo": "Juegos de mesa", "c_solitari": "Solitarios",
+           "klondike": "Klondike", "spider": "Spider",
+           "freecell": "FreeCell", "piramide": "Piramide",
+           "cards": "Cartas", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Escoba",
            "briscola": "Brisca", "ramino": "Rummy", "deck": "Baraja",
            "back": "Atras", "soon": "pronto",
@@ -3162,6 +3174,17 @@ GIOCHI = (("blackjack", partita_blackjack, "francesi"),
           ("ramino", partita_ramino, "francesi"),
           ("texas", partita_texas, "francesi"))
 
+# i solitari: si gioca da soli, senza avversario e senza soldi. Quelli
+# con None non ci sono ancora e nel menu dicono "presto"
+SOLITARI = (("klondike", None, "francesi"),
+            ("spider", None, "francesi"),
+            ("freecell", None, "francesi"),
+            ("piramide", None, "francesi"))
+
+# il menu delle carte diviso in due: quelli in due o contro il banco,
+# e i solitari
+CATEGORIE_CARTE = (("c_tavolo", GIOCHI), ("c_solitari", SOLITARI))
+
 
 def mazzi_per(tipo):
     m = C.mazzi_disponibili()
@@ -3470,22 +3493,22 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
         B.musica_menu()
 
 
-def menu_giochi(sc, clock, logo):
-    """La lista dei giochi di carte."""
+def menu_lista_giochi(sc, clock, logo, titolo, elenco):
+    """La lista di una famiglia: i giochi da tavolo o i solitari."""
     avviso = [-99999]
 
     def voci():
         return [(T(k) if f else "%s  (%s)" % (T(k), T("soon")), None)
-                for k, f, _ in GIOCHI] + [(T("back"), None)]
+                for k, f, _ in elenco] + [(T("back"), None)]
 
     def sotto():
         if pygame.time.get_ticks() - avviso[0] < 1800:
             return T("soon")
-        return T("games")
+        return T(titolo)
 
     def scelta(i):
-        if i < len(GIOCHI):
-            if GIOCHI[i][1] is None:
+        if i < len(elenco):
+            if elenco[i][1] is None:
                 avviso[0] = pygame.time.get_ticks()
                 return None
             return i
@@ -3495,8 +3518,26 @@ def menu_giochi(sc, clock, logo):
         q = lista_menu(sc, clock, logo, sotto, voci, scelta)
         if q in ("quit", "back"):
             return q
-        chiave, partita, tipo = GIOCHI[q]
+        chiave, partita, tipo = elenco[q]
         if menu_gioco(sc, clock, logo, chiave, partita, tipo) == "quit":
+            return "quit"
+
+
+def menu_giochi(sc, clock, logo):
+    """I giochi di carte, divisi in due: quelli da tavolo e i solitari."""
+    def voci():
+        return [(T(nome), None) for nome, _e in CATEGORIE_CARTE] + \
+            [(T("back"), None)]
+
+    def scelta(i):
+        return i if i < len(CATEGORIE_CARTE) else "back"
+
+    while True:
+        q = lista_menu(sc, clock, logo, T("games"), voci, scelta)
+        if q in ("quit", "back"):
+            return q
+        titolo, elenco = CATEGORIE_CARTE[q]
+        if menu_lista_giochi(sc, clock, logo, titolo, elenco) == "quit":
             return "quit"
 
 
