@@ -136,14 +136,16 @@ def quanto_paga(chiave):
 
 
 def vincita(puntate, uscito):
-    """Quanto rende il colpo: la puntata torna indietro piu' il premio."""
+    """Quanto rende il colpo: la puntata torna indietro piu' il premio.
+    Torna il totale e l'elenco di cosa ha vinto, con quanto ha reso."""
     tot = 0
     vinte = []
     meta = ("rosso", "nero", "pari", "dispari", "basso", "alto")
     for chiave, soldi in puntate.items():
         if uscito in copre(chiave):
-            tot += soldi + soldi * quanto_paga(chiave)
-            vinte.append(chiave)
+            reso = soldi + soldi * quanto_paga(chiave)
+            tot += reso
+            vinte.append((chiave, reso))
         elif PARTAGE[0] and uscito == 0 and chiave in meta:
             # tavolo francese: sullo zero le puntate semplici tornano
             # indietro a meta'
@@ -720,7 +722,7 @@ class Tappeto:
         return (0, 0)
 
     # ---- il disegno
-    def disegna(self, sc, puntate, uscito, lampo):
+    def disegna(self, sc, puntate, uscito, lampo, vinte=()):
         f = B.FONTS["small"]
         f_n = B.FONTS["font"]
         zona = self.zona().inflate(B.s(18), B.s(18))
@@ -744,7 +746,16 @@ class Tappeto:
                         int(t.get_height() * (r.w - B.s(6)) / t.get_width())))
             sc.blit(t, t.get_rect(center=r.center))
         for chiave, soldi in puntate.items():
-            disegna_pila(sc, self.dove_sta(chiave), soldi)
+            p = self.dove_sta(chiave)
+            if chiave in vinte:
+                raggio = B.s(16) + int(B.s(5) * lampo)
+                q = pygame.Surface((raggio * 2, raggio * 2), pygame.SRCALPHA)
+                pygame.draw.circle(q, (255, 226, 140, 90), (raggio, raggio),
+                                   raggio)
+                pygame.draw.circle(q, (255, 236, 170, 230), (raggio, raggio),
+                                   raggio, max(1, B.s(3)))
+                sc.blit(q, q.get_rect(center=p))
+            disegna_pila(sc, p, soldi)
 
 
 FICHE_COL = ((5, (178, 42, 48)), (10, (40, 86, 168)),
@@ -870,6 +881,8 @@ def gioca_roulette(sc, clock, logo):
     sel = 0
     msg, sotto, vinto = T("place"), "", 0
     lampo = 0.0
+    attesa = 0.0                # quanto restano su le fiches dopo il colpo
+    vinte_k = ()
     rett = []
 
     def voci():
@@ -878,7 +891,7 @@ def gioca_roulette(sc, clock, logo):
 
     def punta():
         nonlocal msg
-        if ruota.gira:
+        if ruota.gira or attesa > 0:
             return
         dove = tap.puntata_qui(mano)
         if dove is None:
@@ -895,7 +908,7 @@ def gioca_roulette(sc, clock, logo):
     def togli():
         """Toglie la puntata che sta sotto la fiche."""
         dove = tap.puntata_qui(mano)
-        if ruota.gira or dove not in puntate:
+        if ruota.gira or attesa > 0 or dove not in puntate:
             return
         B.soldi(puntate.pop(dove))
         B.salva_config()
@@ -903,7 +916,7 @@ def gioca_roulette(sc, clock, logo):
 
     def pulisci():
         nonlocal msg
-        if ruota.gira or not puntate:
+        if ruota.gira or attesa > 0 or not puntate:
             return
         B.soldi(sum(puntate.values()))
         puntate.clear()
@@ -913,7 +926,7 @@ def gioca_roulette(sc, clock, logo):
 
     def lancia():
         nonlocal msg, sotto, vinto
-        if ruota.gira or not puntate:
+        if ruota.gira or attesa > 0 or not puntate:
             return
         ruota.lancia(random.choice(ORDINE[0]))
         msg, sotto, vinto = T("ball"), "", 0
@@ -1031,23 +1044,32 @@ def gioca_roulette(sc, clock, logo):
             croupier(n)
             vinto, vinte = vincita(puntate, n)
             voce("v_win" if vinto else "v_nothing", "v_place")
+            vinte_k = tuple(k for k, _r in vinte)
             if vinto:
                 B.soldi(vinto)
                 msg = T("win") % B.dollari(vinto)
-                sotto = "   ".join(nome_puntata(k) for k in vinte)
+                # cosa ha azzeccato e quanto ha reso, una per una
+                sotto = "    ".join("%s  %s" % (nome_puntata(k), B.dollari(r))
+                                    for k, r in vinte)
                 B.suona_fx("menu_apri", 1.0)
             else:
                 msg = T("no_win")
                 sotto = ""
-            puntate.clear()
+            # le fiches restano un po' sul tappeto, per vedere dov'erano
+            attesa = 4.5
             B.salva_config()
+        if attesa > 0:
+            attesa -= dt
+            if attesa <= 0:
+                puntate.clear()
+                vinte_k = ()
 
         # ---- il disegno
         sc.blit(B.fondo(), (0, 0))
         ruota.disegna(sc)
         tap.disegna(sc, puntate, ruota.uscito if not ruota.gira else None,
-                    abs(math.sin(lampo * math.pi)))
-        if not ruota.gira:
+                    abs(math.sin(lampo * math.pi)), vinte_k)
+        if not ruota.gira and attesa <= 0:
             fiche_in_mano(sc, mano, fiche, tap)
         colonna_usciti(sc, usciti)
         rett = disegna_colonna(sc, voci(), sel, fiche, puntate, msg, sotto,
@@ -1144,7 +1166,12 @@ def disegna_colonna(sc, voci, sel, fiche, puntate, msg, sotto, vinto, tap):
     t = f_v.render(msg, True, (255, 226, 140) if vinto else (235, 238, 245))
     sc.blit(t, t.get_rect(center=(zona.centerx, zona.bottom + B.s(46))))
     if sotto:
-        q = f.render(sotto, True, (180, 186, 198))
+        q = f.render(sotto, True, (255, 226, 140))
+        largo = B.WIN_W - B.s(360)
+        if q.get_width() > largo:
+            k = largo / float(q.get_width())
+            q = pygame.transform.smoothscale(
+                q, (largo, int(q.get_height() * k)))
         sc.blit(q, q.get_rect(center=(zona.centerx, zona.bottom + B.s(74))))
     return rett
 
