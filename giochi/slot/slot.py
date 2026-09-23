@@ -62,6 +62,7 @@ SIMBOLI = (
     ("gemma",        (140, 210, 240), "^",   0, 140, 480, 1900),
     ("bar",          ( 60, 180, 220), "=",   0, 150, 500, 2000),
     ("sette",        (226,  60,  60), "7",   0, 160, 550, 2200),
+    ("palla8",       ( 40,  44,  56), "8",   0, 175, 600, 2400),
     ("jolly",        (250, 250, 250), "W", 0,   0,   0,    0),  # vale per tutti
     ("dadi",         (180, 186, 200), "?", 0,   0,   0,    0),  # giri gratis
     ("regalo",       ( 90, 210, 220), "*", 0,   0,   0,    0),  # premio a caso
@@ -110,6 +111,7 @@ QUANTI = {
     "gemma":        (2, 2, 2, 2, 2),
     "bar":          (2, 2, 2, 2, 2),
     "sette":        (2, 2, 2, 2, 2),
+    "palla8":       (2, 2, 2, 2, 2),
     "jolly":        (0, 3, 3, 3, 0),
     "dadi":         (2, 2, 2, 2, 2),
     "regalo":       (2, 2, 2, 2, 2),
@@ -220,12 +222,13 @@ def vincite(griglia, unita):
     le caselle da accendere)."""
     fuori = []
     for nome in paganti():
-        conta, dove = [], []
+        conta, dove, veri = [], [], []
         for c in range(COLONNE):
             celle = [(c, r) for r in range(RIGHE)
                      if griglia[c][r] in (nome, JOLLY)]
             conta.append(len(celle))
             dove.append(celle)
+            veri.append(any(griglia[c][r] == nome for r in range(RIGHE)))
         strade, lung = 1, 0
         for c in range(COLONNE):
             if not conta[c]:
@@ -233,6 +236,10 @@ def vincite(griglia, unita):
             strade *= conta[c]
             lung += 1
         if lung < 2:
+            continue
+        # il jolly aiuta, ma non fa tutto da solo: ci vogliono almeno due
+        # rulli col simbolo vero
+        if sum(1 for c in range(lung) if veri[c]) < 2:
             continue
         quanto = PAGA[nome][min(lung, 5) - 2]
         if not quanto:
@@ -254,7 +261,7 @@ TXT = {
            "ways_win": "%d x %s  on %d ways", "credit": "Credit",
            "jackpot": "Jackpot", "won_jack": "JACKPOT!  %s",
            "pt_jack": "One on each of the five reels wins the jackpot: %s",
-           "pt_title": "Paytable", "pt_bet": "prizes at a bet of %s", "pt_wild": "Wild: stands for any symbol",
+           "pt_title": "Paytable", "pt_bet": "prizes at a bet of %s", "pt_wild": "Wild: stands for any symbol, but a win needs at least two real ones",
            "pt_gift": "Gift: three or more anywhere, with a random prize inside",
            "pt_dice": "Dice: three or more anywhere win %d free spins",
            "pt_bonus": "Bonus: pays anywhere, on the total bet",
@@ -272,7 +279,7 @@ TXT = {
            "won_jack": "JACKPOT!  %s",
            "pt_jack": "Uno su ognuno dei cinque rulli vince il jackpot: %s",
            "pt_title": "Pagamenti", "pt_bet": "premi alla puntata di %s",
-           "pt_wild": "Jolly: vale per tutti i simboli",
+           "pt_wild": "Jolly: vale per tutti i simboli, ma servono almeno due simboli veri",
            "pt_gift": "Regalo: tre o piu' dovunque siano, e dentro c'e' un premio a caso",
            "pt_dice": "Dadi: tre o piu' dovunque siano vincono %d giri gratis",
            "pt_bonus": "Bonus: paga dovunque sia, sulla puntata intera",
@@ -290,7 +297,7 @@ TXT = {
            "won_jack": "JACKPOT !  %s",
            "pt_jack": "Un sur chacun des cinq rouleaux gagne le jackpot : %s",
            "pt_title": "Table des gains", "pt_bet": "gains pour une mise de %s",
-           "pt_wild": "Joker : remplace tous les symboles",
+           "pt_wild": "Joker : remplace tout, mais il faut au moins deux vrais symboles",
            "pt_gift": "Cadeau : trois ou plus n'importe ou, avec un prix au hasard",
            "pt_dice": "Des : trois ou plus n'importe ou gagnent %d tours gratuits",
            "pt_bonus": "Bonus : paie partout, sur la mise totale",
@@ -308,7 +315,7 @@ TXT = {
            "won_jack": "JACKPOT!  %s",
            "pt_jack": "Uno en cada uno de los cinco rodillos gana el jackpot: %s",
            "pt_title": "Tabla de premios", "pt_bet": "premios con apuesta de %s",
-           "pt_wild": "Comodin: vale por todos los simbolos",
+           "pt_wild": "Comodin: vale por todos, pero hacen falta dos simbolos reales",
            "pt_gift": "Regalo: tres o mas donde sea, con un premio al azar",
            "pt_dice": "Dados: tres o mas donde sea ganan %d giros gratis",
            "pt_bonus": "Bonus: paga donde sea, sobre la apuesta total",
@@ -324,7 +331,7 @@ NOMI_SIM = {
            "campana": "Bell", "ferro": "Horseshoe",
            "quadrifoglio": "Clover", "carte": "Cards", "roulette": "Wheel",
            "fiches": "Chips", "dollaro": "Coin", "gemma": "Gem",
-           "bar": "Bar", "sette": "Seven", "jolly": "Wild",
+           "bar": "Bar", "sette": "Seven", "palla8": "Eight ball", "jolly": "Wild",
            "dadi": "Dice", "regalo": "Gift", "jackpot": "Jackpot"},
     "it": {"ciliegia": "Ciliegia", "limone": "Limone", "arancia": "Arancia",
            "prugna": "Prugna", "mela": "Mela", "fragola": "Fragola",
@@ -333,7 +340,7 @@ NOMI_SIM = {
            "campana": "Campana", "ferro": "Ferro di cavallo",
            "quadrifoglio": "Quadrifoglio", "carte": "Carte",
            "roulette": "Roulette", "fiches": "Fiches", "dollaro": "Moneta",
-           "gemma": "Gemma", "bar": "Bar", "sette": "Sette",
+           "gemma": "Gemma", "bar": "Bar", "sette": "Sette", "palla8": "Palla otto",
            "jolly": "Jolly", "dadi": "Dadi", "regalo": "Regalo",
            "jackpot": "Jackpot"},
     "fr": {"ciliegia": "Cerise", "limone": "Citron", "arancia": "Orange",
@@ -343,7 +350,7 @@ NOMI_SIM = {
            "campana": "Cloche", "ferro": "Fer a cheval",
            "quadrifoglio": "Trefle porte-bonheur", "carte": "Cartes",
            "roulette": "Roulette", "fiches": "Jetons", "dollaro": "Piece",
-           "gemma": "Gemme", "bar": "Bar", "sette": "Sept",
+           "gemma": "Gemme", "bar": "Bar", "sette": "Sept", "palla8": "Boule huit",
            "jolly": "Joker", "dadi": "Des", "regalo": "Cadeau",
            "jackpot": "Jackpot"},
     "es": {"ciliegia": "Cereza", "limone": "Limon", "arancia": "Naranja",
@@ -353,7 +360,7 @@ NOMI_SIM = {
            "campana": "Campana", "ferro": "Herradura",
            "quadrifoglio": "Trebol de cuatro", "carte": "Cartas",
            "roulette": "Ruleta", "fiches": "Fichas", "dollaro": "Moneda",
-           "gemma": "Gema", "bar": "Bar", "sette": "Siete",
+           "gemma": "Gema", "bar": "Bar", "sette": "Siete", "palla8": "Bola ocho",
            "jolly": "Comodin", "dadi": "Dados", "regalo": "Regalo",
            "jackpot": "Jackpot"},
 }
