@@ -4541,8 +4541,15 @@ def mazzi_per(tipo):
     return [x for x in m if C.famiglia(x[1]) != "francesi"]
 
 
+# i nomi che si leggono nel menu, quando quello automatico non va bene
+NOMI_MAZZI = {"napoli_gb_rosso": "Napoletane Golden Break",
+              "poker_gb_rosso": "Poker Golden Break Rosso",
+              "poker_gb_blu": "Poker Golden Break Blu",
+              "poker_gb_verde": "Poker Golden Break Verde"}
+
+
 def nome_mazzo(cartella):
-    return cartella.replace("_", " ").title()
+    return NOMI_MAZZI.get(cartella, cartella.replace("_", " ").title())
 
 
 def mazzo_del_gioco(chiave, tipo):
@@ -4713,8 +4720,8 @@ def famiglie_francesi():
     che colori accoppiare."""
     fam = {}
     for cartella, _ in mazzi_per("francesi"):
-        if cartella.startswith("prova"):
-            continue        # i mazzi di prova non si accoppiano nel ramino
+        if len(cartella.split("_")) < 3:
+            continue        # nel ramino servono disegno e colore
         pezzi = cartella.split("_")
         disegno = pezzi[1] if len(pezzi) > 2 else cartella
         colore = "_".join(pezzi[2:]) if len(pezzi) > 2 else ""

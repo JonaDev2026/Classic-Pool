@@ -225,11 +225,22 @@ def cartella_carte():
 
 # I tipi di facce: il nome della cartella del mazzo dice quali usare.
 # Vanno in ordine, il primo che sta dentro al nome vince.
-TIPI_FACCE = ("provasvg", "provapoker", "napoletane", "toscane", "francesi")
+TIPI_FACCE = ("poker", "napoli", "napoletane", "toscane", "francesi")
 
-# A che famiglia appartengono: i mazzi di prova si comportano come quelli
+# A che famiglia appartengono: i mazzi nostri si comportano come quelli
 # veri, cosi' finiscono nei giochi giusti.
-FAMIGLIE = {"provasvg": "napoletane", "provapoker": "francesi"}
+FAMIGLIE = {"napoli": "napoletane", "poker": "francesi"}
+
+
+def tipo_di(nome):
+    """Che facce usa un mazzo. Vale la prima parola del nome della
+    cartella; se non e' un tipo che conosciamo si cerca dentro al nome,
+    come si faceva prima."""
+    basso = nome.lower()
+    primo = basso.split("_")[0]
+    if primo in TIPI_FACCE:
+        return primo
+    return next((t for t in TIPI_FACCE if t in basso), "napoletane")
 
 
 def famiglia(tipo=None):
@@ -246,8 +257,7 @@ def mazzi_disponibili():
         for nome in sorted(os.listdir(base)):
             if not os.path.isdir(os.path.join(base, nome)):
                 continue
-            tipo = next((t for t in TIPI_FACCE if t in nome.lower()),
-                        "napoletane")
+            tipo = tipo_di(nome)
             fuori.append((nome, tipo))
     return fuori
 

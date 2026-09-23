@@ -145,7 +145,7 @@ the stake before the match starts, from 10 to 1000, and the winner takes
 the pot; in Rummy the losing hand also pays the 50 point stake. Blackjack,
 Sette e Mezzo and Texas Hold'em take their bets hand by hand.
 
-**Decks**: 45 of them, Italian (Napoletane, Toscane) and French (Poker 98,
+**Decks**: 47 of them, Italian (Napoletane, Toscane) and French (Poker 98,
 Texas, Jumbo, Bridge, Club, Golden Trophy, Bike Trophy). Each game
 remembers its own deck; Rummy plays with two decks of the same design and
 you pick which two colours, with the double box when the pack has one.
@@ -281,6 +281,12 @@ folder is named `<type>_<design>_<colour>`, for example
 which set of faces it uses. To add a type, put its name in `TIPI_FACCE`
 in `giochi/carte/carte.py`; if it is a French pack, say so in `FAMIGLIE`
 next to it, so the games that need 52 cards can see it.
+
+Four of the decks are the game's own, drawn from scratch: **Poker Golden
+Break** in red, blue and green, and **Napoletane Golden Break**. Backs and
+boxes are generated, with the four suits in the German colours on a gold
+frame; the three poker colours share one design, so Rummy can pair any two
+of them.
 
 ## Credits
 
