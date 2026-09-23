@@ -812,13 +812,24 @@ class Macchina:
         if self.sotto:
             col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)] \
                 if self.mostra >= 0 else (170, 176, 188)
-            t = B.FONTS["small"].render(self.sotto, True, col)
-            r = t.get_rect(center=(cx, y + B.s(26)))
-            if r.width > B.WIN_W - cx * 2 + B.s(40):
-                t = B.FONTS["mini"].render(self.sotto, True, col) \
-                    if "mini" in B.FONTS else t
-                r = t.get_rect(center=(cx, y + B.s(26)))
-            self.sc.blit(t, r)
+            # su due righe, col carattere normale: cosi' si legge
+            righe, ora = [], ""
+            largo = B.WIN_W - cx - B.s(26)
+            for pezzo in self.sotto.split("  "):
+                if not pezzo:
+                    continue
+                prova = (ora + "  " + pezzo).strip()
+                if ora and B.FONTS["font"].size(prova)[0] > largo * 2:
+                    righe.append(ora)
+                    ora = pezzo
+                else:
+                    ora = prova
+            righe.append(ora)
+            yy = y + B.s(30)
+            for riga in righe:
+                t = B.FONTS["font"].render(riga, True, col)
+                self.sc.blit(t, t.get_rect(center=(cx, yy)))
+                yy += t.get_height() + B.s(4)
 
     def frame(self):
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
