@@ -250,7 +250,7 @@ TXT = {
            "back": "Back", "win": "You win %s", "no_win": "No win",
            "broke": "Not enough money", "tot_bet": "Total bet",
            "per_line": "Per unit", "lines": "Ways",
-           "free_spins": "Free spins", "won_free": "%d free spins",
+           "free_spins": "Free spins", "win_row": "Win", "won_free": "%d free spins",
            "ways_win": "%d x %s  on %d ways", "credit": "Credit",
            "jackpot": "Jackpot", "won_jack": "JACKPOT!  %s",
            "pt_jack": "One on each of the five reels wins the jackpot: %s",
@@ -266,7 +266,7 @@ TXT = {
            "pays": "Pagamenti", "back": "Indietro", "win": "Vinci %s",
            "no_win": "Niente", "broke": "Non hai abbastanza soldi",
            "tot_bet": "Puntata", "per_line": "Per unita", "lines": "Modi",
-           "free_spins": "Giri gratis", "won_free": "%d giri gratis",
+           "free_spins": "Giri gratis", "win_row": "Vincita", "won_free": "%d giri gratis",
            "ways_win": "%d x %s  su %d modi",
            "credit": "Credito", "jackpot": "Jackpot",
            "won_jack": "JACKPOT!  %s",
@@ -284,7 +284,7 @@ TXT = {
            "pays": "Gains", "back": "Retour", "win": "Vous gagnez %s",
            "no_win": "Rien", "broke": "Pas assez d'argent",
            "tot_bet": "Mise", "per_line": "Par unite", "lines": "Facons",
-           "free_spins": "Tours gratuits", "won_free": "%d tours gratuits",
+           "free_spins": "Tours gratuits", "win_row": "Gain", "won_free": "%d tours gratuits",
            "ways_win": "%d x %s  sur %d facons",
            "credit": "Credit", "jackpot": "Jackpot",
            "won_jack": "JACKPOT !  %s",
@@ -302,7 +302,7 @@ TXT = {
            "pays": "Premios", "back": "Atras", "win": "Ganas %s",
            "no_win": "Nada", "broke": "No tienes bastante dinero",
            "tot_bet": "Apuesta", "per_line": "Por unidad", "lines": "Modos",
-           "free_spins": "Giros gratis", "won_free": "%d giros gratis",
+           "free_spins": "Giros gratis", "win_row": "Ganancia", "won_free": "%d giros gratis",
            "ways_win": "%d x %s  en %d modos",
            "credit": "Credito", "jackpot": "Jackpot",
            "won_jack": "JACKPOT!  %s",
@@ -607,7 +607,8 @@ class Macchina:
         # delle scelte, come al tavolo da carte
         largo = B.WIN_W - B.s(300)
         self.cassa = pygame.Rect(B.s(40), B.ALTO + B.s(70),
-                                 largo - B.s(60), B.WIN_H - B.ALTO - B.s(184))
+                                 largo - B.s(60),
+                                 B.WIN_H - B.ALTO - B.s(200))
         m = B.s(16)
         self.vetro = self.cassa.inflate(-m * 2, -m * 2)
         self.cella = (self.vetro.w // COLONNE, self.vetro.h // RIGHE)
@@ -675,6 +676,7 @@ class Macchina:
         cornice_neon(sc, self.cassa, self.t_neon)
         self.disegna_jackpot()
         self.disegna_rulli()
+        self.disegna_sotto()
         self.disegna_scelte(voci, sel)
         self.disegna_pannello(per_linea)
         small = B.FONTS["small"]
@@ -719,6 +721,26 @@ class Macchina:
             respiro = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0)
             k = 1.0 + 0.12 * respiro
             col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)]
+            # i fili che legano i simboli della combinazione, da un rullo
+            # al successivo, nel colore di questa vincita
+            per_col = {}
+            for c, i in acceso:
+                if 0 <= i < RIGHE:
+                    per_col.setdefault(c, []).append(i)
+            fili = pygame.Surface(vetro.size, pygame.SRCALPHA)
+            for c in sorted(per_col):
+                if c + 1 not in per_col:
+                    continue
+                for i in per_col[c]:
+                    for j in per_col[c + 1]:
+                        a_x = c * cw + cw // 2
+                        a_y = i * ch + ch // 2
+                        b_x = (c + 1) * cw + cw // 2
+                        b_y = j * ch + ch // 2
+                        pygame.draw.line(fili, col + (int(90 + 110 * respiro),),
+                                         (a_x, a_y), (b_x, b_y),
+                                         max(1, B.s(2)))
+            sc.blit(fili, vetro)
             for c, i in sorted(acceso):
                 if not 0 <= i < RIGHE:
                     continue
@@ -761,26 +783,45 @@ class Macchina:
             y += passo
 
     def disegna_jackpot(self):
-        """Il jackpot in cima, sopra la macchina, nel suo riquadro col
-        filo di luce che gira: e' della casa e vale per tutte le slot."""
+        """Il jackpot sopra la macchina, in una barra larga quanto lei,
+        con la luce che gira e cambia colore."""
         sc = self.sc
-        f_n, f_v = B.FONTS["small"], B.FONTS["font"]
-        nome = f_n.render(T("jackpot").upper(), True, (190, 196, 208))
-        soldi = f_v.render(B.dollari(jackpot()), True, (255, 255, 255))
-        largo = nome.get_width() + soldi.get_width() + B.s(46)
-        r = pygame.Rect(0, 0, max(B.s(260), largo), B.s(44))
-        r.center = (self.cassa.centerx, self.cassa.top - B.s(30))
-        pygame.draw.rect(sc, (13, 15, 21), r, border_radius=B.s(8))
+        r = pygame.Rect(self.cassa.x, 0, self.cassa.w, B.s(44))
+        r.bottom = self.cassa.top - B.s(12)
+        pygame.draw.rect(sc, (13, 15, 21), r, border_radius=B.s(10))
         if self.lampo > 0:
             k = 0.5 + 0.5 * math.sin(self.t_vinta * 9.0)
             col = tuple(int(c * (0.45 + 0.55 * k)) for c in (255, 236, 150))
             pygame.draw.rect(sc, col, r, max(1, B.s(2)),
-                             border_radius=B.s(8))
+                             border_radius=B.s(10))
         else:
-            cornice_neon(sc, r, self.t_neon + 0.5, B.s(8))
-        sc.blit(nome, nome.get_rect(midleft=(r.left + B.s(16), r.centery)))
-        sc.blit(soldi, soldi.get_rect(midright=(r.right - B.s(16),
-                                                r.centery)))
+            cornice_neon(sc, r, self.t_neon + 0.5, B.s(10))
+        nome = B.FONTS["small"].render(T("jackpot").upper(), True,
+                                       (190, 196, 208))
+        soldi = B.FONTS["medio"].render(B.dollari(jackpot()), True,
+                                        (255, 255, 255))
+        insieme = nome.get_width() + soldi.get_width() + B.s(16)
+        x = r.centerx - insieme // 2
+        sc.blit(nome, nome.get_rect(midleft=(x, r.centery)))
+        sc.blit(soldi, soldi.get_rect(
+            midleft=(x + nome.get_width() + B.s(16), r.centery)))
+
+    def disegna_sotto(self):
+        """La barra sotto la macchina: qui va la combinazione che sta
+        lampeggiando, nel suo colore."""
+        sc = self.sc
+        r = pygame.Rect(self.cassa.x, self.cassa.bottom + B.s(12),
+                        self.cassa.w, B.s(48))
+        pygame.draw.rect(sc, (13, 15, 21), r, border_radius=B.s(10))
+        cornice_neon(sc, r, self.t_neon + 1.2, B.s(10))
+        if not self.sotto:
+            return
+        col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)] \
+            if self.mostra >= 0 else (170, 176, 188)
+        t = B.FONTS["medio"].render(self.sotto, True, col)
+        if t.get_width() > r.w - B.s(30):
+            t = B.FONTS["font"].render(self.sotto, True, col)
+        sc.blit(t, t.get_rect(center=r.center))
 
     def disegna_pannello(self, per_linea):
         """La colonna a destra: in cima il jackpot, che e' della casa e
@@ -790,17 +831,21 @@ class Macchina:
         f = B.FONTS["small"]
         passo = f.get_height() + B.s(10)
         y = self.cassa.top + B.s(16)
-        righe = [(T("tot_bet"), B.dollari(round(per_linea * MODI_UNITA)))]
+        righe = [(T("tot_bet"), B.dollari(round(per_linea * MODI_UNITA)),
+                  (235, 238, 245))]
         if self.gratis:
-            righe.append((T("free_spins"), str(self.gratis)))
-        for et, val in righe:
+            righe.append((T("free_spins"), str(self.gratis), (235, 238, 245)))
+        if self.msg:
+            righe.append((T("win_row"),
+                          B.dollari(self.totale) if self.totale
+                          else T("no_win"),
+                          B.VERDE_SOLDI if self.totale else (180, 186, 198)))
+        for et, val, col in righe:
             t = f.render(et, True, (150, 156, 168))
             sc.blit(t, (x0, y - t.get_height() // 2))
-            v = f.render(str(val), True, (235, 238, 245))
+            v = f.render(str(val), True, col)
             sc.blit(v, v.get_rect(midright=(x1, y)))
             y += passo
-        # quanto ha pagato il giro, nello spazio che resta
-        self.disegna_messaggio((x0 + x1) // 2, y + B.s(32))
 
     def disegna_messaggio(self, cx, y):
         """Quanto ha pagato il giro e che combinazione e' stata: nella
