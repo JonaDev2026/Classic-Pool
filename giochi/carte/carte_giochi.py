@@ -2720,7 +2720,11 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                                             dopo = valida_meld(
                                                 [x.codice
                                                  for x in tavola[dato]])[1]
-                                            attacchi.append((dato, carta))
+                                            attacchi.append(
+                                                (dato, carta,
+                                                 jolly_presi[-1]
+                                                 if fatto == "jolly" and
+                                                 jolly_presi else None))
                                             vale = dopo - prima
                                             if fatto == "jolly":
                                                 # il jolly esce e la carta
@@ -2820,14 +2824,24 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                     # Quella presa dallo scarto resta tua e ti tocca
                     # scartarla: il turno l'hai buttato
                     manca = APERTURA - punti_calate[0]
-                    for i, carta in reversed(attacchi):
-                        if carta in tavola[i]:
-                            tavola[i].remove(carta)
-                            mano.append(carta)
-                    del attacchi[:]
                     for i in range(len(tavola) - 1, -1, -1):
                         if tavola[i] in calate:
                             riprendi(i)
+                    for i, carta, jk in reversed(attacchi):
+                        if carta not in tavola[i]:
+                            continue
+                        if jk is None:
+                            tavola[i].remove(carta)
+                            mano.append(carta)
+                        elif jk in mano:
+                            # era un jolly comprato: il jolly torna al
+                            # suo posto e la carta torna in mano
+                            tavola[i][tavola[i].index(carta)] = jk
+                            mano.remove(jk)
+                            mano.append(carta)
+                            if jk in jolly_presi:
+                                jolly_presi.remove(jk)
+                    del attacchi[:]
                     punti_calate[0] = 0
                     a_mano[0] = True
                     rifai_tavola()
