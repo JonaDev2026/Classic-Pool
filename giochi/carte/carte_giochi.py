@@ -4551,7 +4551,10 @@ def mazzo_del_gioco(chiave, tipo):
     if not m:
         return 0
     voglio = B.CFG.get("mazzo_" + chiave)
-    if not any(x[0] == voglio for x in m):
+    if chiave not in SCELTA_MAZZO and chiave in MAZZO_PREDEFINITO:
+        # mazzo fisso: quello scritto nel profilo non conta
+        voglio = MAZZO_PREDEFINITO[chiave]
+    elif not any(x[0] == voglio for x in m):
         # mai scelto, o scelto un mazzo che non c'e' piu'
         voglio = MAZZO_PREDEFINITO.get(chiave, voglio)
     if chiave == "ramino":
@@ -4754,8 +4757,15 @@ def famiglie_francesi():
     return fam
 
 
+# il ramino gioca sempre con questi due, rosso e blu
+MAZZI_RAMINO = ("francesi_poker98_rosso", "francesi_poker98_blu")
+
+
 def mazzi_ramino():
-    """I due mazzi scelti per il ramino: (cartella A, cartella B)."""
+    """I due mazzi del ramino: fissi, rosso e blu."""
+    ci_sono = [c for c, _t in mazzi_per("francesi") if c in MAZZI_RAMINO]
+    if len(ci_sono) == 2:
+        return "poker98", (MAZZI_RAMINO[0], MAZZI_RAMINO[1])
     fam = famiglie_francesi()
     if not fam:
         return None, None
