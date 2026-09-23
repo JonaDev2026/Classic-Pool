@@ -75,8 +75,13 @@ PAGA_PIENO = 35             # il numero secco
 FICHES = (5, 10, 25, 100, 500)
 
 
+PAGA_QUANTI = {1: 35, 2: 17, 3: 11, 4: 8, 6: 5}
+
+
 def copre(chiave):
     """I numeri coperti da una puntata."""
+    if isinstance(chiave, tuple):
+        return chiave
     if isinstance(chiave, int):
         return (chiave,)
     for nome, quali, _p in PUNTATE_FUORI:
@@ -86,6 +91,8 @@ def copre(chiave):
 
 
 def quanto_paga(chiave):
+    if isinstance(chiave, tuple):
+        return PAGA_QUANTI.get(len(chiave), 0)
     if isinstance(chiave, int):
         return PAGA_PIENO
     for nome, _q, p in PUNTATE_FUORI:
@@ -163,6 +170,10 @@ def T(k):
 
 
 def nome_puntata(chiave):
+    if isinstance(chiave, tuple):
+        if len(chiave) == 2:
+            return "%d-%d" % chiave
+        return "%d-%d (%d)" % (chiave[0], chiave[-1], len(chiave))
     if isinstance(chiave, int):
         return str(chiave)
     return T(NOMI_FUORI.get(chiave, chiave))
@@ -271,7 +282,7 @@ class Ruota:
     def passo_casella(self):
         return 2 * math.pi / len(RUOTA)
 
-    def lancia(self, numero, durata=5.0):
+    def lancia(self, numero, durata=7.5):
         """Butta la pallina: si sa gia' dove finisce, ci arriva girando."""
         self.uscito = numero
         self.gira = True
@@ -281,10 +292,10 @@ class Ruota:
         self.off_da = self.off
         # la pallina gira al contrario della ruota, sei giri buoni
         meta = posto * self.passo_casella()
-        self.off_a = meta - 6 * 2 * math.pi
+        self.off_a = meta - 11 * 2 * math.pi
 
     def passo(self, dt):
-        self.ang += dt * (1.6 if self.gira else 0.30)
+        self.ang += dt * (5.2 if self.gira else 1.1)
         if not self.gira:
             return False
         self.t += dt
@@ -313,41 +324,47 @@ class Ruota:
         if self.uscito is None and not self.gira:
             return
         x, y = self.dove_palla()
-        raggio = max(3, int(self.lato * 0.028))
+        raggio = max(2, int(self.lato * 0.015))
         pygame.draw.circle(sc, (24, 24, 28), (int(x) + 2, int(y) + 2), raggio)
         pygame.draw.circle(sc, (245, 245, 240), (int(x), int(y)), raggio)
 
 
 # ------------------------------------------------------------ il tappeto
 class Tappeto:
-    """Il panno delle puntate: lo zero, i trentasei numeri, le colonne,
-    le dozzine e le puntate semplici. Ogni casella sa che puntata e'."""
+    """Il panno delle puntate. Le caselle servono a disegnare; la puntata
+    vera la decide il punto dove appoggi la fiche, cosi' si punta anche
+    sulle linee: a cavallo di due numeri, sull'incrocio di quattro, in
+    fondo a una terzina o fra due terzine."""
 
     def __init__(self):
-        self.celle = []             # (chiave, rettangolo, etichetta)
+        self.w, self.h = B.s(44), B.s(48)
+        self.x0 = B.s(420)
+        self.y0 = B.ALTO + B.s(86)
+        self.celle = []
         self.fai()
 
+    # ---- geometria
+    def cella_numero(self, n):
+        j = (n - 1) // 3
+        i = 2 - (n - 1) % 3
+        return pygame.Rect(self.x0 + self.w + j * self.w,
+                           self.y0 + i * self.h, self.w, self.h)
+
+    def numero_di(self, j, i):
+        """Il numero nella colonna j (0..11), riga i (0 in alto)."""
+        return j * 3 + (3 - i)
+
     def fai(self):
-        self.celle = []
-        w, h = B.s(40), B.s(44)
-        x0 = B.s(430)
-        y0 = B.ALTO + B.s(80)
-        # lo zero, alto quanto le tre righe
-        self.celle.append((0, pygame.Rect(x0, y0, w, h * 3), "0"))
-        for j in range(12):
-            for i in range(3):
-                n = j * 3 + (3 - i)
-                r = pygame.Rect(x0 + w + j * w, y0 + i * h, w, h)
-                self.celle.append((n, r, str(n)))
-        # le tre colonne, a destra
+        w, h, x0, y0 = self.w, self.h, self.x0, self.y0
+        self.celle = [(0, pygame.Rect(x0, y0, w, h * 3), "0")]
+        for n in range(1, 37):
+            self.celle.append((n, self.cella_numero(n), str(n)))
         for i in range(3):
             r = pygame.Rect(x0 + w + 12 * w, y0 + i * h, w, h)
             self.celle.append(("col%d" % (3 - i), r, T("col")))
-        # le dozzine
         for i in range(3):
             r = pygame.Rect(x0 + w + i * 4 * w, y0 + 3 * h, 4 * w, h)
             self.celle.append(("doz%d" % (i + 1), r, T("d%d" % (i + 1))))
-        # le puntate semplici
         fuori = (("basso", T("low")), ("pari", T("even")),
                  ("rosso", T("red")), ("nero", T("black")),
                  ("dispari", T("odd")), ("alto", T("high")))
@@ -356,22 +373,84 @@ class Tappeto:
             self.celle.append((chiave, r, testo))
 
     def zona(self):
-        r = self.celle[0][1].unionall([c[1] for c in self.celle])
-        return r
+        return self.celle[0][1].unionall([c[1] for c in self.celle])
 
-    def disegna(self, sc, puntate, cursore, uscito, lampo):
+    # ---- che puntata c'e' sotto la fiche
+    def puntata_qui(self, pos):
+        """Guarda dove sta la fiche e dice che puntata e': numero secco,
+        cavallo, quartina, terzina, sestina, o una delle puntate fuori."""
+        x, y = pos
+        w, h, x0, y0 = self.w, self.h, self.x0, self.y0
+        xg, yg = x0 + w, y0
+        soglia = 0.22                 # quanto conta "vicino alla linea"
+        dentro_grid = (xg - w * 0.3 <= x <= xg + 12 * w + w * 0.3 and
+                       yg - h * 0.3 <= y <= yg + 3 * h + h * 0.3)
+        if dentro_grid:
+            fx = (x - xg) / float(w)
+            fy = (y - yg) / float(h)
+            j = max(0, min(11, int(fx)))
+            i = max(0, min(2, int(fy)))
+            dx = fx - j - 0.5
+            dy = fy - i - 0.5
+            su_x = abs(dx) > 0.5 - soglia
+            su_y = abs(dy) > 0.5 - soglia
+            j2 = j + (1 if dx > 0 else -1)
+            i2 = i + (1 if dy > 0 else -1)
+            fuori_y = i2 < 0 or i2 > 2
+            fuori_x = j2 < 0 or j2 > 11
+            if su_x and su_y:
+                if fuori_y and not fuori_x:
+                    # in fondo, fra due terzine: sestina
+                    a, b = min(j, j2), max(j, j2)
+                    return tuple(sorted([self.numero_di(a, k) for k in range(3)] +
+                                        [self.numero_di(b, k) for k in range(3)]))
+                if not fuori_x and not fuori_y:
+                    return tuple(sorted((self.numero_di(j, i),
+                                         self.numero_di(j2, i),
+                                         self.numero_di(j, i2),
+                                         self.numero_di(j2, i2))))
+            if su_y and fuori_y:
+                # in fondo alla colonna: terzina
+                return tuple(sorted(self.numero_di(j, k) for k in range(3)))
+            if su_x and not fuori_x:
+                return tuple(sorted((self.numero_di(j, i),
+                                     self.numero_di(j2, i))))
+            if su_y and not fuori_y:
+                return tuple(sorted((self.numero_di(j, i),
+                                     self.numero_di(j, i2))))
+            if su_x and fuori_x and j2 < 0:
+                # fra lo zero e la prima colonna
+                return tuple(sorted((0, self.numero_di(j, i))))
+            return self.numero_di(j, i)
+        for chiave, r, _t in self.celle:
+            if r.collidepoint(pos):
+                return chiave
+        return None
+
+    def dove_sta(self, chiave):
+        """Il punto dove appoggiare la fiche di quella puntata."""
+        if isinstance(chiave, tuple):
+            punti = [self.cella_numero(n).center if n else
+                     self.celle[0][1].center for n in chiave]
+            return (sum(p[0] for p in punti) // len(punti),
+                    sum(p[1] for p in punti) // len(punti))
+        for k, r, _t in self.celle:
+            if k == chiave:
+                return r.center
+        return (0, 0)
+
+    # ---- il disegno
+    def disegna(self, sc, puntate, uscito, lampo):
         f = B.FONTS["small"]
         f_n = B.FONTS["font"]
-        zona = self.zona().inflate(B.s(16), B.s(16))
+        zona = self.zona().inflate(B.s(18), B.s(18))
         pygame.draw.rect(sc, VERDE_SCURO, zona, border_radius=B.s(8))
         pygame.draw.rect(sc, ORO, zona, max(1, B.s(2)), border_radius=B.s(8))
         for chiave, r, testo in self.celle:
-            dentro = VERDE_PANNO
-            if isinstance(chiave, int):
-                dentro = colore_numero(chiave)
+            dentro = colore_numero(chiave) if isinstance(chiave, int) \
+                else VERDE_PANNO
             pygame.draw.rect(sc, dentro, r)
             pygame.draw.rect(sc, (228, 226, 220), r, 1)
-            # il numero uscito lampeggia
             if uscito is not None and isinstance(chiave, int) \
                     and chiave == uscito:
                 q = pygame.Surface(r.size, pygame.SRCALPHA)
@@ -384,41 +463,8 @@ class Tappeto:
                     t, (r.w - B.s(6),
                         int(t.get_height() * (r.w - B.s(6)) / t.get_width())))
             sc.blit(t, t.get_rect(center=r.center))
-            # la fiche appoggiata sopra
-            if chiave in puntate:
-                disegna_fiche(sc, r.center, puntate[chiave])
-            if chiave == cursore:
-                pygame.draw.rect(sc, (255, 255, 255), r.inflate(B.s(4), B.s(4)),
-                                 max(2, B.s(2)))
-
-    def sotto_mouse(self, pos):
-        for chiave, r, _t in self.celle:
-            if r.collidepoint(pos):
-                return chiave
-        return None
-
-    def vicino(self, chiave, dx, dy):
-        """La casella piu' vicina nella direzione data: serve alle frecce."""
-        ora = next((r for k, r, _t in self.celle if k == chiave), None)
-        if ora is None:
-            return chiave
-        meglio, dist = chiave, None
-        for k, r, _t in self.celle:
-            if k == chiave:
-                continue
-            vx, vy = r.centerx - ora.centerx, r.centery - ora.centery
-            if dx and (vx * dx) <= 0:
-                continue
-            if dy and (vy * dy) <= 0:
-                continue
-            if dx and abs(vy) > B.s(60):
-                continue
-            if dy and abs(vx) > B.s(60):
-                continue
-            d = abs(vx) + abs(vy)
-            if dist is None or d < dist:
-                meglio, dist = k, d
-        return meglio
+        for chiave, soldi in puntate.items():
+            disegna_fiche(sc, self.dove_sta(chiave), soldi)
 
 
 FICHE_COL = ((5, (200, 200, 205)), (10, (70, 140, 220)),
@@ -434,9 +480,9 @@ def colore_fiche(soldi):
     return col
 
 
-def disegna_fiche(sc, centro, soldi):
+def disegna_fiche(sc, centro, soldi, grande=False):
     """Una fiche col suo valore sopra."""
-    r = B.s(15)
+    r = B.s(19) if grande else B.s(15)
     col = colore_fiche(soldi)
     pygame.draw.circle(sc, (20, 20, 24), (centro[0] + 1, centro[1] + 2), r)
     pygame.draw.circle(sc, col, centro, r)
@@ -451,35 +497,50 @@ def disegna_fiche(sc, centro, soldi):
 
 # ------------------------------------------------------------- il gioco
 def gioca_roulette(sc, clock, logo):
-    """Si punta sul tappeto, si lancia la pallina, si paga."""
+    """Si muove la fiche sul tappeto, si appoggia dove si vuole - anche
+    sulle linee - poi si lancia la pallina."""
     tap = Tappeto()
-    ruota = Ruota((B.s(215), B.ALTO + B.s(250)), B.s(380))
+    ruota = Ruota((B.s(250), B.ALTO + B.s(250)), B.s(380))
     puntate = {}
     usciti = []
-    cursore = 0
     fiche = B.CFG.get("roul_fiche", FICHES[1])
     if fiche not in FICHES:
         fiche = FICHES[1]
+    zona = tap.zona()
+    mano = [zona.centerx, zona.centery]     # dove sta la fiche in mano
     sel = 0
     msg, sotto, vinto = T("place"), "", 0
     lampo = 0.0
-    voci = lambda: [T("spin"), "%s  %s" % (T("chip"), B.dollari(fiche)),
-                    T("clear"), T("back")]
     rett = []
+
+    def voci():
+        return [T("spin"), "%s  %s" % (T("chip"), B.dollari(fiche)),
+                T("clear"), T("back")]
 
     def punta():
         nonlocal msg
         if ruota.gira:
+            return
+        dove = tap.puntata_qui(mano)
+        if dove is None:
             return
         if B.soldi() < fiche:
             msg = T("broke")
             B.suona_fx("menu_chiudi", 0.7)
             return
         B.soldi(-fiche)
-        puntate[cursore] = puntate.get(cursore, 0) + fiche
+        puntate[dove] = puntate.get(dove, 0) + fiche
         B.salva_config()
         B.suona_fx("menu_tic", 0.8)
-        msg = "%s  %s" % (T("bet"), B.dollari(sum(puntate.values())))
+
+    def togli():
+        """Toglie la puntata che sta sotto la fiche."""
+        dove = tap.puntata_qui(mano)
+        if ruota.gira or dove not in puntate:
+            return
+        B.soldi(puntate.pop(dove))
+        B.salva_config()
+        B.suona_fx("menu_chiudi", 0.6)
 
     def pulisci():
         nonlocal msg
@@ -511,6 +572,24 @@ def gioca_roulette(sc, clock, logo):
         dt = min(0.05, clock.tick(60) / 1000.0)
         lampo = (lampo + dt) % 1.0
         mouse = B.mouse_gioco()
+        tasti = pygame.key.get_pressed()
+        # con le frecce la fiche scivola, col mouse la segue
+        passo = B.s(420) * dt
+        if tasti[pygame.K_LEFT] or tasti[pygame.K_a]:
+            mano[0] -= passo
+        if tasti[pygame.K_RIGHT] or tasti[pygame.K_d]:
+            mano[0] += passo
+        if tasti[pygame.K_UP] or tasti[pygame.K_w]:
+            mano[1] -= passo
+        if tasti[pygame.K_DOWN] or tasti[pygame.K_s]:
+            mano[1] += passo
+        if B.MOUSE_VIVO[0]:
+            largo = zona.inflate(B.s(60), B.s(60))
+            if largo.collidepoint(mouse):
+                mano[0], mano[1] = mouse
+        largo = zona.inflate(B.s(40), B.s(40))
+        mano[0] = max(largo.left, min(largo.right, mano[0]))
+        mano[1] = max(largo.top, min(largo.bottom, mano[1]))
         for ev in B.eventi():
             if ev.type == pygame.QUIT:
                 return "quit"
@@ -518,56 +597,49 @@ def gioca_roulette(sc, clock, logo):
                 if ev.key == pygame.K_ESCAPE:
                     pulisci()
                     return "su"
-                if ev.key in (pygame.K_LEFT, pygame.K_a):
-                    cursore = tap.vicino(cursore, -1, 0)
-                elif ev.key in (pygame.K_RIGHT, pygame.K_d):
-                    cursore = tap.vicino(cursore, 1, 0)
-                elif ev.key in (pygame.K_UP, pygame.K_w):
-                    cursore = tap.vicino(cursore, 0, -1)
-                elif ev.key in (pygame.K_DOWN, pygame.K_s):
-                    cursore = tap.vicino(cursore, 0, 1)
-                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
-                                pygame.K_SPACE):
+                if ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                              pygame.K_SPACE):
                     punta()
                 elif ev.key == B.tasto("cambia"):
                     cambia_fiche(1)
                 elif ev.key == B.tasto("gesso"):
                     lancia()
                 elif ev.key == B.tasto("eff_via"):
-                    pulisci()
-            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button in (1, 3):
-                dove = tap.sotto_mouse(mouse)
-                if dove is not None and ev.button == 1:
-                    cursore = dove
-                    punta()
-                for i, r in enumerate(rett):
-                    if r.collidepoint(mouse):
-                        sel = i
-                        if i == 0:
-                            lancia()
-                        elif i == 1:
-                            cambia_fiche(1)
-                        elif i == 2:
-                            pulisci()
-                        else:
-                            pulisci()
-                            return "su"
+                    togli()
+            if ev.type == pygame.MOUSEBUTTONDOWN:
+                if ev.button == 1:
+                    preso = False
+                    for i, r in enumerate(rett):
+                        if r.collidepoint(mouse):
+                            sel, preso = i, True
+                            if i == 0:
+                                lancia()
+                            elif i == 1:
+                                cambia_fiche(1)
+                            elif i == 2:
+                                pulisci()
+                            else:
+                                pulisci()
+                                return "su"
+                    if not preso:
+                        punta()
+                elif ev.button == 3:
+                    togli()
+                elif ev.button in (4, 5):
+                    cambia_fiche(1 if ev.button == 4 else -1)
         if B.MOUSE_VIVO[0]:
-            dove = tap.sotto_mouse(mouse)
-            if dove is not None:
-                cursore = dove
             for i, r in enumerate(rett):
                 if r.collidepoint(mouse):
                     sel = i
         if ruota.passo(dt):
             n = ruota.uscito
             usciti.insert(0, n)
-            del usciti[8:]
+            del usciti[10:]
             vinto, vinte = vincita(puntate, n)
             if vinto:
                 B.soldi(vinto)
                 msg = T("win") % B.dollari(vinto)
-                sotto = "  ".join(nome_puntata(k) for k in vinte)
+                sotto = "   ".join(nome_puntata(k) for k in vinte)
                 B.suona_fx("menu_apri", 1.0)
             else:
                 msg = T("no_win")
@@ -578,10 +650,13 @@ def gioca_roulette(sc, clock, logo):
         # ---- il disegno
         sc.blit(B.fondo(), (0, 0))
         ruota.disegna(sc)
-        tap.disegna(sc, puntate, cursore, ruota.uscito if not ruota.gira
-                    else None, abs(math.sin(lampo * math.pi)))
+        tap.disegna(sc, puntate, ruota.uscito if not ruota.gira else None,
+                    abs(math.sin(lampo * math.pi)))
+        if not ruota.gira:
+            fiche_in_mano(sc, mano, fiche, tap)
+        colonna_usciti(sc, usciti)
         rett = disegna_colonna(sc, voci(), sel, fiche, puntate, msg, sotto,
-                               vinto, usciti, tap)
+                               vinto, tap)
         small = B.FONTS["small"]
         if B.modo_comandi() == "pad" and B.ICONE_TASTI_OK():
             r = B.riga_pad(small, RIGA_PAD_ROULETTE)
@@ -591,24 +666,52 @@ def gioca_roulette(sc, clock, logo):
         B.presenta()
 
 
-def disegna_colonna(sc, voci, sel, fiche, puntate, msg, sotto, vinto,
-                    usciti, tap):
-    """La fascia a destra: i numeri usciti, la puntata, il messaggio e le
-    scelte, nello stesso stile della slot e delle carte."""
-    x0, x1 = B.s(1010), B.WIN_W - B.s(14)
+def fiche_in_mano(sc, mano, fiche, tap):
+    """La fiche che tieni in mano, con sotto scritto che puntata e' e
+    quanto paga."""
+    dove = tap.puntata_qui(mano)
+    x, y = int(mano[0]), int(mano[1])
+    if dove is not None:
+        # il posto dove finirebbe, segnato in chiaro
+        p = tap.dove_sta(dove)
+        pygame.draw.circle(sc, (255, 255, 255), p, B.s(17), max(1, B.s(2)))
+    disegna_fiche(sc, (x, y), fiche, grande=True)
+    if dove is None:
+        return
+    paga = quanto_paga(dove)
+    testo = "%s   %d:1" % (nome_puntata(dove), paga)
     f = B.FONTS["small"]
-    y = B.ALTO + B.s(24)
+    t = f.render(testo, True, (245, 245, 240))
+    r = t.get_rect(center=(x, y - B.s(30)))
+    q = pygame.Surface(r.inflate(B.s(12), B.s(8)).size, pygame.SRCALPHA)
+    q.fill((12, 14, 20, 210))
+    sc.blit(q, r.inflate(B.s(12), B.s(8)))
+    sc.blit(t, r)
+
+
+def colonna_usciti(sc, usciti):
+    """A sinistra, in verticale, gli ultimi numeri usciti."""
+    f = B.FONTS["small"]
+    x = B.s(28)
+    y = B.ALTO + B.s(470)
     t = f.render(T("last"), True, (150, 156, 168))
-    sc.blit(t, (x0, y))
+    sc.blit(t, (x, y))
     y += t.get_height() + B.s(8)
-    for i, n in enumerate(usciti[:8]):
-        r = pygame.Rect(x0 + (i % 4) * B.s(48), y + (i // 4) * B.s(34),
-                        B.s(40), B.s(28))
+    for n in usciti[:8]:
+        r = pygame.Rect(x, y, B.s(44), B.s(26))
         pygame.draw.rect(sc, colore_numero(n), r, border_radius=B.s(4))
         pygame.draw.rect(sc, (90, 94, 104), r, 1, border_radius=B.s(4))
         q = f.render(str(n), True, (245, 245, 240))
         sc.blit(q, q.get_rect(center=r.center))
-    y += B.s(80)
+        y += B.s(30)
+
+
+def disegna_colonna(sc, voci, sel, fiche, puntate, msg, sotto, vinto, tap):
+    """La fascia stretta a destra: fiche, puntata, vincita e le scelte."""
+    x1 = B.WIN_W - B.s(14)
+    x0 = x1 - B.s(150)
+    f = B.FONTS["small"]
+    y = B.ALTO + B.s(30)
     righe = [(T("chip"), B.dollari(fiche), (235, 238, 245)),
              (T("bet"), B.dollari(sum(puntate.values())), (235, 238, 245))]
     if vinto:
@@ -619,15 +722,18 @@ def disegna_colonna(sc, voci, sel, fiche, puntate, msg, sotto, vinto,
         q = f.render(str(val), True, col)
         sc.blit(q, q.get_rect(topright=(x1, y)))
         y += f.get_height() + B.s(10)
-    # le scelte, in stile menu
     rett = []
     f_v = B.FONTS["font"]
     B.tic_menu(tuple(voci), sel)
     passo = f_v.get_height() + B.s(14)
-    y = max(y + B.s(30), B.ALTO + B.s(330))
+    y = B.ALTO + B.s(200)
     for i, testo in enumerate(voci):
         t = f_v.render(testo, True,
                        (255, 255, 255) if i == sel else (160, 166, 178))
+        if t.get_width() > x1 - x0 - B.s(12):
+            k = (x1 - x0 - B.s(12)) / float(t.get_width())
+            t = pygame.transform.smoothscale(
+                t, (int(t.get_width() * k), int(t.get_height() * k)))
         fondo = pygame.Rect(x0 - B.s(8), y - (passo - B.s(8)) // 2,
                             x1 - x0 + B.s(16), passo - B.s(8))
         if i == sel:
@@ -636,16 +742,15 @@ def disegna_colonna(sc, voci, sel, fiche, puntate, msg, sotto, vinto,
             sc.blit(q, fondo)
             pygame.draw.rect(sc, ORO, (fondo.x, fondo.y, max(1, B.s(3)),
                                        fondo.h))
-        sc.blit(t, t.get_rect(midleft=(x0 + B.s(6), y)))
+        sc.blit(t, t.get_rect(midleft=(x0, y)))
         rett.append(fondo)
         y += passo
-    # il messaggio, sotto il tappeto
     zona = tap.zona()
     t = f_v.render(msg, True, (255, 226, 140) if vinto else (235, 238, 245))
-    sc.blit(t, t.get_rect(center=(zona.centerx, zona.bottom + B.s(40))))
+    sc.blit(t, t.get_rect(center=(zona.centerx, zona.bottom + B.s(46))))
     if sotto:
         q = f.render(sotto, True, (180, 186, 198))
-        sc.blit(q, q.get_rect(center=(zona.centerx, zona.bottom + B.s(66))))
+        sc.blit(q, q.get_rect(center=(zona.centerx, zona.bottom + B.s(74))))
     return rett
 
 
