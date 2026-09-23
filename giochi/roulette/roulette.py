@@ -234,6 +234,17 @@ def suona(nome, quanto=0.9):
     return s
 
 
+def croupier(n):
+    """Il numero uscito, detto con la voce dell'arbitro del biliardo:
+    sono le stesse registrazioni, da n_001 a n_036. Lo zero non ce l'ha
+    e resta muto."""
+    if n > 0:
+        try:
+            B.dice("n_%03d" % n)
+        except AttributeError:
+            pass
+
+
 def dura_pallina():
     """Il giro dura esattamente quanto l'audio della pallina."""
     return DURATE.get("pallina", 11.0)
@@ -764,6 +775,7 @@ def gioca_roulette(sc, clock, logo):
     while True:
         dt = min(0.05, clock.tick(60) / 1000.0)
         lampo = (lampo + dt) % 1.0
+        B.aggiorna_voce()
         mouse = B.mouse_gioco()
         tasti = pygame.key.get_pressed()
         # con le frecce, con la levetta o con la croce la fiche scivola;
@@ -808,6 +820,7 @@ def gioca_roulette(sc, clock, logo):
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     pulisci()
+                    B.zittisci()
                     return "su"
                 if ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
                               pygame.K_SPACE):
@@ -842,6 +855,7 @@ def gioca_roulette(sc, clock, logo):
                                 pulisci()
                             else:
                                 pulisci()
+                                B.zittisci()
                                 return "su"
                     if not preso:
                         punta()
@@ -857,6 +871,7 @@ def gioca_roulette(sc, clock, logo):
             n = ruota.uscito
             usciti.insert(0, n)
             del usciti[10:]
+            croupier(n)
             vinto, vinte = vincita(puntate, n)
             if vinto:
                 B.soldi(vinto)
