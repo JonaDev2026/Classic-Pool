@@ -388,6 +388,55 @@ def legno():
     return LEGNI.get(TIPO[0], LEGNI["europea"])
 
 
+# il legno vero della cornice: sono le stesse texture dei bordi del
+# biliardo. L'americana resta in metallo, niente legno.
+LEGNI_TEX = {"europea": "ciliegio", "francese": "palissandro"}
+TEX = {}
+
+
+def tex_legno(nome, lato):
+    """La texture del legno, portata alla misura della ruota."""
+    if not nome:
+        return None
+    if (nome, lato) in TEX:
+        return TEX[(nome, lato)]
+    f = os.path.join(RADICE, "immagini", "biliardo", "bordi", nome + ".png")
+    if not os.path.isfile(f):
+        return None
+    try:
+        img = pygame.image.load(f).convert()
+    except (pygame.error, OSError):
+        return None
+    img = pygame.transform.smoothscale(img, (lato, lato))
+    TEX[(nome, lato)] = img
+    return img
+
+
+def anello_legno(q, c, lato, r_fuori, r_dentro):
+    """La cornice col legno vero: la texture ritagliata ad anello e un
+    velo scuro verso l'interno, se no sembra un adesivo."""
+    t = tex_legno(LEGNI_TEX.get(TIPO[0]), lato)
+    if t is None:
+        return
+    anello = pygame.Surface((lato, lato), pygame.SRCALPHA)
+    anello.blit(t, (0, 0))
+    anello.fill((176, 164, 158, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    m = pygame.Surface((lato, lato), pygame.SRCALPHA)
+    pygame.draw.circle(m, (255, 255, 255, 255), (c, c), r_fuori)
+    pygame.draw.circle(m, (0, 0, 0, 0), (c, c), r_dentro)
+    anello.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    q.blit(anello, (0, 0))
+    om = pygame.Surface((lato, lato), pygame.SRCALPHA)
+    spesso = max(2, (r_fuori - r_dentro) // 14)
+    for i in range(20):
+        k = i / 19.0
+        r = int(r_dentro + (r_fuori - r_dentro) * k)
+        a = int(120 * (1 - k) ** 1.5)
+        if a > 0:
+            pygame.draw.circle(om, (0, 0, 0, a), (c, c), r, spesso)
+    q.blit(om, (0, 0))
+
+
 def scodella(lato):
     """La parte ferma: la cornice di legno scuro e la pista larga dove
     corre la pallina, coi diamantini che la fanno ballare."""
@@ -404,6 +453,7 @@ def scodella(lato):
     _anello(q, c, r_bordo, r_pista_f, fuori, dentro, 34)
     # la pista: liscia e scura, un filo piu' chiara sul fondo
     _anello(q, c, r_pista_f, r_pista_d, pista1, pista2, 34)
+    anello_legno(q, c, lato, r_bordo, r_pista_f)
     pygame.draw.circle(q, oro, (c, c), r_pista_f, max(1, lato // 240))
     pygame.draw.circle(q, (28, 16, 10), (c, c), r_pista_d, max(1, lato // 280))
     for k in range(8):
