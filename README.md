@@ -1,9 +1,10 @@
 # Golden Break
 
-A casino game for Mac, Windows and Linux, written in Python with pygame.
-Billiards with nine disciplines, tournaments and 55 cues, six card games
-and four solitaires on a real card table, three roulette tables and a
-slot machine.
+A games room for Mac, Windows and Linux, written in Python with pygame.
+The name is the opening shot in pool, and the break you take when you sit
+down to play. Billiards with nine disciplines, tournaments and 55 cues,
+six card games and four solitaires on a real card table, three roulette
+tables and a slot machine.
 
 ## Requirements
 
