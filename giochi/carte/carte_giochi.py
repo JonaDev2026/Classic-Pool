@@ -2624,12 +2624,27 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
             if sopra is not None and B.MOUSE_VIVO[0]:
                 pos[0] = sopra
             if tieni[0] > 0:
-                tieni[0] += tv.dt
-                if tieni[0] > 3.0:
+                # si conta solo finche' il tasto e' davvero premuto: se
+                # lo lasci il conto riparte da zero e non torna su
+                # niente da solo
+                giu = False
+                try:
+                    giu = bool(pygame.key.get_pressed()[tasto_y])
+                except (IndexError, pygame.error):
+                    giu = False
+                c_pad = B.pad()
+                if c_pad is not None and B.pad_tasto(
+                        c_pad, pygame.CONTROLLER_BUTTON_Y):
+                    giu = True
+                if not giu:
                     tieni[0] = 0.0
-                    for i in range(len(tavola) - 1, -1, -1):
-                        if tavola[i] in calate:
-                            riprendi(i)
+                else:
+                    tieni[0] += tv.dt
+                    if tieni[0] > 3.0:
+                        tieni[0] = 0.0
+                        for i in range(len(tavola) - 1, -1, -1):
+                            if tavola[i] in calate:
+                                riprendi(i)
             for ev in tv.eventi:
                 if ev.type == pygame.KEYUP and ev.key == tasto_y:
                     tieni[0] = 0.0

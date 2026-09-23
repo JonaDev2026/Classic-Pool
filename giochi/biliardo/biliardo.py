@@ -9277,9 +9277,21 @@ if PAD_SDL is not None:
                  pygame.CONTROLLER_BUTTON_START: pygame.K_ESCAPE}
 
 
-def finto_tasto(k):
-    return pygame.event.Event(pygame.KEYDOWN, key=k, mod=0, unicode="",
-                              scancode=0, dal_pad=True)
+def finto_tasto(k, giu=True):
+    return pygame.event.Event(pygame.KEYDOWN if giu else pygame.KEYUP,
+                              key=k, mod=0, unicode="", scancode=0,
+                              dal_pad=True)
+
+
+def tasto_del_pad(bottone):
+    """Che tasto fa quel bottone del joystick."""
+    if bottone == pygame.CONTROLLER_BUTTON_X:
+        return tasto("gesso")           # il gesso sulla stecca
+    if bottone == pygame.CONTROLLER_BUTTON_Y:
+        return tasto("cambia")          # carte: scegli per calare
+    if bottone == pygame.CONTROLLER_BUTTON_RIGHTSHOULDER:
+        return tasto("eff_via")         # carte: ordina la mano da sola
+    return PAD_TASTI.get(bottone)
 
 
 def pad_evento(ev, fuori):
@@ -9289,15 +9301,15 @@ def pad_evento(ev, fuori):
     elif ev.type == pygame.CONTROLLERDEVICEREMOVED:
         PADS.pop(getattr(ev, "instance_id", -1), None)
     elif ev.type == pygame.CONTROLLERBUTTONDOWN:
-        k = PAD_TASTI.get(ev.button)
-        if ev.button == pygame.CONTROLLER_BUTTON_X:
-            k = tasto("gesso")          # il gesso sulla stecca
-        if ev.button == pygame.CONTROLLER_BUTTON_Y:
-            k = tasto("cambia")         # carte: scegli per calare
-        if ev.button == pygame.CONTROLLER_BUTTON_RIGHTSHOULDER:
-            k = tasto("eff_via")        # carte: ordina la mano da sola
+        k = tasto_del_pad(ev.button)
         if k is not None:
             fuori.append(finto_tasto(k))
+    elif ev.type == pygame.CONTROLLERBUTTONUP:
+        # anche il tasto lasciato: se no chi guarda quanto lo tieni
+        # premuto non lo sa mai, e col joystick resta premuto per sempre
+        k = tasto_del_pad(ev.button)
+        if k is not None:
+            fuori.append(finto_tasto(k, False))
     elif ev.type == pygame.CONTROLLERAXISMOTION and ev.axis in (
             pygame.CONTROLLER_AXIS_LEFTX, pygame.CONTROLLER_AXIS_LEFTY):
         # la levetta nei menu: uno scatto per spinta, non una raffica
