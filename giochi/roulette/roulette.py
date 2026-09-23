@@ -258,10 +258,10 @@ def suona(nome, quanto=0.9):
 def croupier(n):
     """Il numero uscito, detto con la voce dell'arbitro del biliardo:
     sono le stesse registrazioni, da n_001 a n_036. Lo zero e i colori
-    stanno in audio/roulette/voce."""
+    li fa croupier.py, stessa voce, in audio/roulette/voce."""
     try:
         if n == 0:
-            B.dice("n_000", "v_zero")
+            B.dice("v_zero")
         else:
             B.dice("n_%03d" % n, "v_red" if n in ROSSI else "v_black")
     except AttributeError:
