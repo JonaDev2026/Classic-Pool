@@ -4557,6 +4557,12 @@ def mazzo_del_gioco(chiave, tipo):
     if not m:
         return 0
     voglio = B.CFG.get("mazzo_" + chiave)
+    if chiave == "ramino":
+        # nel ramino il mazzo non si sceglie da solo: lo dicono il
+        # disegno e i due colori, e le facce sono quelle del primo
+        _dis, due = mazzi_ramino()
+        if due:
+            voglio = due[0]
     i = next((k for k, x in enumerate(m) if x[0] == voglio), 0)
     C.MAZZO_ORA[0], C.MAZZO_ORA[1] = m[i]
     C.FACCIA.clear()
