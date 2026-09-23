@@ -219,6 +219,11 @@ def disegna_ruota(lato):
     pygame.draw.circle(q, (74, 46, 28), (c, c), r_fuori)
     pygame.draw.circle(q, (104, 68, 40), (c, c), r_fuori - max(1, lato // 80))
     pygame.draw.circle(q, (52, 34, 22), (c, c), r_banda + max(1, lato // 110))
+    # la pista dove corre la pallina, appena dentro il bordo
+    pygame.draw.circle(q, (126, 86, 52), (c, c), int(lato * 0.492))
+    pygame.draw.circle(q, (150, 108, 66), (c, c), int(lato * 0.492),
+                       max(1, lato // 120))
+    pygame.draw.circle(q, (74, 46, 28), (c, c), int(lato * 0.462))
     passo = 2 * math.pi / len(RUOTA)
     f = pygame.font.SysFont("dejavusans", max(9, int(lato * 0.042)), bold=True)
     for i, n in enumerate(RUOTA):
@@ -309,10 +314,20 @@ class Ruota:
         return False
 
     def dove_palla(self):
-        """Il punto sullo schermo dove sta la pallina adesso."""
+        """Il punto sullo schermo dove sta la pallina adesso. Prima gira
+        sulla pista esterna, poi molla e scende sui numeri, con un paio
+        di rimbalzi."""
         k = min(1.0, self.t / self.durata) if self.gira else 1.0
-        fuori, dentro = self.lato * 0.46, self.lato * 0.335
-        r = fuori + (dentro - fuori) * (1 - (1 - k) ** 2)
+        fuori, dentro = self.lato * 0.475, self.lato * 0.335
+        cade = 0.62                     # quando lascia la pista
+        if k < cade:
+            r = fuori
+        else:
+            t = (k - cade) / (1 - cade)
+            m = 1 - (1 - t) ** 2
+            rimbalzo = math.sin(t * math.pi * 3) * (1 - t) ** 2 * \
+                self.lato * 0.035
+            r = fuori + (dentro - fuori) * m + rimbalzo
         a = -math.pi / 2 + self.off + self.ang
         return (self.centro[0] + math.cos(a) * r,
                 self.centro[1] + math.sin(a) * r)
@@ -337,9 +352,9 @@ class Tappeto:
     fondo a una terzina o fra due terzine."""
 
     def __init__(self):
-        self.w, self.h = B.s(44), B.s(48)
-        self.x0 = B.s(420)
-        self.y0 = B.ALTO + B.s(86)
+        self.w, self.h = B.s(50), B.s(50)
+        self.x0 = B.s(232)
+        self.y0 = B.ALTO + B.s(380)
         self.celle = []
         self.fai()
 
@@ -500,7 +515,7 @@ def gioca_roulette(sc, clock, logo):
     """Si muove la fiche sul tappeto, si appoggia dove si vuole - anche
     sulle linee - poi si lancia la pallina."""
     tap = Tappeto()
-    ruota = Ruota((B.s(250), B.ALTO + B.s(250)), B.s(380))
+    ruota = Ruota((B.s(420), B.ALTO + B.s(210)), B.s(300))
     puntate = {}
     usciti = []
     fiche = B.CFG.get("roul_fiche", FICHES[1])
@@ -692,8 +707,8 @@ def fiche_in_mano(sc, mano, fiche, tap):
 def colonna_usciti(sc, usciti):
     """A sinistra, in verticale, gli ultimi numeri usciti."""
     f = B.FONTS["small"]
-    x = B.s(28)
-    y = B.ALTO + B.s(470)
+    x = B.s(40)
+    y = B.ALTO + B.s(40)
     t = f.render(T("last"), True, (150, 156, 168))
     sc.blit(t, (x, y))
     y += t.get_height() + B.s(8)
