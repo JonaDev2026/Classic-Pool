@@ -549,6 +549,41 @@ def vetro_fondo(misura):
     return VETRO[0]
 
 
+COL_SIMBOLO = {}
+
+
+def colore_simbolo(nome):
+    """Il colore del simbolo, preso dal suo disegno: la media dei pixel
+    pieni, tirata su di vivacita' cosi' si stacca sul crema del rullo."""
+    if nome in COL_SIMBOLO:
+        return COL_SIMBOLO[nome]
+    img = figura(nome, (B.s(40), B.s(40)))
+    r = g = b = n = 0
+    w, h = img.get_size()
+    for x in range(0, w, 2):
+        for y in range(0, h, 2):
+            c = img.get_at((x, y))
+            if c.a < 140 or (c.r > 235 and c.g > 235 and c.b > 235):
+                continue
+            r += c.r
+            g += c.g
+            b += c.b
+            n += 1
+    if not n:
+        col = COLORE.get(nome, (255, 255, 255))
+    else:
+        col = [r // n, g // n, b // n]
+        m = max(col)
+        if m:
+            k = 235.0 / m
+            col = [min(255, int(v * k)) for v in col]
+        med = sum(col) / 3.0
+        col = tuple(max(0, min(255, int(med + (v - med) * 1.5)))
+                    for v in col)
+    COL_SIMBOLO[nome] = col
+    return col
+
+
 NEON = {}
 
 
@@ -720,7 +755,9 @@ class Macchina:
             sc.blit(velo, vetro)
             respiro = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0)
             k = 1.0 + 0.12 * respiro
-            col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)]
+            nome_v = self.vinte[self.mostra][0] if self.vinte else None
+            col = tuple(colore_simbolo(nome_v)) if nome_v else \
+                COLORI_VINTE[self.mostra % len(COLORI_VINTE)]
             # i fili che legano i simboli della combinazione, da un rullo
             # al successivo, nel colore di questa vincita
             per_col = {}
@@ -737,9 +774,10 @@ class Macchina:
                         a_y = i * ch + ch // 2
                         b_x = (c + 1) * cw + cw // 2
                         b_y = j * ch + ch // 2
-                        pygame.draw.line(fili, col + (int(90 + 110 * respiro),),
+                        pygame.draw.line(fili,
+                                         col + (int(130 + 125 * respiro),),
                                          (a_x, a_y), (b_x, b_y),
-                                         max(1, B.s(2)))
+                                         max(2, B.s(4)))
             sc.blit(fili, vetro)
             for c, i in sorted(acceso):
                 if not 0 <= i < RIGHE:
@@ -798,8 +836,8 @@ class Macchina:
             cornice_neon(sc, r, self.t_neon + 0.5, B.s(10))
         nome = B.FONTS["small"].render(T("jackpot").upper(), True,
                                        (190, 196, 208))
-        soldi = B.FONTS["medio"].render(B.dollari(jackpot()), True,
-                                        (255, 255, 255))
+        soldi = B.FONTS["font"].render(B.dollari(jackpot()), True,
+                                       (255, 255, 255))
         insieme = nome.get_width() + soldi.get_width() + B.s(16)
         x = r.centerx - insieme // 2
         sc.blit(nome, nome.get_rect(midleft=(x, r.centery)))
@@ -816,11 +854,10 @@ class Macchina:
         cornice_neon(sc, r, self.t_neon + 1.2, B.s(10))
         if not self.sotto:
             return
-        col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)] \
-            if self.mostra >= 0 else (170, 176, 188)
-        t = B.FONTS["medio"].render(self.sotto, True, col)
-        if t.get_width() > r.w - B.s(30):
-            t = B.FONTS["font"].render(self.sotto, True, col)
+        nome = self.vinte[self.mostra][0] if (self.vinte and
+                                              self.mostra >= 0) else None
+        col = colore_simbolo(nome) if nome else (170, 176, 188)
+        t = B.FONTS["font"].render(self.sotto, True, col)
         sc.blit(t, t.get_rect(center=r.center))
 
     def disegna_pannello(self, per_linea):
@@ -846,35 +883,6 @@ class Macchina:
             v = f.render(str(val), True, col)
             sc.blit(v, v.get_rect(midright=(x1, y)))
             y += passo
-
-    def disegna_messaggio(self, cx, y):
-        """Quanto ha pagato il giro e che combinazione e' stata: nella
-        colonna a destra, sopra le scelte."""
-        if self.msg:
-            col = (255, 226, 140) if self.totale else (200, 206, 216)
-            t = B.FONTS["font"].render(self.msg, True, col)
-            self.sc.blit(t, t.get_rect(center=(cx, y)))
-        if self.sotto:
-            col = COLORI_VINTE[self.mostra % len(COLORI_VINTE)] \
-                if self.mostra >= 0 else (170, 176, 188)
-            # su due righe, col carattere normale: cosi' si legge
-            righe, ora = [], ""
-            largo = B.WIN_W - cx - B.s(26)
-            for pezzo in self.sotto.split("  "):
-                if not pezzo:
-                    continue
-                prova = (ora + "  " + pezzo).strip()
-                if ora and B.FONTS["font"].size(prova)[0] > largo * 2:
-                    righe.append(ora)
-                    ora = pezzo
-                else:
-                    ora = prova
-            righe.append(ora)
-            yy = y + B.s(30)
-            for riga in righe:
-                t = B.FONTS["font"].render(riga, True, col)
-                self.sc.blit(t, t.get_rect(center=(cx, yy)))
-                yy += t.get_height() + B.s(4)
 
     def frame(self):
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
