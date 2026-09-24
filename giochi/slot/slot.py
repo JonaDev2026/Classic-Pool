@@ -916,21 +916,36 @@ COLORI_VINTE = ((120, 230, 255), (255, 170, 205), (160, 245, 170),
 # quanto della casella riempie il simbolo: piu' piccolo respira meglio
 GRANDE = 0.52
 
-# ------------------------------------------------------ i simboli vivi
-# Certi simboli si muovono da soli, ma solo a rulli fermi: mentre girano
-# scorrono gia' di loro e una cosa che fluttua dentro un rullo in corsa
-# e' solo confusione. Per tema e per simbolo:
-#   onda    di quanto ondeggia, in frazione di casella
-#   giro    di quanti gradi oscilla
-#   scia    quanti granelli al secondo si lascia dietro
-#   verso   da che parte se ne va la scia
-#   colore  di che colore sono i granelli
-# Aggiungerne uno e' una riga: non serve toccare altro.
+# --------------------------------------------- i simboli che si animano
+# Le animazioni si accendono SOLO quando quel simbolo sta pagando, e
+# solo a rulli fermi. Il resto del tempo i simboli stanno fermi: se si
+# muove tutto, non si capisce piu' cosa hai vinto.
+# Per tema e per simbolo:
+#   gira     giri al secondo: il pianeta ruota sul proprio asse
+#   scia     quanti granelli al secondo si lascia dietro
+#   verso    da che parte se ne va la scia
+#   colore   di che colore sono i granelli
+#   onda     di quanto ondeggia, in frazione di casella
+# Chi non e' qui dentro fa quello di sempre: respira e basta.
 ANIMAZIONI = {
     "nuova": {
-        # la cometa: fluttua piano e si lascia dietro la polvere
-        "fiches": {"onda": 0.045, "giro": 5.0, "scia": 34,
-                   "verso": (-1.0, 0.30), "colore": (150, 200, 255)},
+        "ciliegia": {"gira": 0.10}, "limone": {"gira": 0.10},
+        "arancia": {"gira": 0.10}, "prugna": {"gira": 0.10},
+        "mela": {"gira": 0.10}, "fragola": {"gira": 0.08},
+        "anguria": {"gira": 0.12}, "uva": {"gira": 0.12},
+        "cuori": {"gira": 0.14}, "picche": {"gira": 0.14},
+        "fiori": {"gira": 0.12}, "quadri": {"gira": 0.12},
+        "campana": {"gira": 0.14}, "ferro": {"gira": 0.14},
+        "quadrifoglio": {"gira": 0.18},
+        "carte": {"gira": 0.16},
+        # saturno per ora sta fermo: l'anello non e' parte della sfera e
+        # girando si accartoccia. Va staccato dalla palla e rimesso
+        # sopra, fermo -- si fa, ma e' un lavoro a parte
+        # "roulette": {"gira": 0.16},
+        # la cometa non e' una sfera: fluttua e lascia la scia
+        "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
+                   "colore": (150, 200, 255)},
+        "sette": {"gira": 0.10},
     },
 }
 
@@ -938,6 +953,83 @@ ANIMAZIONI = {
 def animazione(nome):
     """Come si muove quel simbolo in questa macchina, o niente."""
     return ANIMAZIONI.get(tema(), {}).get(nome)
+
+
+GIRI = {}
+QUANTI_GIRO = 24            # fotogrammi per un giro completo
+DENTRO = 0.84               # da quanto dentro il disco si pesca il colore
+
+
+def frames_giro(nome, misura):
+    """I fotogrammi di un pianeta che gira sul proprio asse.
+
+    Il trucco sta nella geometria: ruotando attorno all'asse verticale
+    un punto non cambia altezza, cambia solo la longitudine. Quindi ogni
+    riga dell'immagine e' una fetta di pianeta a quella latitudine, che
+    scorre, e le righe non si mescolano mai fra loro. Il lato nascosto
+    non esiste nel disegno, quindi si specchia quello che si vede: su
+    pianeti a fasce e a macchie non si nota.
+
+    Si calcolano una volta sola per simbolo e misura, e si tengono da
+    parte. Senza numpy si rinuncia e il simbolo respira come prima.
+    """
+    chiave = (tema(), nome, misura)
+    if chiave in GIRI:
+        return GIRI[chiave]
+    try:
+        import numpy as np
+    except ImportError:
+        GIRI[chiave] = None
+        return None
+    src = figura(nome, misura)
+    w, h = src.get_size()
+    try:
+        rgb = pygame.surfarray.array3d(src).astype(np.float32)
+        alfa = pygame.surfarray.array_alpha(src).astype(np.float32)
+    except (ValueError, pygame.error):
+        GIRI[chiave] = None
+        return None
+    cx, cy = (w - 1) / 2.0, (h - 1) / 2.0
+    R = min(cx, cy) + 0.5
+    xs = (np.arange(w) - cx) / R                 # -1..1 sullo schermo
+    ys = (np.arange(h) - cy) / R
+    X, Y = np.meshgrid(xs, ys, indexing="ij")
+    dentro = (X * X + Y * Y) <= 1.0
+    cosphi = np.sqrt(np.clip(1.0 - Y * Y, 1e-6, 1.0))   # quanto e' larga
+    sin_lon = np.clip(X / cosphi, -1.0, 1.0)            # la riga a quella
+    lon = np.arcsin(sin_lon)                            # latitudine
+
+    # la luce sta ferma: viene da sopra a sinistra e non gira col pianeta
+    Z = np.sqrt(np.clip(1.0 - X * X - Y * Y, 0.0, 1.0))
+    luce = 0.58 + 0.52 * np.clip(-0.42 * X - 0.42 * Y + 0.76 * Z, 0.0, 1.0)
+    luce = luce[:, :, None]
+
+    fuori = []
+    for i in range(QUANTI_GIRO):
+        fase = 2.0 * math.pi * i / QUANTI_GIRO
+        lt = lon + fase
+        lt = (lt + math.pi) % (2.0 * math.pi) - math.pi   # in -pi..pi
+        # il lato nascosto si specchia su quello che si vede
+        dietro = np.abs(lt) > math.pi / 2.0
+        lm = np.where(lt > 0, math.pi - lt, -math.pi - lt)
+        lv = np.where(dietro, lm, lt)
+        # si pesca da un disco un po' piu' stretto dell'originale: sul
+        # bordo c'e' il contorno scuro del disegno, e ruotando finirebbe
+        # in mezzo al pianeta come una cucitura nera
+        sx = np.clip(np.rint(cx + R * DENTRO * cosphi * np.sin(lv)),
+                     0, w - 1).astype(int)
+        sy = np.clip(np.rint(cy + (np.arange(h) - cy) * DENTRO),
+                     0, h - 1).astype(int)
+        sy = np.tile(sy, (w, 1))
+        q = rgb[sx, sy]
+        a = alfa[sx, sy] * dentro * (alfa > 0)
+        q = np.clip(q * luce, 0, 255)
+        sup = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.surfarray.blit_array(sup, q.astype(np.uint8))
+        pygame.surfarray.pixels_alpha(sup)[:, :] = a.astype(np.uint8)
+        fuori.append(sup)
+    GIRI[chiave] = fuori
+    return fuori
 
 # quanto e' grande la griglia rispetto allo spazio che avrebbe: 1.0 la
 # riempie tutta, 0.5 la fa meta'. Un numero solo, si cambia qui.
@@ -1136,12 +1228,24 @@ class Macchina:
                 al.fill((255, 255, 255, int(150 + 105 * respiro)),
                         special_flags=pygame.BLEND_RGBA_MULT)
                 sc.blit(al, al.get_rect(center=r.center))
-                img = figura(nome, (int(cw * GRANDE * k),
-                                    int(ch * GRANDE * k))).copy()
+                an = animazione(nome)
+                giri = (frames_giro(nome, (int(cw * GRANDE),
+                                           int(ch * GRANDE)))
+                        if an and an.get("gira") else None)
                 # l'alfa si moltiplica sui pixel: set_alpha su una
                 # superficie trasparente farebbe un quadrato nero
-                img.fill((255, 255, 255, int(165 + 90 * respiro)),
-                         special_flags=pygame.BLEND_RGBA_MULT)
+                if giri:
+                    # gira sul proprio asse e basta: girare e respirare
+                    # insieme da' il mal di mare
+                    quale = int(self.t_vinta * an["gira"] * len(giri))
+                    img = giri[quale % len(giri)].copy()
+                    img.fill((255, 255, 255, int(195 + 60 * respiro)),
+                             special_flags=pygame.BLEND_RGBA_MULT)
+                else:
+                    img = figura(nome, (int(cw * GRANDE * k),
+                                        int(ch * GRANDE * k))).copy()
+                    img.fill((255, 255, 255, int(165 + 90 * respiro)),
+                             special_flags=pygame.BLEND_RGBA_MULT)
                 sc.blit(img, img.get_rect(center=r.center))
         self.disegna_polvere()
         sc.set_clip(vecchio)
@@ -1275,22 +1379,34 @@ class Macchina:
         suo simbolo e col suo colore."""
         if not self.storico:
             return
-        f = B.FONTS["small"]
-        x0, largo = B.s(28), B.s(168)
+        f, mini = B.FONTS["small"], B.FONTS.get("mini", B.FONTS["small"])
+        x0 = B.s(28)
+        # la colonna arriva fin sotto la cassa, ma senza toccarla
+        largo = max(B.s(168), min(B.s(320), self.cassa.x - x0 - B.s(20)))
         y = B.ALTO + B.s(40)
         t = f.render(T("last_wins"), True, (150, 156, 168))
         self.sc.blit(t, (x0, y))
         y += t.get_height() + B.s(10)
         lato = B.s(26)
         for nome, lung, paga in self.storico[:10]:
+            mezzo = y + lato // 2
             img = figura(nome, (lato, lato))
-            self.sc.blit(img, img.get_rect(midleft=(x0, y + lato // 2)))
-            q = f.render("x%d" % lung, True, tuple(colore_simbolo(nome)))
-            self.sc.blit(q, q.get_rect(midleft=(x0 + lato + B.s(8),
-                                                y + lato // 2)))
-            s = f.render(B.dollari(paga), True, B.VERDE_SOLDI)
-            self.sc.blit(s, s.get_rect(midright=(x0 + largo,
-                                                 y + lato // 2)))
+            self.sc.blit(img, img.get_rect(midleft=(x0, mezzo)))
+            soldi = f.render(B.dollari(paga), True, B.VERDE_SOLDI)
+            self.sc.blit(soldi, soldi.get_rect(midright=(x0 + largo, mezzo)))
+            # il nome e quanti rulli, fra l'icona e la cifra. Se il nome
+            # e' lungo si accorcia, cosi' non va a finire sotto ai soldi
+            x = x0 + lato + B.s(9)
+            quanti = f.render(" x%d" % lung, True, tuple(colore_simbolo(nome)))
+            sta = x0 + largo - soldi.get_width() - B.s(10) - quanti.get_width()
+            testo = nome_simbolo(nome)
+            q = f.render(testo, True, (206, 210, 220))
+            while q.get_width() > sta - x and len(testo) > 3:
+                testo = testo[:-1]
+                q = f.render(testo + ".", True, (206, 210, 220))
+            self.sc.blit(q, q.get_rect(midleft=(x, mezzo)))
+            self.sc.blit(quanti, quanti.get_rect(
+                midleft=(x + q.get_width(), mezzo)))
             y += lato + B.s(6)
 
     def disegna_scelte(self, voci, sel):
