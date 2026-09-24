@@ -1152,10 +1152,11 @@ ANIMAZIONI = {
         "bar": {"trema": 0.030, "fiamma": 1.0, "misura": 0.86},
         # l'astronauta non e' ancora di nessuno: sta in magazzino e
         # intanto capitombola piano
-        "astronauta": {"rotola": 0.16, "misura": 0.80},
+        "astronauta": {"rotola": 0.05, "misura": 0.80},
         # le targhe: la scritta sta ferma, si muove solo la nebbia
         # che ci sta dietro
-        "jolly": {"targa": 0.10,
+        "jolly": {"targa": 0.10, "scia": 26, "verso": (0.0, -0.22),
+                  "sparso": 0.46, "colore": (170, 215, 255),
                   "colori": ((120, 90, 235), (90, 170, 255), (210, 120, 255))},
         # i giri gratis li porta la cometa: fluttua e lascia la scia
         "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
@@ -1163,7 +1164,8 @@ ANIMAZIONI = {
         # il bonus e' l'alieno: sta com'e' e galleggia piano
         "regalo": {"onda": 0.040},
         # il jackpot:
-        "jackpot": {"targa": 0.10,
+        "jackpot": {"targa": 0.10, "scia": 26, "verso": (0.0, -0.22),
+                    "sparso": 0.46, "colore": (255, 205, 120),
                     "colori": ((235, 120, 60), (255, 70, 120),
                                (180, 60, 210))},
     },
@@ -2163,9 +2165,10 @@ class Macchina:
             return
         vx, vy = an.get("verso", (-1.0, 0.0))
         v = misura[0] * random.uniform(0.6, 1.5)
+        sp = an.get("sparso", 0.16)
         self.scia.append([
-            centro[0] + random.uniform(-0.16, 0.16) * misura[0],
-            centro[1] + random.uniform(-0.16, 0.16) * misura[1],
+            centro[0] + random.uniform(-sp, sp) * misura[0],
+            centro[1] + random.uniform(-sp, sp) * misura[1],
             vx * v + random.uniform(-0.2, 0.2) * misura[0],
             vy * v + random.uniform(-0.2, 0.2) * misura[1],
             0.0, random.uniform(0.5, 1.2),
