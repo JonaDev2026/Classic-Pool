@@ -983,8 +983,8 @@ ANIMAZIONI = {
         "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                    "colore": (150, 200, 255)},
         "sette": {"gira": 0.20},                 # il Sole, 25 giorni
-        # la moneta gira di taglio, come una moneta lanciata
-        "dollaro": {"moneta": 0.55},
+        # la galassia a spirale: disegnata dal codice, gira su se stessa
+        "dollaro": {"galassia": 0.06},
         # la nebulosa non e' una PNG: la disegna il codice, tre veli di
         # nebbia che scorrono uno sull'altro e le stelle che brillano
         "palla8": {"nebbia": 0.18,
@@ -1197,6 +1197,130 @@ def frames_nebbia(misura, colori=None, quanti=None):
         pygame.surfarray.pixels_alpha(sup)[:, :] = alfa.astype(np.uint8)
         fuori.append(sup)
     NEBBIE[chiave] = fuori
+    return fuori
+
+
+GALASSIE = {}
+QUANTI_GALASSIA = 72
+
+
+def frames_galassia(misura, quanti=None):
+    """Una galassia a spirale, tipo Andromeda: disegnata, non scaricata.
+
+    Si lavora nel piano del disco e poi lo si schiaccia, come se lo si
+    guardasse di sbieco. I bracci sono una spirale logaritmica: girando
+    la spirale di mezzo giro la galassia torna identica a se stessa
+    (i bracci sono due), quindi il ciclo si chiude senza salti.
+    """
+    quanti = quanti or QUANTI_GALASSIA
+    chiave = (misura, quanti)
+    if chiave in GALASSIE:
+        return GALASSIE[chiave]
+    try:
+        import numpy as np
+    except ImportError:
+        GALASSIE[chiave] = None
+        return None
+    w, h = misura
+    SCHIACCIA, INCLINA = 0.42, -0.42          # di quanto e' di sbieco
+    yy, xx = np.meshgrid(np.arange(h), np.arange(w))
+    X = (xx - (w - 1) / 2.0) / (w / 2.0)
+    Y = (yy - (h - 1) / 2.0) / (h / 2.0)
+    # si torna nel piano del disco: si raddrizza l'inclinazione e si
+    # stira la direzione schiacciata
+    xr = X * math.cos(-INCLINA) - Y * math.sin(-INCLINA)
+    yr = X * math.sin(-INCLINA) + Y * math.cos(-INCLINA)
+    u, v = xr, yr / SCHIACCIA
+    r = np.sqrt(u * u + v * v) + 1e-4
+    th = np.arctan2(v, u)
+    dentro = r <= 1.0
+    nucleo = np.exp(-(r / 0.16) ** 2)         # il cuore acceso
+    alone = np.exp(-(r / 0.42) ** 2) * 0.55
+    fuori = []
+    for f in range(quanti):
+        fase = math.pi * f / float(quanti)    # mezzo giro: due bracci
+        # spirale logaritmica: l'angolo cresce col logaritmo del raggio
+        onda = np.cos(2.0 * (th - 2.6 * np.log(r) + fase))
+        bracci = np.clip(onda, 0, 1) ** 1.7 * np.exp(-r / 0.62) * (r > 0.06)
+        d = np.clip(bracci * 1.5 + alone, 0, 1)
+        rgb = np.zeros((w, h, 3), np.float32)
+        # i bracci azzurri con le stelle rosa dentro, il nucleo caldo
+        rgb += d[:, :, None] * np.array([120, 170, 255], np.float32)
+        rgb += (d ** 3)[:, :, None] * np.array([210, 120, 255], np.float32)
+        rgb += (nucleo[:, :, None] *
+                np.array([255, 224, 150], np.float32) * 1.5)
+        alfa = np.clip(d * 1.6 + nucleo * 1.6, 0, 1) * dentro
+        # il bordo che sfuma, se no si vede il cerchio netto
+        alfa *= np.clip((1.0 - r) / 0.28, 0, 1)
+        sup = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.surfarray.blit_array(sup, np.clip(rgb, 0, 255).astype(np.uint8))
+        pygame.surfarray.pixels_alpha(sup)[:, :] = (alfa * 255).astype(np.uint8)
+        fuori.append(sup)
+    GALASSIE[chiave] = fuori
+    return fuori
+
+
+PLEIADI = {}
+QUANTI_PLEIADI = 60
+# dove stanno le sette sorelle, piu' o meno come in cielo
+SETTE = ((0.50, 0.26, 1.00), (0.34, 0.40, 0.82), (0.62, 0.44, 0.74),
+         (0.24, 0.60, 0.66), (0.46, 0.62, 0.90), (0.70, 0.68, 0.58),
+         (0.40, 0.80, 0.52))
+
+
+def frames_pleiadi(misura, quanti=None):
+    """Le Pleiadi: sette stelle azzurre dentro un velo di nebbia, che
+    scintillano ognuna per conto suo. Anche questa e' disegnata."""
+    quanti = quanti or QUANTI_PLEIADI
+    chiave = (misura, quanti)
+    if chiave in PLEIADI:
+        return PLEIADI[chiave]
+    try:
+        import numpy as np
+    except ImportError:
+        PLEIADI[chiave] = None
+        return None
+    w, h = misura
+    yy, xx = np.meshgrid(np.arange(h), np.arange(w))
+    X = xx / float(w)
+    Y = yy / float(h)
+    rr = np.sqrt((X - 0.5) ** 2 + (Y - 0.5) ** 2) * 2.0
+    sagoma = np.clip(1.0 - (rr - 0.5) / 0.5, 0, 1) ** 1.3
+    # il velo di nebbia, a onde intere cosi' scorre senza cuciture
+    rnd = np.random.RandomState(3)
+    velo = np.zeros((w, h), np.float32)
+    for _ in range(4):
+        fx, fy = rnd.randint(1, 3), rnd.randint(1, 3)
+        velo += rnd.uniform(0.5, 1.0) * np.sin(
+            2 * math.pi * (fx * X + fy * Y) + rnd.uniform(0, 6.28))
+    velo = (velo - velo.min()) / max(1e-6, velo.max() - velo.min())
+    velo = velo ** 2.0
+    fuori = []
+    for f in range(quanti):
+        k = f / float(quanti)
+        rgb = np.zeros((w, h, 3), np.float32)
+        alfa = np.zeros((w, h), np.float32)
+        nb = np.roll(velo, int(round(k * w)), axis=0) * 0.5
+        rgb += nb[:, :, None] * np.array([70, 120, 245], np.float32) * 1.8
+        alfa = np.maximum(alfa, nb * 1.5)
+        for i, (sx, sy, forza) in enumerate(SETTE):
+            b = 0.55 + 0.45 * math.sin(2 * math.pi * (k * (2 + i % 3)) + i)
+            d2 = ((X - sx) ** 2 + (Y - sy) ** 2)
+            g = np.exp(-d2 / (0.0024 * forza)) * forza * b
+            # le quattro punte
+            croce = (np.exp(-((X - sx) ** 2) / 0.00018) *
+                     np.exp(-((Y - sy) ** 2) / 0.010) +
+                     np.exp(-((Y - sy) ** 2) / 0.00018) *
+                     np.exp(-((X - sx) ** 2) / 0.010)) * forza * b * 0.7
+            luce = g + croce
+            rgb += luce[:, :, None] * np.array([190, 220, 255], np.float32)
+            alfa = np.maximum(alfa, np.clip(luce, 0, 1))
+        alfa = np.clip(alfa, 0, 1) * sagoma
+        sup = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.surfarray.blit_array(sup, np.clip(rgb, 0, 255).astype(np.uint8))
+        pygame.surfarray.pixels_alpha(sup)[:, :] = (alfa * 255).astype(np.uint8)
+        fuori.append(sup)
+    PLEIADI[chiave] = fuori
     return fuori
 
 
@@ -1654,7 +1778,15 @@ class Macchina:
             return figura(nome, misura), (0.0, 0.0)
         tt = self.t_neon
         img = None
-        if an.get("nebbia"):
+        if an.get("galassia"):
+            fr = frames_galassia(misura)
+            if fr:
+                img = fr[int(tt * an["galassia"] * len(fr)) % len(fr)]
+        elif an.get("pleiadi"):
+            fr = frames_pleiadi(misura)
+            if fr:
+                img = fr[int(tt * an["pleiadi"] * len(fr)) % len(fr)]
+        elif an.get("nebbia"):
             fr = frames_nebbia(misura, an.get("colori"))
             if fr:
                 img = fr[int(tt * an["nebbia"] * len(fr)) % len(fr)]
