@@ -1219,26 +1219,37 @@ ANIMAZIONI = {
         # nebbia che scorrono uno sull'altro e le stelle che brillano
         "palla8": {"nebbia": 0.18,
                    "colori": ((188, 92, 224), (236, 96, 168), (86, 150, 255))},
+        # la pistola: sta ferma e butta qualche scintilla
+        "gemma": {"scia": 20, "verso": (0.0, -0.20), "sparso": 0.40,
+                  "colore": (130, 235, 200), "pixel": True},
         # il razzo: balla come i dadi, perche' si muove mentre va, e
         # dietro ha la fiammata che lo spinge
-        "bar": {"trema": 0.030, "fiamma": 1.0, "misura": 0.86},
+        "bar": {"trema": 0.030, "fiamma": 1.0, "misura": 0.86,
+                "scia": 20, "verso": (0.0, 0.55), "sparso": 0.30,
+                "colore": (255, 190, 110), "pixel": True},
         # l'astronauta non e' ancora di nessuno: sta in magazzino e
         # intanto capitombola piano
-        "astronauta": {"rotola": 0.05, "misura": 0.80},
+        "astronauta": {"rotola": 0.05, "misura": 0.80,
+                       "scia": 20, "verso": (0.0, -0.20), "sparso": 0.40,
+                       "colore": (210, 228, 255), "pixel": True},
         # le targhe: la scritta sta ferma, si muove solo la nebbia
         # che ci sta dietro
         "jolly": {"targa": 0.10, "scia": 26, "verso": (0.0, -0.22),
                   "sparso": 0.46, "colore": (170, 215, 255), "pixel": True,
+                  "alone": False,
                   "colori": ((120, 90, 235), (90, 170, 255), (210, 120, 255))},
         # i giri gratis li porta la cometa: fluttua e lascia la scia
         "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                  "colore": (150, 200, 255), "misura": 0.67},
         # il bonus e' l'alieno: sta com'e' e galleggia piano
-        "regalo": {"onda": 0.040},
+        "regalo": {"onda": 0.040,
+                   "scia": 20, "verso": (0.0, -0.20), "sparso": 0.40,
+                   "colore": (200, 170, 255), "pixel": True},
         # il jackpot:
         "jackpot": {"targa": 0.10, "misura": 1.35,
                     "scia": 26, "verso": (0.0, -0.22),
-                    "sparso": 0.46, "colore": (255, 205, 120), "pixel": True,
+                    "sparso": 0.46, "colore": (255, 205, 120),
+                    "pixel": True, "alone": False,
                     "colori": ((235, 120, 60), (255, 70, 120),
                                (180, 60, 210))},
     },
@@ -2168,12 +2179,15 @@ class Macchina:
                 # animazione E' il suo modo di festeggiare, e pulsare in
                 # piu' sarebbe due cose sopra la stessa casella
                 suo = bool(an)
-                al = alone_radiale(int(min(cw, ch) * GRANDE * 1.73), col)
-                al = al.copy()
-                al.fill((255, 255, 255,
-                         225 if suo else int(150 + 105 * respiro)),
-                        special_flags=pygame.BLEND_RGBA_MULT)
-                sc.blit(al, al.get_rect(center=r.center))
+                # l'alone dietro: certi simboli non lo vogliono, perche'
+                # sono gia' larghi e chiari di loro e lui li impasta
+                if (an or {}).get("alone", True):
+                    al = alone_radiale(int(min(cw, ch) * GRANDE * 1.73), col)
+                    al = al.copy()
+                    al.fill((255, 255, 255,
+                             225 if suo else int(150 + 105 * respiro)),
+                            special_flags=pygame.BLEND_RGBA_MULT)
+                    sc.blit(al, al.get_rect(center=r.center))
                 # l'alfa si moltiplica sui pixel: set_alpha su una
                 # superficie trasparente farebbe un quadrato nero
                 if suo:
