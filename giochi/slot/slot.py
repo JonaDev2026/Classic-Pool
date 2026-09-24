@@ -439,6 +439,7 @@ NOMI_TEMA = {
         "campana": "TRAPPIST-1", "ferro": "Proxima", "quadrifoglio": "Jupiter",
         "carte": "Earth", "roulette": "Saturn", "fiches": "Comet",
         "gemma": "Alien", "bar": "Rocket", "sette": "Sun",
+        "dollaro": "Galaxy", "palla8": "Nebula",
         "jolly": "Space",
     },
 }
@@ -451,6 +452,7 @@ NOMI_TEMA_LINGUA = {
                "fiori": "Urano", "quadri": "Nettuno", "quadrifoglio": "Giove",
                "carte": "Terra", "roulette": "Saturno", "fiches": "Cometa",
                "gemma": "Alieno", "bar": "Razzo", "sette": "Sole",
+               "dollaro": "Galassia", "palla8": "Nebulosa",
                "jolly": "Spazio"},
         "fr": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
                "mela": "Pluton", "fragola": "Lune", "anguria": "Mercure",
@@ -458,6 +460,7 @@ NOMI_TEMA_LINGUA = {
                "fiori": "Uranus", "quadri": "Neptune", "quadrifoglio": "Jupiter",
                "carte": "Terre", "roulette": "Saturne", "fiches": "Comete",
                "gemma": "Alien", "bar": "Fusee", "sette": "Soleil",
+               "dollaro": "Galaxie", "palla8": "Nebuleuse",
                "jolly": "Espace"},
         "es": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
                "mela": "Pluton", "fragola": "Luna", "anguria": "Mercurio",
@@ -465,6 +468,7 @@ NOMI_TEMA_LINGUA = {
                "fiori": "Urano", "quadri": "Neptuno", "quadrifoglio": "Jupiter",
                "carte": "Tierra", "roulette": "Saturno", "fiches": "Cometa",
                "gemma": "Alien", "bar": "Cohete", "sette": "Sol",
+               "dollaro": "Galaxia", "palla8": "Nebulosa",
                "jolly": "Espacio"},
     },
 }
@@ -645,12 +649,34 @@ def tema():
 NUDE = {}
 
 
+def frames_disegnati(nome, misura):
+    """I fotogrammi dei simboli che non sono una PNG ma li disegna il
+    codice. Niente se questo simbolo non e' uno di quelli."""
+    an = ANIMAZIONI.get(tema(), {}).get(nome)
+    if not an:
+        return None
+    if an.get("galassia"):
+        return frames_galassia(misura)
+    if an.get("pleiadi"):
+        return frames_pleiadi(misura)
+    if an.get("nebbia"):
+        return frames_nebbia(misura, an.get("colori"))
+    return None
+
+
 def figura(nome, misura):
     """Il disegno di un simbolo come si vede nel gioco: la palla con il
     suo anello, se ne ha uno."""
     chiave = (tema(), nome, misura)
     if chiave in NUDE:
         return NUDE[chiave]
+    # i simboli che disegna il codice (galassia, nebulosa, Pleiadi) non
+    # hanno una PNG: il loro primo fotogramma E' la loro faccia, se no
+    # sui rulli si vedrebbe ancora il disegno vecchio
+    fr = frames_disegnati(nome, misura)
+    if fr:
+        NUDE[chiave] = fr[0]
+        return fr[0]
     if not anello_di(nome):
         NUDE[chiave] = figura_nuda(nome, misura)
         return NUDE[chiave]
@@ -1236,20 +1262,34 @@ def frames_galassia(misura, quanti=None):
     dentro = r <= 1.0
     nucleo = np.exp(-(r / 0.16) ** 2)         # il cuore acceso
     alone = np.exp(-(r / 0.42) ** 2) * 0.55
+    # la granella di stelle sparse dentro al disco
+    rnd = np.random.RandomState(11)
+    grana = (rnd.rand(w, h) > 0.985).astype(np.float32) * rnd.rand(w, h)
     fuori = []
     for f in range(quanti):
         fase = math.pi * f / float(quanti)    # mezzo giro: due bracci
         # spirale logaritmica: l'angolo cresce col logaritmo del raggio
         onda = np.cos(2.0 * (th - 2.6 * np.log(r) + fase))
         bracci = np.clip(onda, 0, 1) ** 1.7 * np.exp(-r / 0.62) * (r > 0.06)
-        d = np.clip(bracci * 1.5 + alone, 0, 1)
+        # la corsia di polvere: una seconda spirale sfasata che TOGLIE
+        # luce invece di darne. E' quella che spezza i bracci e li fa
+        # sembrare veri invece che due virgole disegnate
+        buio = np.clip(np.cos(2.0 * (th - 2.6 * np.log(r) + fase - 0.42)),
+                       0, 1) ** 3.0 * np.exp(-r / 0.55) * 0.55
+        # il velo diffuso che riempie fra un braccio e l'altro
+        velo = np.exp(-(r / 0.72) ** 2) * 0.30
+        d = np.clip(bracci * 1.5 + alone + velo - buio, 0, 1)
         rgb = np.zeros((w, h, 3), np.float32)
         # i bracci azzurri con le stelle rosa dentro, il nucleo caldo
         rgb += d[:, :, None] * np.array([120, 170, 255], np.float32)
         rgb += (d ** 3)[:, :, None] * np.array([210, 120, 255], np.float32)
+        # la granella di stelle, che gira insieme al disco
+        gr = np.roll(grana, int(round(fase / math.pi * w)), axis=0)
+        stelline = gr * np.clip(d * 1.6, 0, 1)
+        rgb += stelline[:, :, None] * np.array([235, 245, 255], np.float32)
         rgb += (nucleo[:, :, None] *
                 np.array([255, 224, 150], np.float32) * 1.5)
-        alfa = np.clip(d * 1.6 + nucleo * 1.6, 0, 1) * dentro
+        alfa = np.clip(d * 1.6 + nucleo * 1.6 + stelline, 0, 1) * dentro
         # il bordo che sfuma, se no si vede il cerchio netto
         alfa *= np.clip((1.0 - r) / 0.28, 0, 1)
         sup = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -1778,18 +1818,11 @@ class Macchina:
             return figura(nome, misura), (0.0, 0.0)
         tt = self.t_neon
         img = None
-        if an.get("galassia"):
-            fr = frames_galassia(misura)
-            if fr:
-                img = fr[int(tt * an["galassia"] * len(fr)) % len(fr)]
-        elif an.get("pleiadi"):
-            fr = frames_pleiadi(misura)
-            if fr:
-                img = fr[int(tt * an["pleiadi"] * len(fr)) % len(fr)]
-        elif an.get("nebbia"):
-            fr = frames_nebbia(misura, an.get("colori"))
-            if fr:
-                img = fr[int(tt * an["nebbia"] * len(fr)) % len(fr)]
+        fr = frames_disegnati(nome, misura)
+        if fr:
+            quanto = (an.get("galassia") or an.get("pleiadi")
+                      or an.get("nebbia"))
+            img = fr[int(tt * quanto * len(fr)) % len(fr)]
         elif an.get("gira"):
             fr = frames_giro(nome, misura)
             if fr:
