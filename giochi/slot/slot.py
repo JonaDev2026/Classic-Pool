@@ -974,6 +974,8 @@ ANIMAZIONI = {
         "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                    "colore": (150, 200, 255)},
         "sette": {"gira": 0.20},                 # il Sole, 25 giorni
+        # la targa SPACE: non e' una sfera, respira appena
+        "jolly": {"onda": 0.035},
     },
 }
 
