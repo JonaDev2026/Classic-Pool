@@ -440,7 +440,7 @@ NOMI_TEMA = {
         "carte": "Earth", "roulette": "Saturn", "fiches": "Comet",
         "gemma": "Alien", "bar": "Rocket", "sette": "Sun",
         "dollaro": "Galaxy", "palla8": "Nebula",
-        "jolly": "Space",
+        "jolly": "Space", "dadi": "Comet",
     },
 }
 # le poche che cambiano da lingua a lingua
@@ -453,7 +453,7 @@ NOMI_TEMA_LINGUA = {
                "carte": "Terra", "roulette": "Saturno", "fiches": "Cometa",
                "gemma": "Alieno", "bar": "Razzo", "sette": "Sole",
                "dollaro": "Galassia", "palla8": "Nebulosa",
-               "jolly": "Spazio"},
+               "jolly": "Spazio", "dadi": "Cometa"},
         "fr": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
                "mela": "Pluton", "fragola": "Lune", "anguria": "Mercure",
                "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
@@ -461,7 +461,7 @@ NOMI_TEMA_LINGUA = {
                "carte": "Terre", "roulette": "Saturne", "fiches": "Comete",
                "gemma": "Alien", "bar": "Fusee", "sette": "Soleil",
                "dollaro": "Galaxie", "palla8": "Nebuleuse",
-               "jolly": "Espace"},
+               "jolly": "Espace", "dadi": "Comete"},
         "es": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
                "mela": "Pluton", "fragola": "Luna", "anguria": "Mercurio",
                "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
@@ -469,7 +469,7 @@ NOMI_TEMA_LINGUA = {
                "carte": "Tierra", "roulette": "Saturno", "fiches": "Cometa",
                "gemma": "Alien", "bar": "Cohete", "sette": "Sol",
                "dollaro": "Galaxia", "palla8": "Nebulosa",
-               "jolly": "Espacio"},
+               "jolly": "Espacio", "dadi": "Cometa"},
     },
 }
 
@@ -647,6 +647,113 @@ def tema():
 
 
 NUDE = {}
+
+
+def fotogramma(fr, pos):
+    """Il fotogramma alla posizione chiesta, che pero' non e' un numero
+    intero: fra un fotogramma e quello dopo si sfuma. Senza questo un
+    disegno che cambia due volte al secondo si vede scattare; sfumando,
+    gli stessi identici fotogrammi scorrono lisci."""
+    n = len(fr)
+    if n < 2:
+        return fr[0]
+    pos = pos % n
+    i = int(pos)
+    k = pos - i
+    if k < 0.02:
+        return fr[i]
+    try:
+        import numpy as np
+    except ImportError:
+        return fr[i]
+    a, b = fr[i], fr[(i + 1) % n]
+    if a.get_size() != b.get_size():
+        return fr[i]
+    # si mescola tenendo conto della trasparenza, se no dove uno dei due
+    # e' trasparente esce il nero che ci sta sotto
+    aa = pygame.surfarray.array_alpha(a).astype("float32") / 255.0
+    ab = pygame.surfarray.array_alpha(b).astype("float32") / 255.0
+    al = aa * (1.0 - k) + ab * k
+    pm = (pygame.surfarray.array3d(a).astype("float32") * aa[:, :, None] *
+          (1.0 - k) +
+          pygame.surfarray.array3d(b).astype("float32") * ab[:, :, None] * k)
+    rgb = pm / np.maximum(al, 1e-4)[:, :, None]
+    sup = pygame.Surface(a.get_size(), pygame.SRCALPHA)
+    pygame.surfarray.blit_array(sup, np.clip(rgb, 0, 255).astype("uint8"))
+    pygame.surfarray.pixels_alpha(sup)[:, :] = np.clip(
+        al * 255, 0, 255).astype("uint8")
+    return sup
+
+
+def sposta_fine(img, fx, fy):
+    """Sposta il disegno di una frazione di pixel. Serve a chi si muove
+    piano: un galleggiamento di quattro pixel in sette secondi, potendosi
+    posare solo su pixel interi, sta fermo mezzo secondo e poi salta.
+    Spostandolo per meta' pixel scorre liscio come il tremolio dei dadi,
+    che sembra fluido solo perche' e' veloce."""
+    w, h = img.get_size()
+    try:
+        import numpy as np
+    except ImportError:
+        return img
+    fx = min(max(fx, 0.0), 1.0)
+    fy = min(max(fy, 0.0), 1.0)
+    al = pygame.surfarray.array_alpha(img).astype("float32") / 255.0
+    pm = pygame.surfarray.array3d(img).astype("float32") * al[:, :, None]
+    # la tela e' sempre un pixel piu' grande, cosi' la cornice non cambia
+    # di misura da un fotogramma all'altro
+    gpm = np.zeros((w + 1, h + 1, 3), "float32")
+    gal = np.zeros((w + 1, h + 1), "float32")
+    for ox, oy, peso in ((0, 0, (1 - fx) * (1 - fy)), (1, 0, fx * (1 - fy)),
+                         (0, 1, (1 - fx) * fy), (1, 1, fx * fy)):
+        if peso <= 0.0:
+            continue
+        gpm[ox:ox + w, oy:oy + h] += pm * peso
+        gal[ox:ox + w, oy:oy + h] += al * peso
+    rgb = gpm / np.maximum(gal, 1e-4)[:, :, None]
+    sup = pygame.Surface((w + 1, h + 1), pygame.SRCALPHA)
+    pygame.surfarray.blit_array(sup, np.clip(rgb, 0, 255).astype("uint8"))
+    pygame.surfarray.pixels_alpha(sup)[:, :] = np.clip(
+        gal * 255, 0, 255).astype("uint8")
+    return sup
+
+
+def con_fiamma(img, forza, tt, fase=0.0):
+    """La spinta dietro al razzo. Il pennacchio si disegna sotto, su una
+    tela piu' alta, e si SOMMA alla luce invece di coprirla: il fuoco non
+    ha un contorno, e' luce. La fiammata si allunga e si accorcia da se',
+    con due ritmi diversi, cosi' non si sente il ciclo."""
+    try:
+        import numpy as np
+    except ImportError:
+        return img
+    w, h = img.get_size()
+    lungo = max(8, int(h * 0.78))
+    sfuria = (0.74 + 0.20 * math.sin(tt * 9.0 + fase) +
+              0.10 * math.sin(tt * 15.7 + fase * 1.7))
+    yy, xx = np.meshgrid(np.arange(h + lungo), np.arange(w), indexing="ij")
+    yy = yy.astype("float32")
+    xx = xx.astype("float32")
+    y0 = h * 0.90
+    t = np.clip((yy - y0) / (lungo * sfuria), 0.0, 1.0)
+    vivo = (yy >= y0) & (t < 1.0)
+    # il getto ondeggia piano mentre scende
+    cx = w * 0.5 + np.sin(t * 5.5 + tt * 6.0 + fase) * w * 0.025 * t
+    largo = np.maximum(w * 0.035, w * 0.150 * (1.0 - t * 0.62))
+    calore = np.exp(-((xx - cx) / largo) ** 2) * (1.0 - t) ** 1.15 * vivo
+    calore *= forza * 1.25 * (0.85 + 0.15 * math.sin(tt * 21.0 + fase))
+    rgb = np.zeros((w, h + lungo, 3), "float32")
+    c = calore.T
+    # dal bianco al giallo all'arancio: il cuore e' quasi bianco
+    rgb += (c ** 2.6)[:, :, None] * np.array([255, 250, 225], "float32")
+    rgb += (c ** 1.5)[:, :, None] * np.array([255, 186, 60], "float32") * 0.95
+    rgb += c[:, :, None] * np.array([255, 92, 30], "float32") * 0.70
+    alfa = np.clip(c * 1.35, 0, 1) * 255
+    sup = pygame.Surface((w, h + lungo), pygame.SRCALPHA)
+    pygame.surfarray.blit_array(sup, np.clip(rgb, 0, 255).astype("uint8"))
+    pygame.surfarray.pixels_alpha(sup)[:, :] = alfa.astype("uint8")
+    sup.blit(img, (0, 0))
+    return sup
 
 
 def misura_simbolo(nome, misura):
@@ -1010,7 +1117,8 @@ ANIMAZIONI = {
         "limone": {"gira": 0.80},                # Cerere, 9 ore
         "arancia": {"gira": 0.52},               # Makemake, 22 ore
         "prugna": {"gira": 0.47},                # Eris, 26 ore
-        "mela": {"gira": 0.30},                  # Plutone, 6 giorni
+        # Plutone e' un nano: gira, ma sta piccolo
+        "mela": {"gira": 0.30, "misura": 0.58},  # Plutone, 6 giorni
         "fragola": {"gira": 0.22},               # Luna, 27 giorni
         "anguria": {"gira": 0.18},               # Mercurio, 59 giorni
         "uva": {"gira": -0.14},                  # Venere, al contrario
@@ -1026,17 +1134,21 @@ ANIMAZIONI = {
         # la cometa non e' una sfera: fluttua e lascia la scia
         "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                    "colore": (150, 200, 255), "misura": 0.67},
-        "sette": {"gira": 0.20},                 # il Sole, 25 giorni
         # la galassia a spirale: disegnata dal codice, gira su se stessa
         "dollaro": {"galassia": 0.06, "misura": 1.95},
         # la nebulosa non e' una PNG: la disegna il codice, tre veli di
         # nebbia che scorrono uno sull'altro e le stelle che brillano
         "palla8": {"nebbia": 0.18,
                    "colori": ((188, 92, 224), (236, 96, 168), (86, 150, 255))},
+        # il razzo: balla come i dadi, perche' si muove mentre va, e
+        # dietro ha la fiammata che lo spinge
+        "bar": {"trema": 0.030, "fiamma": 1.0, "misura": 0.86},
         # la targa SPACE: respira e si accende
         "jolly": {"onda": 0.03, "lampo": 0.22},
-        # i dadi ballano, il regalo batte, il jackpot lampeggia
-        "dadi": {"trema": 0.035},
+        # i giri gratis li porta la cometa: fluttua e lascia la scia
+        "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
+                 "colore": (150, 200, 255), "misura": 0.67},
+        # il regalo batte, il jackpot lampeggia
         "regalo": {"batte": 0.10},
         "jackpot": {"lampo": 0.40, "batte": 0.06},
     },
@@ -1278,8 +1390,9 @@ def frames_galassia(misura, quanti=None):
     r = np.sqrt(u * u + v * v) + 1e-4
     th = np.arctan2(v, u)
     dentro = r <= 1.0
-    nucleo = np.exp(-(r / 0.16) ** 2)         # il cuore acceso
-    alone = np.exp(-(r / 0.42) ** 2) * 0.55
+    nucleo = np.exp(-(r / 0.10) ** 2)         # il cuore acceso
+    bulbo = np.exp(-(r / 0.26) ** 2)          # il rigonfiamento giallo
+    alone = np.exp(-(r / 0.40) ** 2) * 0.30
     # la granella di stelle sparse dentro al disco
     rnd = np.random.RandomState(11)
     grana = (rnd.rand(w, h) > 0.985).astype(np.float32) * rnd.rand(w, h)
@@ -1296,35 +1409,53 @@ def frames_galassia(misura, quanti=None):
     for f in range(quanti):
         fase = math.pi * f / float(quanti)    # mezzo giro: due bracci
         # spirale logaritmica: l'angolo cresce col logaritmo del raggio
-        onda = np.cos(2.0 * (th - 2.6 * np.log(r) + fase))
-        bracci = np.clip(onda, 0, 1) ** 1.7 * np.exp(-r / 0.62) * (r > 0.06)
+        onda = np.cos(2.0 * (th - 3.3 * np.log(r) + fase))
+        bracci = (np.clip(onda, 0, 1) ** 2.6 * np.exp(-r / 0.60) *
+                  (r > 0.06))
         # la corsia di polvere: una seconda spirale sfasata che TOGLIE
         # luce invece di darne. E' quella che spezza i bracci e li fa
         # sembrare veri invece che due virgole disegnate
-        buio = np.clip(np.cos(2.0 * (th - 2.6 * np.log(r) + fase - 0.42)),
-                       0, 1) ** 3.0 * np.exp(-r / 0.55) * 0.55
+        buio = np.clip(np.cos(2.0 * (th - 3.3 * np.log(r) + fase - 0.40)),
+                       0, 1) ** 2.4 * np.exp(-r / 0.58) * 0.80
         # il velo diffuso che riempie fra un braccio e l'altro
-        velo = np.exp(-(r / 0.72) ** 2) * 0.30
-        d = np.clip(bracci * 1.5 + alone + velo - buio, 0, 1)
+        velo = np.exp(-(r / 0.72) ** 2) * 0.20
+        d = np.clip(bracci * 1.7 + alone + velo - buio, 0, 1)
         rgb = np.zeros((w, h, 3), np.float32)
         # i bracci azzurri con le stelle rosa dentro, il nucleo caldo
-        rgb += d[:, :, None] * np.array([110, 160, 255], np.float32)
+        rgb += (d * (1.0 - bulbo * 0.80))[:, :, None] * np.array(
+            [104, 152, 250], np.float32) * 0.94
         # le nubi rosa lungo i bracci: nelle galassie vere sono le zone
         # dove nascono le stelle, ed e' quello che le fa colorate
         nubi = np.roll(rosa, int(round(fase / math.pi * w)), axis=0)
         fiore = np.clip(bracci * 2.2, 0, 1) * nubi
-        rgb += fiore[:, :, None] * np.array([255, 96, 168], np.float32) * 1.4
-        rgb += (d ** 3)[:, :, None] * np.array([190, 120, 255], np.float32)
+        rgb += fiore[:, :, None] * np.array([255, 78, 150],
+                                            np.float32) * 1.75
+        rgb += (d ** 3)[:, :, None] * np.array([190, 120, 255],
+                                               np.float32) * 0.35
         # l'alone caldo che avvolge tutto il disco
         rgb += (velo * 1.6)[:, :, None] * np.array([120, 90, 190], np.float32)
+        # la nebbiolina: una foschia rosa larga, che esce oltre i bracci,
+        # e una celeste piu' stretta che riempie fra un braccio e
+        # l'altro. In Andromeda e' quella che si vede intorno al disco:
+        # senza, restano due virgole azzurre e sembra un disegno
+        foschia = (np.exp(-((r - 0.58) / 0.34) ** 2) *
+                   (0.22 + 0.40 * np.clip(onda, 0, 1)))
+        rgb += (foschia[:, :, None] *
+                np.array([255, 128, 190], np.float32) * 0.62)
+        celeste = (np.exp(-(r / 0.66) ** 2) *
+                   np.clip(0.90 - bracci, 0, 1) * 0.42)
+        rgb += celeste[:, :, None] * np.array([120, 205, 255], np.float32)
         # la granella di stelle, che gira insieme al disco
         gr = np.roll(grana, int(round(fase / math.pi * w)), axis=0)
         stelline = gr * np.clip(d * 1.6, 0, 1)
         rgb += stelline[:, :, None] * np.array([235, 245, 255], np.float32)
         rgb += (nucleo[:, :, None] *
-                np.array([255, 224, 150], np.float32) * 1.5)
-        alfa = np.clip(d * 1.6 + nucleo * 1.6 + stelline + fiore * 0.8,
-                       0, 1) * dentro
+                np.array([255, 224, 158], np.float32) * 0.90)
+        rgb += (bulbo[:, :, None] *
+                np.array([255, 202, 120], np.float32) * 0.86)
+        alfa = np.clip(d * 1.7 + nucleo * 1.9 + bulbo * 1.15 +
+                       stelline + fiore * 0.8 +
+                       foschia * 0.58 + celeste * 0.50, 0, 1) * dentro
         # il bordo che sfuma, se no si vede il cerchio netto
         alfa *= np.clip((1.0 - r) / 0.28, 0, 1)
         sup = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -1858,11 +1989,16 @@ class Macchina:
         if fr:
             quanto = (an.get("galassia") or an.get("pleiadi")
                       or an.get("nebbia"))
-            img = fr[int(tt * quanto * len(fr)) % len(fr)]
+            img = fotogramma(fr, tt * quanto * len(fr))
         elif an.get("gira"):
             fr = frames_giro(nome, grande)
             if fr:
-                img = fr[int(tt * an["gira"] * len(fr)) % len(fr)]
+                passo = tt * an["gira"] * len(fr)
+                # chi gira svelto ha gia' piu' fotogrammi di quanti se ne
+                # vedano: e' chi gira piano che va sfumato
+                veloci = abs(an["gira"]) * len(fr) * VELOCITA
+                img = (fr[int(passo) % len(fr)] if veloci >= 60.0
+                       else fotogramma(fr, passo))
         if img is None:
             img = figura(nome, misura)
         # la moneta gira di taglio: si schiaccia e si riapre
@@ -1883,6 +2019,9 @@ class Macchina:
             q = int(max(0, min(255, 255 * v)))
             img = img.copy()
             img.fill((255, 255, 255, q), special_flags=pygame.BLEND_RGBA_MULT)
+        # la fiamma del razzo: la spinta dietro
+        if an.get("fiamma"):
+            img = con_fiamma(img, an["fiamma"], tt, fase)
         dx = dy = 0.0
         onda = an.get("onda", 0.0)
         if onda:
@@ -1893,6 +2032,13 @@ class Macchina:
         if tr:
             dx += math.sin(tt * 23.0 + fase * 3) * misura[0] * tr
             dy += math.cos(tt * 19.0 + fase * 5) * misura[1] * tr
+        # il mezzo pixel: lo spostamento intero va alla cornice, quello
+        # che avanza si disegna dentro al simbolo. Senza, chi si muove
+        # piano scatta da un pixel all'altro
+        if dx or dy:
+            ix, iy = math.floor(dx), math.floor(dy)
+            img = sposta_fine(img, dx - ix, dy - iy)
+            dx, dy = float(ix), float(iy)
         return img, (dx, dy)
 
     def disegna_ultime(self):
