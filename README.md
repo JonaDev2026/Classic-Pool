@@ -146,8 +146,9 @@ the stake before the match starts, from 10 to 1000, and the winner takes
 the pot; in Rummy the losing hand also pays the 50 point stake. Blackjack,
 Sette e Mezzo and Texas Hold'em take their bets hand by hand.
 
-**Decks**: four of them, Italian (Napoletane, Toscane) and French (Poker 98,
-Texas, Jumbo, Bridge, Club, Golden Trophy, Bike Trophy). Each game
+**Decks**: Italian (Napoletane, Toscane, Piacentine, Genovesi), French
+(Poker 98, Texas) and Moderne, a second French set of faces used by
+Blackjack. Each game
 remembers its own deck; Rummy plays with two decks of the same design and
 you pick which two colours, with the double box when the pack has one.
 
@@ -158,11 +159,14 @@ hearts, green spades - on the wood and on the name plates.
 
 **Rummy rules the game enforces**
 
+Discarding takes two presses. The first one lifts the card clear of the hand, the second one throws it: one slip of the play button no longer costs you the card.
+
 - You open at 50 points. Before you open you can still take the discard,
   lay off and buy jokers, but only if you reach 50 in that same turn: if
   you don't, everything goes back when you discard - your melds return to
   your hand, your lay-offs are pulled out and a joker you bought goes back
   to its place in the meld.
+- A combination holding a joker never closes: it stays on the table, because the joker can still be bought with its real card. Only four real cards of the same rank are cleared away.
 - Anything you take from the table has to go back down. The card you take
   from the discard pile and every joker you buy must end up on the table,
   melded or laid off. While one of them is still in your hand the only
@@ -284,12 +288,18 @@ which set of faces it uses. To add a type, put its name in `TIPI_FACCE`
 in `giochi/carte/carte.py`; if it is a French pack, say so in `FAMIGLIE`
 next to it, so the games that need 52 cards can see it.
 
-Seven decks, and every game has its own. Rummy plays with Poker 98 blue
-and red paired, Texas Hold'em with Texas verde-acqua, Blackjack with Texas
-nero, the solitaires each with one of them: none of these is a choice, the
-deck is simply theirs. The only game menu that still offers one is the
+Fourteen decks, and every game has its own. Rummy plays with the
+Multicolor pair, red and blue, Texas Hold'em with Texas verde-acqua, Blackjack with the
+Moderne faces on the Texas nero back, the solitaires each with one of them: none of these is a choice, the
+deck is simply theirs. Leaving a card game with ESC does not throw the hand away: the game menu then reads Continue instead of Play and gains an End game row, and the hand waits exactly where you left it for as long as the program stays open. Card test, last in the table games list, lays the whole
+chosen deck face up on the cloth so every card can be looked at; its menu
+offers all ten decks, Italian and French alike. The only game menu that
+still offers one is the
 Italian table (Scopa, Briscola, Sette e Mezzo), where you pick between
-Napoletane Marrone 150 and Toscane N93 - two different sets of faces. The
+Napoletane Marrone 150, Toscane N93, Piacentine and Genovesi - four
+different sets of faces. The Piacentine keep the Italian suits; the
+Genovesi are French suited, forty cards drawn from a fifty-two card pack,
+with the Jack, Queen and King standing in for Fante, Cavallo and Re. The
 preview shows the deck with a card peeking out from under its back.
 
 ## Credits

@@ -9627,7 +9627,8 @@ def azzera_carriera():
     CFG["cubo2"], CFG["cubo2_tipo"] = 0, "blu"
     CFG["avanzi"] = {}
     CFG["torneo_record"] = 0
-    CFG["slot_jackpot"] = 500       # il jackpot della slot riparte da capo
+    # il jackpot della slot NON si azzera: e' un montepremi, si accumula
+    # di carriera in carriera e si svuota solo quando qualcuno lo vince
     salva_config()
     try:
         os.remove(SALVA_TORNEO)

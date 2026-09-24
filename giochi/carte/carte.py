@@ -225,10 +225,11 @@ def cartella_carte():
 
 # I tipi di facce: il nome della cartella del mazzo dice quali usare.
 # Vanno in ordine, il primo che sta dentro al nome vince.
-TIPI_FACCE = ("napoletane", "toscane", "francesi")
+TIPI_FACCE = ("napoletane", "toscane", "piacentine", "genovesi",
+               "francesi", "moderne", "gb", "cla")
 
 # A che famiglia appartengono, quando il nome del tipo non lo dice gia'.
-FAMIGLIE = {}
+FAMIGLIE = {"moderne": "francesi", "gb": "francesi", "cla": "francesi"}
 
 
 def tipo_di(nome):
@@ -426,8 +427,16 @@ def faccia_carta(scoperta, codice=None, k=1.0, dorso=None):
     if img is not None:
         # le facce danno la forma alla carta, quindi ci stanno esatte; i
         # dorsi possono avere proporzioni diverse e non si tagliano mai
-        img = _arrotonda(_copri(img, w, h) if scoperta
-                         else _dentro(img, w, h), r)
+        # i dorsi: se hanno quasi la forma della carta si allargano fino
+        # a riempirla, se no restano interi col bianco attorno. Cosi' non
+        # resta il filo chiaro sul bordo
+        if scoperta:
+            img = _copri(img, w, h)
+        else:
+            iw, ih = img.get_size()
+            vicino = abs((iw / float(ih)) / (w / float(h)) - 1.0) < 0.05
+            img = _copri(img, w, h) if vicino else _dentro(img, w, h)
+        img = _arrotonda(img, r)
         sup.blit(img, (0, 0))
     elif scoperta:
         pygame.draw.rect(sup, (250, 250, 246), corpo, border_radius=r)
@@ -579,9 +588,11 @@ def posti(n_mano, g=1.0):
     out = {0: [], 1: [], 2: [], 3: []}
     for i in range(n_mano):
         off = (i - (n_mano - 1) / 2.0)
+        # dritte: la rotazione di pochi gradi fa i bordi a zig zag,
+        # perche' rotozoom interpola e le diagonali si scalettano
         out[0].append(((z.centerx + off * passo * 1.25,
                         z.bottom - ch * 0.62 + abs(off) * B.s(3)),
-                       -off * 3.0))
+                       0.0))
         out[1].append(((z.centerx + off * passo * 0.7,
                         z.top + ch * 0.55), 180.0))
         out[2].append(((z.left + ch * 0.6,
@@ -686,13 +697,6 @@ def cella_giocatore(sc, r, nome, punti, col, sinistra, attivo, chi=None):
     y = r.centery
     xd = r.left + B.s(26) if sinistra else r.right - B.s(26)
     rombo(sc, (xd, y), col, B.s(6), B.s(10), chi)
-    if attivo:
-        m, d = B.s(7), B.s(18)
-        xf = xd - d if sinistra else xd + d
-        verso = 1 if sinistra else -1
-        pygame.draw.polygon(sc, B.ORO_LUCE, [(xf, y - m),
-                                             (xf + verso * B.s(9), y),
-                                             (xf, y + m)])
     t = carattere.render(nome, True, B.AVORIO)
     box = pygame.Rect(0, 0, B.s(64), alto)
     if sinistra:

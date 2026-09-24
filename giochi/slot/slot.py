@@ -1,7 +1,7 @@
 """Golden Break - la slot machine.
 
-Cinque colonne per quattro righe, venti linee fisse, i rulli che si
-fermano uno dopo l'altro. Qui c'e' il motore: le strisce dei rulli, il
+Sei colonne per cinque righe, i modi al posto delle linee, i rulli che
+si fermano uno dopo l'altro. Qui c'e' il motore: le strisce dei rulli, il
 conto delle vincite e il tabellone dei pagamenti. La grafica dei simboli
 sta fuori, in immagini/slot/<tema>: finche' non c'e' si disegnano dei
 segnaposto, cosi' la macchina si puo' provare lo stesso.
@@ -9,6 +9,7 @@ segnaposto, cosi' la macchina si puo' provare lo stesso.
 Si appoggia a biliardo.py per finestra, caratteri, sfondo, suoni e
 portafoglio, come fanno le carte.
 """
+import array
 import colorsys
 import math
 import os
@@ -33,42 +34,65 @@ CARTELLA = os.path.dirname(os.path.abspath(__file__))
 RADICE = os.path.dirname(os.path.dirname(CARTELLA))
 GFX = os.path.join(RADICE, "immagini", "slot")
 
+# ------------------------------------------------------------- il log
+# Un giro per riga, nella cartella del gioco. Si svuota da solo alla
+# prima scrittura di ogni avvio, cosi' i file non si accumulano e quello
+# che leggi e' sempre la sessione di adesso.
+LOG = os.path.join(RADICE, "slot_log.txt")
+_LOG_PRONTO = [False, 0]
+
+
+def log(riga):
+    try:
+        import datetime
+        if not _LOG_PRONTO[0]:
+            with open(LOG, "w") as f:
+                f.write("Golden Break - slot - %s\n"
+                        % datetime.datetime.now().strftime("%d/%m/%Y %H:%M"))
+            _LOG_PRONTO[0] = True
+        _LOG_PRONTO[1] += 1
+        with open(LOG, "a") as f:
+            f.write("%4d  %s\n" % (_LOG_PRONTO[1], riga))
+    except IOError:
+        pass
+
+
 # ----------------------------------------------------------- i simboli
-# id, colore del segnaposto, segno, e quanto paga con 3, 4 e 5 uguali
-# (per ogni dollaro puntato sulla linea)
-# nome, colore di riserva, segno di riserva, e quanto paga con 2, 3, 4 e
-# 5 rulli di fila (per ogni unita' di puntata). Lo zero vuol dire che con
-# quel numero di rulli non paga.
+# nome, colore di riserva, segno di riserva, e quanto paga con 2, 3, 4,
+# 5 e 6 rulli di fila (per ogni unita' di puntata). Lo zero vuol dire che
+# con quel numero di rulli non paga: su sei rulli due soli uguali non
+# valgono niente, si comincia a vincere da tre in su.
 SIMBOLI = (
-    ("ciliegia",     (226,  80, 110), "C",   8,  18,  38,   95),
-    ("limone",       (232, 224,  90), "L",   9,  19,  39,   98),
-    ("arancia",      (240, 150,  60), "O",  10,  20,  40,  100),
-    ("prugna",       (150, 110, 200), "P",  11,  21,  41,  102),
-    ("mela",         (120, 200, 100), "M",  12,  22,  42,  105),
-    ("fragola",      (232,  90, 100), "F",  13,  23,  44,  108),
-    ("anguria",      (236, 120, 150), "A",  14,  24,  46,  112),
-    ("uva",          (150, 110, 190), "U",  15,  25,  48,  115),
-    ("cuori",        (230,  70,  90), "H",   0,  28,  58,  145),
-    ("picche",       (150, 110, 230), "S",   0,  29,  59,  148),
-    ("fiori",        ( 80, 120, 220), "K",   0,  30,  60,  150),
-    ("quadri",       (226,  50,  90), "D",   0,  31,  61,  152),
-    ("campana",      (240, 190,  70), "B",   0,  32,  62,  155),
-    ("ferro",        (200, 205, 215), "V",   0,  34,  64,  158),
-    ("quadrifoglio", ( 90, 200, 110), "Q",   0,  35,  66,  162),
-    ("carte",        (240, 240, 245), "T",   0,  58, 145,  390),
-    ("roulette",     ( 90, 170, 190), "R",   0,  60, 150,  400),
-    ("fiches",       (220, 100, 130), "G",   0,  62, 155,  410),
-    ("dollaro",      (240, 190,  70), "$",   0,  65, 160,  420),
-    ("gemma",        (140, 210, 240), "^",   0, 140, 480, 1900),
-    ("bar",          ( 60, 180, 220), "=",   0, 150, 500, 2000),
-    ("sette",        (226,  60,  60), "7",   0, 160, 550, 2200),
-    ("palla8",       ( 40,  44,  56), "8",   0, 175, 600, 2400),
-    ("jolly",        (250, 250, 250), "W", 0,   0,   0,    0),  # vale per tutti
-    ("dadi",         (180, 186, 200), "?", 0,   0,   0,    0),  # giri gratis
-    ("regalo",       ( 90, 210, 220), "*", 0,   0,   0,    0),  # premio a caso
-    ("jackpot",      (255, 214,  92), "J", 0,   0,   0,    0),  # il jackpot
+    ("ciliegia",     (226,  80, 110), "C",      0,     40,    100,    250,    650),
+    ("limone",       (232, 224,  90), "L",      0,     40,    100,    260,    680),
+    ("arancia",      (240, 150,  60), "O",      0,     40,    110,    270,    700),
+    ("prugna",       (150, 110, 200), "P",      0,     50,    110,    280,    720),
+    ("mela",         (120, 200, 100), "M",      0,     50,    120,    290,    750),
+    ("fragola",      (232,  90, 100), "F",      0,     50,    120,    300,    780),
+    ("anguria",      (236, 120, 150), "A",      0,     80,    200,    500,   1300),
+    ("uva",          (150, 110, 190), "U",      0,     80,    210,    520,   1350),
+    ("cuori",        (230,  70,  90), "H",      0,     90,    220,    550,   1400),
+    ("picche",       (150, 110, 230), "S",      0,     90,    220,    560,   1420),
+    ("fiori",        ( 80, 120, 220), "K",      0,     90,    230,    580,   1450),
+    ("quadri",       (226,  50,  90), "D",      0,    100,    240,    600,   1500),
+    ("campana",      (240, 190,  70), "B",      0,    160,    450,   1150,   3000),
+    ("ferro",        (200, 205, 215), "V",      0,    170,    460,   1180,   3050),
+    ("quadrifoglio", ( 90, 200, 110), "Q",      0,    180,    480,   1200,   3100),
+    ("carte",        (240, 240, 245), "T",      0,    450,   1150,   3000,   7900),
+    ("roulette",     ( 90, 170, 190), "R",      0,    460,   1180,   3050,   8000),
+    ("fiches",       (220, 100, 130), "G",      0,    470,   1200,   3100,   8200),
+    ("dollaro",      (240, 190,  70), "$",      0,   1400,   3600,   9200,  24000),
+    ("gemma",        (140, 210, 240), "^",      0,   1450,   3700,   9500,  24800),
+    ("bar",          ( 60, 180, 220), "=",      0,   1480,   3800,   9700,  25300),
+    ("sette",        (226,  60,  60), "7",      0,   1500,   3850,   9900,  25800),
+    ("palla8",       ( 40,  44,  56), "8",      0,   1520,   3950,  10100,  26500),
+    ("jolly",        (250, 250, 250), "W",      0,      0,      0,      0,      0),  # vale per tutti
+    ("dadi",         (180, 186, 200), "?",      0,      0,      0,      0,      0),  # giri gratis
+    ("regalo",       ( 90, 210, 220), "*",      0,      0,      0,      0,      0),  # premio a caso
+    ("jackpot",      (255, 214,  92), "J",      0,      0,      0,      0,      0),  # il jackpot
 )
-PAGA = dict((s[0], (s[3], s[4], s[5], s[6])) for s in SIMBOLI)
+PAGA = dict((s[0], (s[3], s[4], s[5], s[6], s[7]))
+            for s in SIMBOLI)
 COLORE = dict((s[0], s[1]) for s in SIMBOLI)
 SEGNO = dict((s[0], s[2]) for s in SIMBOLI)
 JOLLY = "jolly"
@@ -78,54 +102,59 @@ GIRI_GRATIS = 3             # quanti ne regalano i dadi
 PREMIO_REGALO = {3: (2, 8), 4: (8, 25), 5: (30, 100)}   # in puntate
 
 
-COLONNE, RIGHE = 5, 4
+COLONNE, RIGHE = 6, 5
 
-# la griglia paga a modi, non a linee: 4 righe per 5 rulli fanno 1024
-# strade possibili, e la puntata si divide in venti unita' come prima
+# la griglia paga a modi, non a linee: 5 righe per 6 rulli fanno 15625
+# strade possibili, e la puntata si divide in unita' come prima
 MODI = RIGHE ** COLONNE
 MODI_UNITA = 20
 
-# quante copie di ogni simbolo ci sono sulla striscia di ogni rullo: i
-# simboli che pagano tanto sono rari, il jolly e il mistero non stanno
-# sul primo e sull'ultimo rullo
+# quante copie di ogni simbolo ci sono sulla striscia di ogni rullo: piu'
+# un simbolo paga e piu' e' raro, in ordine dalla frutta alla palla otto.
+# Il jolly non sta sul primo ne' sull'ultimo rullo
 QUANTI = {
-    "ciliegia":     (5, 5, 5, 5, 5),
-    "limone":       (5, 5, 5, 5, 5),
-    "arancia":      (5, 5, 5, 5, 5),
-    "prugna":       (5, 5, 5, 5, 5),
-    "mela":         (5, 5, 5, 5, 5),
-    "fragola":      (5, 5, 5, 5, 5),
-    "anguria":      (4, 4, 4, 4, 4),
-    "uva":          (4, 4, 4, 4, 4),
-    "cuori":        (9, 9, 9, 9, 9),
-    "picche":       (9, 9, 9, 9, 9),
-    "fiori":        (9, 9, 9, 9, 9),
-    "quadri":       (9, 9, 9, 9, 9),
-    "campana":      (4, 4, 4, 4, 4),
-    "ferro":        (4, 4, 4, 4, 4),
-    "quadrifoglio": (4, 4, 4, 4, 4),
-    "carte":        (3, 3, 3, 3, 3),
-    "roulette":     (3, 3, 3, 3, 3),
-    "fiches":       (3, 3, 3, 3, 3),
-    "dollaro":      (2, 2, 2, 2, 2),
-    "gemma":        (2, 2, 2, 2, 2),
-    "bar":          (2, 2, 2, 2, 2),
-    "sette":        (2, 2, 2, 2, 2),
-    "palla8":       (2, 2, 2, 2, 2),
-    "jolly":        (0, 3, 3, 3, 0),
-    "dadi":         (2, 2, 2, 2, 2),
-    "regalo":       (2, 2, 2, 2, 2),
-    "jackpot":      (5, 5, 5, 5, 5),
+    "ciliegia":     (6, 6, 6, 6, 6, 6),
+    "limone":       (6, 6, 6, 6, 6, 6),
+    "arancia":      (6, 6, 6, 6, 6, 6),
+    "prugna":       (6, 6, 6, 6, 6, 6),
+    "mela":         (6, 6, 6, 6, 6, 6),
+    "fragola":      (6, 6, 6, 6, 6, 6),
+    "anguria":      (5, 5, 5, 5, 5, 5),
+    "uva":          (5, 5, 5, 5, 5, 5),
+    "cuori":        (5, 5, 5, 5, 5, 5),
+    "picche":       (5, 5, 5, 5, 5, 5),
+    "fiori":        (5, 5, 5, 5, 5, 5),
+    "quadri":       (5, 5, 5, 5, 5, 5),
+    "campana":      (4, 4, 4, 4, 4, 4),
+    "ferro":        (4, 4, 4, 4, 4, 4),
+    "quadrifoglio": (4, 4, 4, 4, 4, 4),
+    "carte":        (3, 3, 3, 3, 3, 3),
+    "roulette":     (3, 3, 3, 3, 3, 3),
+    "fiches":       (3, 3, 3, 3, 3, 3),
+    "dollaro":      (2, 2, 2, 2, 2, 2),
+    "gemma":        (2, 2, 2, 2, 2, 2),
+    "bar":          (2, 2, 2, 2, 2, 2),
+    "sette":        (2, 2, 2, 2, 2, 2),
+    "palla8":       (2, 2, 2, 2, 2, 2),
+    "jolly":        (0, 3, 3, 3, 3, 0),
+    "dadi":         (2, 2, 2, 2, 2, 2),
+    "regalo":       (2, 2, 2, 2, 2, 2),
+    "jackpot":      (5, 5, 5, 5, 5, 5),
 }
 
-PUNTATE = (20, 50, 100, 250, 500, 1000)   # quanto si gioca a giro
+# quanto si gioca a giro: di cinque in cinque, da cinque a cento. Con
+# i salti grossi di prima (20, 50, 100, 250...) si arrivava subito a
+# puntare mille dollari e la partita finiva li'
+PUNTATE = tuple(range(5, 101, 5))
 
 # il jackpot: parte da qui, cresce di una fetta di ogni puntata e si
-# vince con cinque simboli del jackpot in fila su una linea. Sta nel
-# file del giocatore, quindi cresce di partita in partita finche' non si
-# vince o non si ricomincia la carriera.
-JACKPOT_BASE = 500
-JACKPOT_FETTA = 0.02
+# vince col suo simbolo su tutti e sei i rulli. Sta nel file del
+# giocatore e cresce di partita in partita: si svuota solo quando
+# qualcuno lo vince, nemmeno ricominciando la carriera.
+# La fetta e' quanto della puntata ci finisce dentro: 1.0 vuol dire
+# tutta, quindi un giro da venti dollari lo alza di venti.
+JACKPOT_BASE = 1200
+JACKPOT_FETTA = 1.0
 SIMBOLO_JACKPOT = "jackpot"
 
 
@@ -144,7 +173,7 @@ def azzera_jackpot():
 
 
 def fa_jackpot(griglia):
-    """Il jackpot vuole il suo simbolo su tutti e cinque i rulli, e
+    """Il jackpot vuole il suo simbolo su tutti e sei i rulli, e
     quelli veri: il jolly non lo fa."""
     for c in range(COLONNE):
         if not any(griglia[c][r] == SIMBOLO_JACKPOT for r in range(RIGHE)):
@@ -170,7 +199,7 @@ def _buona(s):
 
 
 def strisce():
-    """Le cinque strisce dei rulli, una per colonna."""
+    """Le strisce dei rulli, una per colonna."""
     fuori = []
     for r in range(COLONNE):
         s = []
@@ -213,10 +242,10 @@ def premio_regalo(quanti, punta):
 
 
 def vincite(griglia, unita):
-    """I mille e ventiquattro modi: conta solo che lo stesso simbolo esca
+    """I modi: conta solo che lo stesso simbolo esca
     su rulli attaccati partendo da sinistra, dovunque stia nella colonna.
     Se su un rullo ce n'e' piu' d'uno le strade si moltiplicano. I
-    simboli comuni pagano gia' con due rulli, gli altri da tre in su.
+    Su sei rulli si paga da tre uguali in su.
 
     Torna il totale e l'elenco: (nome, quanti rulli, strade, quanto paga,
     le caselle da accendere)."""
@@ -241,7 +270,7 @@ def vincite(griglia, unita):
         # rulli col simbolo vero
         if sum(1 for c in range(lung) if veri[c]) < 2:
             continue
-        quanto = PAGA[nome][min(lung, 5) - 2]
+        quanto = PAGA[nome][min(lung, COLONNE) - 2]
         if not quanto:
             continue
         paga = int(round(quanto * strade * unita))
@@ -260,7 +289,9 @@ TXT = {
            "free_spins": "Free spins", "win_row": "Win", "won_free": "%d free spins",
            "ways_win": "%d x %s  on %d ways", "credit": "Credit",
            "jackpot": "Jackpot", "won_jack": "JACKPOT!  %s",
-           "pt_jack": "One on each of the five reels wins the jackpot: %s",
+           "st_spins": "Spins", "st_bet": "Bet", "st_won": "Won",
+           "last_wins": "Last wins",
+           "pt_jack": "One on each of the six reels wins the jackpot: %s",
            "pt_title": "Paytable", "pt_bet": "prizes at a bet of %s", "pt_wild": "Wild: stands for any symbol, but a win needs at least two real ones",
            "pt_gift": "Gift: three or more anywhere, with a random prize inside",
            "pt_dice": "Dice: three or more anywhere win %d free spins",
@@ -276,8 +307,10 @@ TXT = {
            "free_spins": "Giri gratis", "win_row": "Vincita", "won_free": "%d giri gratis",
            "ways_win": "%d x %s  su %d modi",
            "credit": "Credito", "jackpot": "Jackpot",
+           "st_spins": "Giri", "st_bet": "Puntato", "st_won": "Vinto",
+           "last_wins": "Ultime vincite",
            "won_jack": "JACKPOT!  %s",
-           "pt_jack": "Uno su ognuno dei cinque rulli vince il jackpot: %s",
+           "pt_jack": "Uno su ognuno dei sei rulli vince il jackpot: %s",
            "pt_title": "Pagamenti", "pt_bet": "premi alla puntata di %s",
            "pt_wild": "Jolly: vale per tutti i simboli, ma servono almeno due simboli veri",
            "pt_gift": "Regalo: tre o piu' dovunque siano, e dentro c'e' un premio a caso",
@@ -294,8 +327,10 @@ TXT = {
            "free_spins": "Tours gratuits", "win_row": "Gain", "won_free": "%d tours gratuits",
            "ways_win": "%d x %s  sur %d facons",
            "credit": "Credit", "jackpot": "Jackpot",
+           "st_spins": "Tours", "st_bet": "Mise", "st_won": "Gagne",
+           "last_wins": "Derniers gains",
            "won_jack": "JACKPOT !  %s",
-           "pt_jack": "Un sur chacun des cinq rouleaux gagne le jackpot : %s",
+           "pt_jack": "Un sur chacun des six rouleaux gagne le jackpot : %s",
            "pt_title": "Table des gains", "pt_bet": "gains pour une mise de %s",
            "pt_wild": "Joker : remplace tout, mais il faut au moins deux vrais symboles",
            "pt_gift": "Cadeau : trois ou plus n'importe ou, avec un prix au hasard",
@@ -312,8 +347,10 @@ TXT = {
            "free_spins": "Giros gratis", "win_row": "Ganancia", "won_free": "%d giros gratis",
            "ways_win": "%d x %s  en %d modos",
            "credit": "Credito", "jackpot": "Jackpot",
+           "st_spins": "Giros", "st_bet": "Apostado", "st_won": "Ganado",
+           "last_wins": "Ultimos premios",
            "won_jack": "JACKPOT!  %s",
-           "pt_jack": "Uno en cada uno de los cinco rodillos gana el jackpot: %s",
+           "pt_jack": "Uno en cada uno de los seis rodillos gana el jackpot: %s",
            "pt_title": "Tabla de premios", "pt_bet": "premios con apuesta de %s",
            "pt_wild": "Comodin: vale por todos, pero hacen falta dos simbolos reales",
            "pt_gift": "Regalo: tres o mas donde sea, con un premio al azar",
@@ -433,6 +470,58 @@ def suona(nome, quanto=0.9):
 def ferma_suono(nome):
     for s in SUONI.get(nome, []):
         s.stop()
+
+
+SENTITO = {}
+
+
+def quanto_suona(nome, se_manca):
+    """Quanto si SENTE quel suono, non quanto e' lungo il file: la coda
+    di silenzio in fondo non conta. Il giro della slot finisce prima
+    della fine di spin.ogg, e i rulli devono fermarsi con lui, non nel
+    silenzio dopo. Si misura una volta sola e si tiene da parte."""
+    if nome in SENTITO:
+        return SENTITO[nome]
+    gruppo = SUONI.get(nome)
+    fine = quanto_dura(nome, se_manca)
+    if gruppo:
+        try:
+            fine = _coda(gruppo[0], fine)
+        except Exception:
+            pass
+    SENTITO[nome] = fine
+    return fine
+
+
+def _coda(suono, intero):
+    """Dove muore davvero il suono: si torna indietro a blocchi di dieci
+    millesimi finche' non si trova roba sopra l'uno e mezzo per cento."""
+    init = pygame.mixer.get_init()
+    if not init:
+        return intero
+    freq, misura, canali = init[0], init[1], init[2]
+    tipo = {8: "B", -8: "b", 16: "H", -16: "h", 32: "l", -32: "l"}.get(misura)
+    if tipo is None:
+        return intero
+    dati = array.array(tipo)
+    grezzo = suono.get_raw()
+    avanzo = len(grezzo) % dati.itemsize
+    dati.frombytes(grezzo[:len(grezzo) - avanzo] if avanzo else grezzo)
+    if not len(dati):
+        return intero
+    meta = 0 if misura < 0 else (1 << (abs(misura) - 1))
+    picco = max(abs(x - meta) for x in dati[::97]) or 1
+    soglia = picco * 0.015
+    blocco = max(1, int(freq * 0.01)) * max(1, canali)
+    i = len(dati)
+    while i > blocco:
+        pezzo = dati[i - blocco:i]
+        if max(abs(x - meta) for x in pezzo) > soglia:
+            break
+        i -= blocco
+    sentito = i / float(freq * max(1, canali))
+    # un filo di aria in fondo, e mai meno di mezzo suono
+    return max(intero * 0.5, min(intero, sentito + 0.05))
 
 
 def quanto_dura(nome, se_manca):
@@ -613,6 +702,82 @@ def colore_simbolo(nome):
 
 
 ALONI = {}
+GRANELLI = {}
+LED_PIENI = {}
+LED = {}
+LED_COLORI = 24          # quanti colori diversi sulla ruota
+LED_LIVELLI = 10         # quanti gradini fra spenta e accesa
+
+
+def _led_pieno(lato, ih):
+    """Il LED acceso al massimo: il vetro quasi bianco in mezzo e
+    l'alone del suo colore intorno, che sfuma fino a sparire."""
+    chiave = (lato, ih)
+    if chiave in LED_PIENI:
+        return LED_PIENI[chiave]
+    r, g, b = colorsys.hsv_to_rgb(ih / float(LED_COLORI), 0.75, 1.0)
+    col = (r * 255.0, g * 255.0, b * 255.0)
+    q = pygame.Surface((lato, lato), pygame.SRCALPHA)
+    mezzo = lato / 2.0
+    for y in range(lato):
+        for x in range(lato):
+            d = math.hypot(x - mezzo + 0.5, y - mezzo + 0.5) / mezzo
+            if d >= 1.0:
+                continue
+            if d <= 0.20:
+                k, bianco = 1.0, 0.92         # il filamento, quasi bianco
+            elif d <= 0.42:
+                p = (d - 0.20) / 0.22
+                k = 1.0 - 0.22 * p            # il vetro, del suo colore
+                bianco = 0.92 * (1.0 - p) ** 1.4
+            else:
+                p = (d - 0.42) / 0.58
+                k = 0.78 * (1.0 - p) ** 2.5   # l'alone che sfuma
+                bianco = 0.0
+            q.set_at((x, y), tuple(
+                min(255, int((col[j] + (255.0 - col[j]) * bianco) * k))
+                for j in range(3)) + (255,))
+    LED_PIENI[chiave] = q
+    return q
+
+
+def led(lato, giro, forza):
+    """Una lucina LED, da sommare allo sfondo come fa la luce vera.
+    Colore e accensione si arrotondano a gradini, cosi' le lucine gia'
+    fatte si riusano invece di ridisegnarle sessanta volte al secondo."""
+    ih = int((giro % 1.0) * LED_COLORI) % LED_COLORI
+    i_f = max(0, min(LED_LIVELLI, int(forza * LED_LIVELLI + 0.5)))
+    chiave = (lato, ih, i_f)
+    if chiave in LED:
+        return LED[chiave]
+    q = _led_pieno(lato, ih)
+    if i_f < LED_LIVELLI:
+        v = int(255 * i_f / float(LED_LIVELLI))
+        q = q.copy()
+        q.fill((v, v, v, 255), special_flags=pygame.BLEND_RGB_MULT)
+    LED[chiave] = q
+    return q
+
+
+def granello(lato, col, forza):
+    """Un granello di polvere luminosa: il colore si spegne verso i
+    bordi, cosi' sommandolo allo sfondo non si vede il quadrato. Si
+    tengono da parte gia' fatti, per misura, colore e forza."""
+    f = max(0, min(15, int(forza * 15)))
+    chiave = (lato, tuple(col), f)
+    if chiave in GRANELLI:
+        return GRANELLI[chiave]
+    q = pygame.Surface((lato, lato), pygame.SRCALPHA)
+    mezzo = lato / 2.0
+    k_f = f / 15.0
+    for y in range(lato):
+        for x in range(lato):
+            d = math.hypot(x - mezzo + 0.5, y - mezzo + 0.5) / mezzo
+            k = max(0.0, 1.0 - d) ** 2.2 * k_f
+            q.set_at((x, y), (int(col[0] * k), int(col[1] * k),
+                              int(col[2] * k), 255))
+    GRANELLI[chiave] = q
+    return q
 
 
 def alone_radiale(lato, col):
@@ -664,11 +829,15 @@ COLORI_VINTE = ((120, 230, 255), (255, 170, 205), (160, 245, 170),
 
 
 # quanto della casella riempie il simbolo: piu' piccolo respira meglio
-GRANDE = 0.66
+GRANDE = 0.52
+
+# quanto e' grande la griglia rispetto allo spazio che avrebbe: 1.0 la
+# riempie tutta, 0.5 la fa meta'. Un numero solo, si cambia qui.
+MISURA = 0.75
 
 
 class Macchina:
-    """La slot sullo schermo: la cassa, i cinque rulli e quello che
+    """La slot sullo schermo: la cassa, i sei rulli e quello che
     succede a ogni giro."""
 
     def __init__(self, sc, clock):
@@ -679,24 +848,38 @@ class Macchina:
         self.da, self.a, self.t, self.durata = None, None, None, None
         self.griglia = self.ferma()
         self.vinte, self.mostra, self.t_mostra = [], -1, 0.0
+        self.storico = []       # le ultime vincite, a sinistra
+        self.polvere = []       # la polvere sui simboli che pagano
         self.t_vinta = 0.0      # per far respirare i simboli vincenti
         self.sotto = ""         # la riga piccola sotto il totale
         self.totale = 0         # quanto ha pagato tutto il giro
         self.gratis = 0         # i giri gratis che restano
         self.lampo = 0.0        # quanto dura il lampo del jackpot vinto
         self.t_neon = 0.0       # il colore che gira nella cornice
+        self.t_luci = 0.0       # le lampadine, che corrono se si vince
         self.msg = ""
         self.vinto = 0
         self.gira = False
         # la cassa: a sinistra il vetro coi rulli, a destra la fascia
         # delle scelte, come al tavolo da carte
         largo = B.WIN_W - B.s(300)
-        self.cassa = pygame.Rect(B.s(40), B.ALTO + B.s(70),
-                                 largo - B.s(60),
-                                 B.WIN_H - B.ALTO - B.s(200))
-        m = B.s(16)
+        posto = pygame.Rect(B.s(40), B.ALTO + B.s(70),
+                            largo - B.s(60),
+                            B.WIN_H - B.ALTO - B.s(200))
+        m = B.s(22)      # la fascia intorno al vetro, dove stanno i LED
+        # le caselle restano quadrate: si prende il lato piu' grande che
+        # ci sta sia in larghezza sia in altezza e il vetro si stringe
+        # intorno ai rulli, cosi' con sei colonne non restano vuoti
+        lato = int(min((posto.w - m * 2) // COLONNE,
+                       (posto.h - m * 2) // RIGHE) * MISURA)
+        self.cassa = pygame.Rect(0, 0, lato * COLONNE + m * 2,
+                                 lato * RIGHE + m * 2)
+        self.cassa.center = (B.WIN_W // 2, posto.centery)
         self.vetro = self.cassa.inflate(-m * 2, -m * 2)
-        self.cella = (self.vetro.w // COLONNE, self.vetro.h // RIGHE)
+        self.cella = (lato, lato)
+        # la fascia delle scelte resta al suo posto a destra, non segue
+        # la cassa quando la griglia si stringe
+        self.fascia = posto.right
 
     # ---- i rulli
     def ferma(self):
@@ -710,6 +893,7 @@ class Macchina:
     def parti(self):
         """Lancia i rulli: si sa gia' dove si fermano, e ognuno ci arriva
         rallentando, uno dopo l'altro."""
+        del self.polvere[:]
         griglia, fermi = tira(self.strisce)
         self.griglia = griglia
         self.da = list(self.pos)
@@ -719,9 +903,12 @@ class Macchina:
             giri = 4 + c
             avanti = (p - self.da[c]) % s
             self.a.append(self.da[c] + giri * s + avanti)
-        # l'ultimo rullo si ferma esattamente quando finisce il suono del
-        # giro; gli altri arrivano prima, a distanza uguale
-        giro = quanto_dura("spin", 2.0)
+        # l'ultimo rullo si ferma esattamente quando il suono del giro
+        # smette di sentirsi, non quando finisce il file: in fondo a
+        # spin.ogg c'e' quasi un secondo di silenzio, e fermarsi li'
+        # dentro sembrava fuori tempo. Gli altri arrivano prima, a
+        # distanza uguale fra loro
+        giro = quanto_suona("spin", 2.0)
         primo = giro * 0.45
         passo = (giro - primo) / max(1, COLONNE - 1)
         self.durata = [primo + c * passo for c in range(COLONNE)]
@@ -740,7 +927,12 @@ class Macchina:
             if self.t >= d:
                 if self.pos[c] != self.a[c]:
                     self.pos[c] = self.a[c]
-                    suona("stop", 0.7)
+                    # l'ultimo rullo si ferma zitto: nello stesso
+                    # istante parte il suono della vincita (o del
+                    # niente), e i due insieme sembravano un colpo di
+                    # troppo in fondo al giro
+                    if c < COLONNE - 1:
+                        suona("stop", 0.7)
                 finiti += 1
             else:
                 k = self.t / d
@@ -765,6 +957,7 @@ class Macchina:
         self.disegna_sotto()
         self.disegna_scelte(voci, sel)
         self.disegna_pannello(per_linea)
+        self.disegna_ultime()
         small = B.FONTS["small"]
         if B.modo_comandi() == "pad" and B.ICONE_TASTI_OK():
             r = B.riga_pad(small, RIGA_PAD_SLOT)
@@ -815,7 +1008,9 @@ class Macchina:
                     continue
                 nome = self.griglia[c][i]
                 r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
-                al = alone_radiale(int(min(cw, ch) * 1.35), col)
+                # l'alone si misura sul simbolo, non sulla casella:
+                # cosi' se le icone cambiano misura lui le segue
+                al = alone_radiale(int(min(cw, ch) * GRANDE * 1.73), col)
                 al = al.copy()
                 al.fill((255, 255, 255, int(150 + 105 * respiro)),
                         special_flags=pygame.BLEND_RGBA_MULT)
@@ -827,6 +1022,7 @@ class Macchina:
                 img.fill((255, 255, 255, int(165 + 90 * respiro)),
                          special_flags=pygame.BLEND_RGBA_MULT)
                 sc.blit(img, img.get_rect(center=r.center))
+        self.disegna_polvere()
         sc.set_clip(vecchio)
         for c in range(1, COLONNE):
             x = vetro.x + c * cw
@@ -834,10 +1030,85 @@ class Macchina:
             pygame.draw.line(sc, col_r, (x, vetro.y),
                              (x, vetro.bottom), max(1, B.s(1)))
 
+    def polvere_passo(self):
+        """La polvere sui simboli che stanno pagando: nasce dalle
+        caselle accese, sale svolazzando e si spegne da sola."""
+        vive = []
+        for p in self.polvere:
+            p[4] += self.dt
+            if p[4] >= p[5]:
+                continue
+            p[2] += math.sin(p[8] + p[4] * 3.4) * B.s(50) * self.dt
+            p[2] *= 0.985
+            p[3] += B.s(22) * self.dt      # sale e rallenta
+            p[0] += p[2] * self.dt
+            p[1] += p[3] * self.dt
+            vive.append(p)
+        self.polvere = vive
+        if self.gira or not self.vinte or not 0 <= self.mostra < len(self.vinte):
+            return
+        nome, _l, _s, paga, celle = self.vinte[self.mostra]
+        if not celle or not paga:
+            return
+        col = tuple(colore_simbolo(nome))
+        cw, ch = self.cella
+        for c, i in celle:
+            if not 0 <= i < RIGHE or len(self.polvere) >= 90:
+                continue
+            if random.random() > 0.18:
+                continue
+            x = self.vetro.x + c * cw + random.uniform(0.2, 0.8) * cw
+            y = self.vetro.y + i * ch + random.uniform(0.25, 0.9) * ch
+            fine = col if random.random() < 0.72 else (255, 240, 200)
+            self.polvere.append([x, y,
+                                 random.uniform(-B.s(18), B.s(18)),
+                                 random.uniform(-B.s(34), -B.s(10)),
+                                 0.0, random.uniform(0.7, 1.5),
+                                 random.choice((0.35, 0.5, 0.7)),
+                                 fine, random.uniform(0.0, 6.28)])
+
+    def disegna_polvere(self):
+        """I granelli, sommati alla luce di sotto: brillano perche' la
+        forza va e viene mentre salgono."""
+        for x, y, _vx, _vy, vita, durata, grande, col, fase in self.polvere:
+            k = vita / durata
+            vivo = math.sin(math.pi * k) ** 0.7
+            luce = 0.5 + 0.5 * math.sin(fase + vita * 12.0)
+            forza = vivo * (0.35 + 0.65 * luce)
+            if forza < 0.06:
+                continue
+            lato = max(3, int(B.s(9) * grande))
+            q = granello(lato, col, forza)
+            self.sc.blit(q, q.get_rect(center=(int(x), int(y))),
+                         special_flags=pygame.BLEND_RGB_ADD)
+
+    def disegna_ultime(self):
+        """A sinistra, come alla roulette: le ultime vincite, ognuna col
+        suo simbolo e col suo colore."""
+        if not self.storico:
+            return
+        f = B.FONTS["small"]
+        x0, largo = B.s(28), B.s(168)
+        y = B.ALTO + B.s(40)
+        t = f.render(T("last_wins"), True, (150, 156, 168))
+        self.sc.blit(t, (x0, y))
+        y += t.get_height() + B.s(10)
+        lato = B.s(26)
+        for nome, lung, paga in self.storico[:10]:
+            img = figura(nome, (lato, lato))
+            self.sc.blit(img, img.get_rect(midleft=(x0, y + lato // 2)))
+            q = f.render("x%d" % lung, True, tuple(colore_simbolo(nome)))
+            self.sc.blit(q, q.get_rect(midleft=(x0 + lato + B.s(8),
+                                                y + lato // 2)))
+            s = f.render(B.dollari(paga), True, B.VERDE_SOLDI)
+            self.sc.blit(s, s.get_rect(midright=(x0 + largo,
+                                                 y + lato // 2)))
+            y += lato + B.s(6)
+
     def disegna_scelte(self, voci, sel):
         """Le scelte nella fascia a destra, nello stesso stile dei menu."""
         self.rett = []
-        x0, x1 = self.cassa.right + B.s(16), B.WIN_W - B.s(8)
+        x0, x1 = self.fascia + B.s(16), B.WIN_W - B.s(8)
         f = B.FONTS["font"]
         B.tic_menu(tuple(voci), sel)
         passo = f.get_height() + B.s(14)
@@ -856,6 +1127,17 @@ class Macchina:
             self.sc.blit(t, t.get_rect(midleft=(x0 + B.s(14), y)))
             self.rett.append(fondo)
             y += passo
+        # il conto della sessione: giri, quanto hai puntato, quanto hai vinto
+        conto = getattr(self, "conto", None)
+        if conto:
+            small = B.FONTS["small"]
+            y += B.s(10)
+            for et, val, col in conto:
+                a = small.render(et, True, (150, 156, 168))
+                b = small.render(val, True, col)
+                self.sc.blit(a, a.get_rect(midleft=(x0 + B.s(14), y)))
+                self.sc.blit(b, b.get_rect(midright=(x1 - B.s(14), y)))
+                y += small.get_height() + B.s(6)
 
     def disegna_jackpot(self):
         """Il jackpot sopra la macchina, in una barra larga quanto lei,
@@ -884,33 +1166,47 @@ class Macchina:
         sc.blit(soldi, soldi.get_rect(
             midleft=(x + nome.get_width() + B.s(16), r.centery)))
 
-    def lampadine(self):
-        """Le lampadine tutto intorno alla macchina: quadratini piccoli,
-        appena fuori dalla cornice, che si accendono uno dopo l'altro e
-        cambiano colore girando, come le luci di una sala."""
-        sc = self.sc
-        r = self.cassa.inflate(-B.s(9), -B.s(9))   # dentro la cornice
-        passo = B.s(26)
+    def _giro_luci(self, r, passo, via=0):
+        """I posti delle lampadine lungo la cornice, in fila. 'via'
+        sposta tutta la fila, cosi' le piccole finiscono in mezzo alle
+        grandi invece che sopra."""
         punti = []
-        x = r.left
+        x = r.left + via
         while x < r.right:                      # sopra e sotto
             punti.append((x, r.top))
             punti.append((r.right - (x - r.left), r.bottom))
             x += passo
-        y = r.top + passo
+        y = r.top + passo + via
         while y < r.bottom - passo // 2:        # i due fianchi
             punti.append((r.right, y))
             punti.append((r.left, r.bottom - (y - r.top)))
             y += passo
-        for i, (px, py) in enumerate(punti):
-            f = 0.5 + 0.5 * math.sin(self.t_neon * 4.0 - i * 0.45)
-            col = colore_neon(self.t_neon + i * 0.02)
-            c = tuple(int(col[j] + (255 - col[j]) * f * 0.7)
-                      for j in range(3))
-            lato = max(2, int(B.s(3) + B.s(5) * f))
-            q = pygame.Surface((lato, lato), pygame.SRCALPHA)
-            q.fill(c + (int(60 + 195 * f),))
-            sc.blit(q, q.get_rect(center=(px, py)))
+        return punti
+
+    def lampadine(self):
+        """Le lucine intorno alla macchina, in mezzo alla fascia della
+        cornice: una fila di LED piccoli e, fra uno e l'altro, uno ancora
+        piu' piccolo. Il colore gira sulla ruota come il neon, ogni
+        lucina un pezzetto piu' avanti della vicina, cosi' lungo il giro
+        si vede passare tutto l'arcobaleno."""
+        sc = self.sc
+        dentro = B.s(11)                    # in mezzo alla fascia
+        r = self.cassa.inflate(-dentro * 2, -dentro * 2)
+        passo = B.s(34)
+        for i, (px, py) in enumerate(self._giro_luci(r, passo)):
+            f = 0.5 + 0.5 * math.sin(self.t_luci * 4.0 - i * 0.5)
+            q = led(max(5, B.s(10)), (self.t_luci + i * 0.09) / 7.0,
+                    0.4 + 0.6 * f)
+            sc.blit(q, q.get_rect(center=(px, py)),
+                    special_flags=pygame.BLEND_RGB_ADD)
+        # quelle in mezzo: piu' piccole, piu' svelte, e mezzo giro di
+        # colore indietro
+        for i, (px, py) in enumerate(self._giro_luci(r, passo, passo // 2)):
+            f = 0.5 + 0.5 * math.sin(self.t_luci * 5.5 + i * 0.6)
+            q = led(max(3, B.s(6)), (self.t_luci + 3.5 + i * 0.09) / 7.0,
+                    0.3 + 0.7 * f)
+            sc.blit(q, q.get_rect(center=(px, py)),
+                    special_flags=pygame.BLEND_RGB_ADD)
 
     def disegna_sotto(self):
         """La barra sotto la macchina: qui va la combinazione che sta
@@ -932,7 +1228,7 @@ class Macchina:
         """La colonna a destra: in cima il jackpot, che e' della casa e
         vale per tutte le macchine, poi la puntata."""
         sc = self.sc
-        x0, x1 = self.cassa.right + B.s(16), B.WIN_W - B.s(14)
+        x0, x1 = self.fascia + B.s(16), B.WIN_W - B.s(14)
         f = B.FONTS["small"]
         passo = f.get_height() + B.s(10)
         y = self.cassa.top + B.s(16)
@@ -956,6 +1252,16 @@ class Macchina:
         self.dt = min(0.05, self.clock.tick(60) / 1000.0)
         self.t_vinta += self.dt
         self.t_neon += self.dt
+        # da ferme le lampadine girano piano; quando i rulli si fermano
+        # su una vincita partono, e col jackpot corrono
+        if self.lampo > 0:
+            corsa = 4.5
+        elif not self.gira and any(v[3] for v in self.vinte):
+            corsa = 2.5
+        else:
+            corsa = 0.45
+        self.t_luci += self.dt * corsa
+        self.polvere_passo()
         if self.lampo > 0:
             self.lampo = max(0.0, self.lampo - self.dt)
 
@@ -980,8 +1286,8 @@ def gruppi_pagamenti():
 
 
 def pagina_pagamenti(sc, clock):
-    """Il tabellone: i ventidue simboli in due colonne, con quanto pagano
-    da due a cinque rulli in soldi veri, alla puntata scelta."""
+    """Il tabellone: i simboli in due colonne, con quanto pagano da tre a
+    sei rulli in soldi veri, alla puntata scelta."""
     while True:
         clock.tick(60)
         for ev in B.eventi():
@@ -1021,15 +1327,15 @@ def pagina_pagamenti(sc, clock):
                 sc.blit(img, img.get_rect(midleft=(x, y)))
                 t = small.render(nome_simbolo(nome), True, (215, 218, 226))
                 sc.blit(t, t.get_rect(midleft=(x + lato + B.s(8), y)))
-                p2, p3, p4, p5 = PAGA[nome]
-                # "2 = $8   3 = $18   4 = $38   5 = $95"
+                p3, p4, p5, p6 = PAGA[nome][1:]
+                # "3 = $18   4 = $38   5 = $95   6 = $209"
                 x_val = x + largo
                 cella = (largo - B.s(170)) // 4
-                for k, v in enumerate((p2, p3, p4, p5)):
+                for k, v in enumerate((p3, p4, p5, p6)):
                     if not v:
                         continue
                     # "x2" in oro, il premio nel verde del portafoglio
-                    per = small.render("x%d" % (k + 2), True, B.ORO_SCELTA)
+                    per = small.render("x%d" % (k + 3), True, B.ORO_SCELTA)
                     soldi = small.render(B.dollari(round(v * unita)), True,
                                          B.VERDE_SOLDI)
                     destra = x_val - (3 - k) * cella
@@ -1070,6 +1376,9 @@ def gioca_slot(sc, clock, logo):
     sel = 0
     aspetta = [0.0]         # quanto resta da far vedere della vincita
     gratis = [0]            # i giri gratis ancora da giocare
+    giri = [0]              # quanti tiri in questa sessione
+    puntato = [0]           # quanto hai puntato in tutto
+    vinto = [0]             # quanto hai vinto in tutto
 
     def voci():
         return [T("spin"), "%s  %s" % (T("bet"), B.dollari(punta)),
@@ -1098,8 +1407,10 @@ def gioca_slot(sc, clock, logo):
                 B.suona_fx("menu_chiudi", 0.7)
                 return
             B.soldi(-punta)
+            puntato[0] += punta
             jackpot(max(1, int(punta * JACKPOT_FETTA)))
             B.salva_config()
+        giri[0] += 1
         m.gratis = gratis[0]
         m.parti()
         suona("bottone", 0.9)
@@ -1176,16 +1487,36 @@ def gioca_slot(sc, clock, logo):
                 gratis[0] += vinti_gratis
                 vinte.append((DADI, len(dadi), 0, 0, dadi))
             jack = fa_jackpot(m.griglia)
+            premio_jack = 0
             if jack:
-                premio = jackpot()
+                premio_jack = jackpot()
                 azzera_jackpot()
-                tot += premio
+                tot += premio_jack
                 m.lampo = 8.0
             m.vinte, m.vinto = vinte, tot
+            vinto[0] += tot
             if tot:
                 B.soldi(tot)
             B.salva_config()
             m.totale = tot
+            # le ultime vincite nella colonna di sinistra
+            if premio_jack:
+                m.storico.insert(0, (SIMBOLO_JACKPOT, COLONNE, premio_jack))
+            for v in sorted((x for x in vinte if x[3]), key=lambda x: x[3]):
+                m.storico.insert(0, (v[0], v[1], v[3]))
+            del m.storico[10:]
+            # il log del giro: puntata, cosa e' uscito, cosa ha pagato
+            griglia_log = " | ".join(
+                ",".join(m.griglia[c][r] for r in range(RIGHE))
+                for c in range(COLONNE))
+            dettaglio = "; ".join(
+                "%s x%d su %d modi = %s" % (v[0], v[1], v[2], B.dollari(v[3]))
+                for v in vinte) or "niente"
+            log("punta %-6s  %s  ->  %-8s  [%s]  cassa %-8s  jackpot %s"
+                % (B.dollari(punta), griglia_log, B.dollari(tot),
+                   dettaglio, B.dollari(B.soldi()),
+                   ("VINTO " + B.dollari(premio_jack)) if premio_jack
+                   else B.dollari(jackpot())))
             m.mostra, aspetta[0], m.t_vinta = (0 if vinte else -1), 1.4, 0.0
             # il jolly che ha aiutato una vincita ha il suo suono
             con_jolly = any(m.griglia[c][r] == JOLLY
@@ -1228,6 +1559,9 @@ def gioca_slot(sc, clock, logo):
         else:
             m.sotto = ""
         m.gratis = gratis[0]
+        m.conto = [(T("st_spins"), str(giri[0]), (230, 232, 238)),
+                   (T("st_bet"), B.dollari(puntato[0]), (230, 232, 238)),
+                   (T("st_won"), B.dollari(vinto[0]), B.VERDE_SOLDI)]
         m.disegna(voci(), sel, per_linea())
         B.presenta()
 

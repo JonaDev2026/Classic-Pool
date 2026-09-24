@@ -26,6 +26,10 @@ TXT = {
            "k_help": "arrows / mouse  move     click / ENTER  take and put     %s  to base     %s  auto     ESC  back",
            "c_tavolo": "Table games", "c_solitari": "Solitaire",
            "klondike": "Klondike", "spider": "Spider",
+           "r_jk_where": "Which card does the joker stand for?",
+           "continue": "Continue", "endgame": "End game",
+           "test": "Card test",
+           "t_help": "arrows / mouse  look     ESC  back",
            "freecell": "FreeCell", "piramide": "Pyramid",
            "cards": "Cards", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
@@ -106,7 +110,7 @@ TXT = {
            "r_cards": "Cards",
            "r_messa": "Stake",
            "r_in_mano": "Closed in one turn",
-           "r_help": "arrows  move     click / ENTER  draw / discard / meld     %s  pick for melding     %s  move or lay off     %s  sort by best hand",
+           "r_help": "arrows  move     click / ENTER  draw / meld / discard (twice)     %s  pick for melding     %s  move or lay off     %s  sort by best hand",
            "limite": "Match to",
            "r_ncards": "Cards",
            "r_back": "%d points short: cards back in hand",
@@ -121,6 +125,10 @@ TXT = {
            "k_help": "frecce / mouse  muovi     clic / INVIO  prendi e posa     %s  alla base     %s  auto     ESC  indietro",
            "c_tavolo": "Giochi da tavolo", "c_solitari": "Solitari",
            "klondike": "Klondike", "spider": "Spider",
+           "r_jk_where": "Che carta fa il jolly?",
+           "continue": "Continua", "endgame": "Termina partita",
+           "test": "Prova carte",
+           "t_help": "frecce / mouse  guarda     ESC  indietro",
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Carte", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
@@ -201,7 +209,7 @@ TXT = {
            "r_cards": "Carte",
            "r_messa": "Messa",
            "r_in_mano": "Chiusura di mano",
-           "r_help": "frecce  muovi     clic / INVIO  pesca / scarta / cala     %s  scegli per calare     %s  sposta o attacca     %s  ordina i giochi migliori",
+           "r_help": "frecce  muovi     clic / INVIO  pesca / cala / scarta (due volte)     %s  scegli per calare     %s  sposta o attacca     %s  ordina i giochi migliori",
            "limite": "Punti partita",
            "r_ncards": "Carte",
            "r_back": "Ti mancano %d punti: carte di nuovo in mano",
@@ -216,6 +224,10 @@ TXT = {
            "k_help": "fleches / souris  bouger     clic / ENTREE  prendre et poser     %s  a la base     %s  auto     ECHAP  retour",
            "c_tavolo": "Jeux de table", "c_solitari": "Reussites",
            "klondike": "Klondike", "spider": "Spider",
+           "r_jk_where": "Quelle carte fait le joker ?",
+           "continue": "Continuer", "endgame": "Terminer la partie",
+           "test": "Test des cartes",
+           "t_help": "fleches / souris  regarder     ESC  retour",
            "freecell": "FreeCell", "piramide": "Pyramide",
            "cards": "Cartes", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Scopa",
@@ -296,7 +308,7 @@ TXT = {
            "r_cards": "Cartes",
            "r_messa": "Mise",
            "r_in_mano": "Fermeture en une fois",
-           "r_help": "fleches  deplacer     clic / ENTREE  piocher / defausser / poser     %s  choisir     %s  deplacer ou ajouter     %s  trier les meilleurs jeux",
+           "r_help": "fleches  deplacer     clic / ENTREE  piocher / poser / defausser (deux fois)     %s  choisir     %s  deplacer ou ajouter     %s  trier les meilleurs jeux",
            "limite": "Partie a",
            "r_ncards": "Cartes",
            "r_back": "Il manque %d points : cartes reprises en main",
@@ -311,6 +323,10 @@ TXT = {
            "k_help": "flechas / raton  mover     clic / INTRO  coger y poner     %s  a la base     %s  auto     ESC  atras",
            "c_tavolo": "Juegos de mesa", "c_solitari": "Solitarios",
            "klondike": "Klondike", "spider": "Spider",
+           "r_jk_where": "Que carta hace el comodin?",
+           "continue": "Continuar", "endgame": "Terminar la partida",
+           "test": "Prueba de cartas",
+           "t_help": "flechas / raton  mirar     ESC  atras",
            "freecell": "FreeCell", "piramide": "Piramide",
            "cards": "Cartas", "blackjack": "Blackjack",
            "sette": "Sette e Mezzo", "scopa": "Escoba",
@@ -391,7 +407,7 @@ TXT = {
            "r_cards": "Cartas",
            "r_messa": "Puesta",
            "r_in_mano": "Cierre de mano",
-           "r_help": "flechas  mover     clic / INTRO  robar / descartar / bajar     %s  elegir     %s  mover o anadir     %s  ordena las mejores jugadas",
+           "r_help": "flechas  mover     clic / INTRO  robar / bajar / descartar (dos veces)     %s  elegir     %s  mover o anadir     %s  ordena las mejores jugadas",
            "limite": "Partida a",
            "r_ncards": "Cartas",
            "r_back": "Te faltan %d puntos: cartas de vuelta a la mano",
@@ -417,16 +433,16 @@ RIGA_PAD_RAMINO = ((("croce",), "cg_move"), (("a",), "rm_a"),
                    (("b",), "pa_back"))
 for _l, _d in (
         ("en", {"cg_move": "choose", "cg_play": "play",
-                "rm_a": "draw / discard / meld", "rm_y": "pick for melding",
+                "rm_a": "draw / meld / discard (twice)", "rm_y": "pick for melding",
                 "rm_x": "move or lay off", "rm_rb": "sort"}),
         ("it", {"cg_move": "scegli", "cg_play": "gioca",
-                "rm_a": "pesca / scarta / cala", "rm_y": "scegli per calare",
+                "rm_a": "pesca / cala / scarta (due volte)", "rm_y": "scegli per calare",
                 "rm_x": "sposta o attacca", "rm_rb": "ordina"}),
         ("fr", {"cg_move": "choisir", "cg_play": "jouer",
-                "rm_a": "piocher / defausser / poser", "rm_y": "choisir",
+                "rm_a": "piocher / poser / defausser (2x)", "rm_y": "choisir",
                 "rm_x": "deplacer ou ajouter", "rm_rb": "trier"}),
         ("es", {"cg_move": "elegir", "cg_play": "jugar",
-                "rm_a": "robar / descartar / bajar", "rm_y": "elegir",
+                "rm_a": "robar / bajar / descartar (2 veces)", "rm_y": "elegir",
                 "rm_x": "mover o anadir", "rm_rb": "ordenar"})):
     B.TESTI.setdefault(_l, {}).update(_d)
 
@@ -516,9 +532,11 @@ class Tavolo:
         self.selezionate = []   # ramino: le carte scelte
         self.viola = []         # le carte da mostrare a fine mano
         self.in_mano = None     # ramino: la carta presa per spostarla
+        self.pronta = None      # ramino: la carta alzata, da confermare
         self.mira = None        # ramino: il cursore sul mazzo o sullo scarto
         self.mira_col = VERDE   # verde se si puo' pescare, rosso se no
         self.pannello = []      # ramino: i punti, nella fascia a destra
+        self.gen = None         # il giro della partita, se e' a meta'
         self.sagome = []        # solitario: i posti vuoti, in filigrana
         self.segna = []         # solitario: l'alone su un posto vuoto
         self.aiuto = None       # la riga dei comandi, se il gioco ne vuole una
@@ -756,7 +774,8 @@ class Tavolo:
         # la carta scelta si alza, e un po' anche quelle della presa
         sotto = self.scegli[self.sel_carta] if self.scegli else None
         for c in self.carte:
-            voglio = B.s(24) if c is self.in_mano else \
+            voglio = B.s(30) if c is self.pronta else \
+                B.s(24) if c is self.in_mano else \
                 B.s(18) if c is sotto else \
                 B.s(12) if c in self.evidenzia else \
                 B.s(20) if c in self.selezionate else \
@@ -986,16 +1005,19 @@ class Tavolo:
             c.disegna(sup, k, col)
 
     # ---- il giro
-    def gioca(self, partita):
-        """Fa girare il generatore della partita. Torna "menu" o "quit"."""
+    def gioca(self, partita, gen=None):
+        """Fa girare il generatore della partita. Torna "menu" o "quit".
+        Se si esce a meta' il generatore resta in self.gen, cosi' la
+        partita si puo' riprendere da dove stava."""
         B.SOPRA_SCENA[0] = self.sopra_scena
-        gen = partita(self)
+        self.gen = gen if gen is not None else partita(self)
         try:
             while True:
                 self.frame()
                 try:
-                    next(gen)
+                    next(self.gen)
                 except StopIteration as fine:
+                    self.gen = None         # finita davvero
                     return fine.value or "menu"
         except Esci as e:
             return str(e)
@@ -1721,6 +1743,10 @@ def partita_blackjack(tv):
 
 REGOLE_CARTE = {
     "en": {
+        "test": """All the cards of the chosen deck, face up on the table.
+- Pick the deck in the menu: every deck in the game is there, Italian and French.
+- Nothing to play: it is only to look at the cards one by one.
+- ESC goes back.""",
         "freecell": """One French deck, all fifty-two cards face up from the start: nothing is hidden, it is only a matter of thinking.
 - Eight columns, four free cells and four bases, one per suit, to fill from the Ace up to the King.
 - On the columns you build down, always alternating red and black. An empty column takes any card.
@@ -1782,6 +1808,7 @@ REGOLE_CARTE = {
 - Sets are three or four of a kind in different suits, runs are three or more cards of the same suit; the Ace goes below the 2 or above the King.
 - Jokers stand for any card, but every combination needs at least two real cards.
 - If you hold the real card a joker on the table stands for, you can put it in its place and take the joker into your hand.
+- A combination with a joker in it is never closed: it stays on the table, because the joker can still be bought. Only four real cards of the same rank leave the table.
 - Your first meld must be worth at least 50 points, and cards you lay off on melds already on the table count towards it.
 - If you do not reach 50 before discarding, everything you put down this turn comes back to your hand, and a card taken from the discard pile goes back too.
 - Card values: figures 10, Ace 11 (1 when it is below the 2), joker 25 in hand or the value of the card it replaces.
@@ -1790,6 +1817,10 @@ REGOLE_CARTE = {
 - The first to reach the match points loses.""",
     },
     "it": {
+        "test": """Tutte le carte del mazzo scelto, scoperte sul tavolo.
+- Il mazzo si sceglie nel menu: ci sono tutti quelli del gioco, italiani e francesi.
+- Non si gioca: serve solo a guardare le carte una per una.
+- ESC torna indietro.""",
         "freecell": """Un mazzo francese, tutte e cinquantadue le carte scoperte fin dall'inizio: non c'e' niente di nascosto, e' solo questione di testa.
 - Otto colonne, quattro celle libere e quattro basi, una per seme, da riempire dall'asso al re.
 - Sulle colonne si cala a scendere, alternando sempre rosso e nero. Sulla colonna vuota ci va qualsiasi carta.
@@ -1851,6 +1882,7 @@ REGOLE_CARTE = {
 - I tris sono tre o quattro carte uguali di semi diversi, le scale tre o piu' carte dello stesso seme; l'asso va sotto il 2 o sopra il re.
 - I jolly sostituiscono qualsiasi carta, ma in ogni combinazione servono almeno due carte vere.
 - Se hai la carta vera che un jolly in tavola sta facendo, la metti al suo posto e il jolly va in mano a te.
+- Una combinazione col jolly dentro non e' mai chiusa: resta in tavola, perche' il jolly si puo' ancora comprare. Se ne vanno solo i quattro semi veri.
 - La prima calata deve valere almeno 50 punti, e ci contano anche le carte che attacchi alle combinazioni gia' in tavola, tue o del computer.
 - Se prima di scartare non arrivi a 50, tutto quello che hai messo giu' in quel turno torna in mano, e anche la carta presa dallo scarto torna al suo posto.
 - Valori: figure 10, asso 11 (1 quando sta sotto il 2), jolly 25 se resta in mano o il valore della carta che sostituisce.
@@ -1859,6 +1891,10 @@ REGOLE_CARTE = {
 - Perde chi arriva per primo ai punti della partita.""",
     },
     "fr": {
+        "test": """Toutes les cartes du jeu choisi, face visible sur la table.
+- Le jeu se choisit dans le menu : tous ceux du logiciel y sont, italiens et francais.
+- On ne joue pas : c'est seulement pour regarder les cartes une par une.
+- ESC pour revenir.""",
         "freecell": """Un jeu francais, les cinquante-deux cartes visibles des le depart : rien n'est cache, tout est dans la tete.
 - Huit colonnes, quatre cellules libres et quatre bases, une par couleur, a remplir de l'As au Roi.
 - Sur les colonnes on descend en alternant rouge et noir. Une colonne vide accepte n'importe quelle carte.
@@ -1920,6 +1956,7 @@ REGOLE_CARTE = {
 - Les brelans sont trois ou quatre cartes de meme rang et de couleurs differentes, les suites au moins trois cartes de la meme couleur ; l'As se place sous le 2 ou au-dessus du Roi.
 - Les jokers remplacent n'importe quelle carte, mais chaque combinaison demande au moins deux vraies cartes.
 - Si vous avez la vraie carte qu'un joker represente, vous la mettez a sa place et prenez le joker en main.
+- Une combinaison avec un joker n'est jamais fermee : elle reste sur la table, le joker peut encore etre achete. Seules quatre vraies cartes s'en vont.
 - La premiere pose doit valoir au moins 50 points, et les cartes ajoutees aux combinaisons deja sur la table comptent aussi.
 - Si vous n'atteignez pas 50 avant de defausser, tout ce que vous avez pose revient en main, et la carte prise a la defausse y retourne.
 - Valeurs : figures 10, As 11 (1 sous le 2), joker 25 en main ou la valeur de la carte remplacee.
@@ -1928,6 +1965,10 @@ REGOLE_CARTE = {
 - Le premier a atteindre les points de la partie perd.""",
     },
     "es": {
+        "test": """Todas las cartas de la baraja elegida, boca arriba en la mesa.
+- La baraja se elige en el menu: estan todas las del juego, italianas y francesas.
+- No se juega: solo sirve para mirar las cartas una por una.
+- ESC para volver.""",
         "freecell": """Una baraja francesa, las cincuenta y dos cartas descubiertas desde el principio: no hay nada oculto, es solo cuestion de cabeza.
 - Ocho columnas, cuatro celdas libres y cuatro bases, una por palo, que se llenan del As al Rey.
 - En las columnas se baja alternando rojo y negro. En una columna vacia va cualquier carta.
@@ -1989,6 +2030,7 @@ REGOLE_CARTE = {
 - Los trios son tres o cuatro cartas iguales de palos distintos, las escaleras tres o mas cartas del mismo palo; el As va bajo el 2 o sobre el Rey.
 - Los comodines sustituyen cualquier carta, pero cada combinacion necesita al menos dos cartas reales.
 - Si tienes la carta real que hace un comodin en la mesa, la pones en su lugar y te llevas el comodin a la mano.
+- Una combinacion con comodin nunca esta cerrada: se queda en la mesa, porque el comodin todavia se puede comprar. Solo se van cuatro cartas reales.
 - La primera bajada debe valer al menos 50 puntos, y cuentan tambien las cartas que anades a las combinaciones ya en la mesa.
 - Si no llegas a 50 antes de descartar, todo lo que has bajado vuelve a tu mano, y la carta tomada del descarte vuelve a su sitio.
 - Valores: figuras 10, As 11 (1 cuando va bajo el 2), comodin 25 en mano o el valor de la carta que sustituye.
@@ -2103,6 +2145,33 @@ def _ranghi_scala(ordine):
     return None
 
 
+def estremi_jolly(codici):
+    """Attaccando un jolly a una scala, che carte potrebbe fare: quella
+    sotto e quella sopra. Torna [(dove, rango), ...] con dove "giu" o
+    "su". Sui tris non c'e' scelta, quindi torna vuoto."""
+    v = valida_meld(codici)
+    if v is None or v[0] != "scala":
+        return []
+    ranghi = _ranghi_scala(list(codici))
+    if ranghi is None:
+        return []
+    lo, hi = ranghi[0], ranghi[-1]
+    top = 14 if lo > 1 else 13
+    fuori = []
+    if lo - 1 >= 1:
+        fuori.append(("giu", lo - 1))
+    if hi + 1 <= top:
+        fuori.append(("su", hi + 1))
+    return fuori
+
+
+def nome_rango(r):
+    """Il nome della carta di quel rango, come si legge in tavola."""
+    if r in (1, 14):
+        return "A"
+    return "10" if r == 10 else RANGHI[r - 1]
+
+
 def valore_nel_meld(codici, i):
     """Quanto vale la carta che sta al posto i di una combinazione."""
     veri = [c for c in codici if not jolly(c)]
@@ -2123,10 +2192,11 @@ def jolly_da_prendere(codici, codice, mano=None):
     sta facendo la mette al suo posto e si prende il jolly in mano.
     Torna il posto del jolly nella combinazione, o None.
 
-    In una scala il jolly fa una carta sola e si sa quale. In un tris
-    no: se al tris mancano due semi, il jolly puo' essere l'uno o
-    l'altro, e allora si compra solo avendo in mano tutte le carte che
-    mancano - se no il jolly lo si porterebbe via a caso."""
+    In una scala il jolly fa una carta sola e si sa quale, quindi basta
+    quella. In un tris no: il jolly esce solo quando la carta che metti
+    chiude il poker, cioe' quando dopo di lei ci sono tutti e quattro i
+    semi veri. Con due carte e un jolly non si compra niente: prima si
+    attacca il terzo seme, poi il quarto, e li' il jolly si libera."""
     if jolly(codice):
         return None
     # si guarda la combinazione com'e' messa in tavola: il jolly fa la
@@ -2143,14 +2213,10 @@ def jolly_da_prendere(codici, codice, mano=None):
         if rango(codice) != rango(veri[0]) or seme(codice) in semi:
             return None
         mancano = set("SHDC") - semi - {seme(codice)}
-        if len(mancano) > len(posti) - 1:
-            # resterebbe un seme scoperto: servono anche quelle carte
-            if mano is None:
-                return None
-            ho = set(seme(c) for c in mano
-                     if not jolly(c) and rango(c) == rango(codice))
-            if not mancano <= ho:
-                return None
+        if mancano:
+            # resta un seme scoperto: il poker non si chiude, quindi il
+            # jolly resta dov'e'. Averle in mano non basta: vanno calate
+            return None
         return posti[0]
     ranghi = _ranghi_scala(ordine)
     if ranghi is None:
@@ -2166,11 +2232,15 @@ def jolly_da_prendere(codici, codice, mano=None):
 
 def dividi_in_meld(codici):
     """Divide le carte scelte in combinazioni valide, tutte usate. Torna
-    la lista delle combinazioni (con i loro punti) o None."""
+    la lista delle combinazioni (con i loro punti) o None.
+
+    Si prova prima il gruppo piu' grande: se le carte scelte fanno una
+    scala sola, quella si cala intera e non si spezza in due pezzi da
+    tre, che lascerebbero gli attacchi buoni all'avversario."""
     if not codici:
         return []
     primo, resto = codici[0], codici[1:]
-    for n in range(2, len(resto) + 1):
+    for n in range(len(resto), 1, -1):
         for gr in itertools.combinations(range(len(resto)), n):
             prova = [primo] + [resto[i] for i in gr]
             v = valida_meld(prova)
@@ -2410,7 +2480,13 @@ def partita_ramino(tv):
         def completa(meld):
             """Una combinazione chiusa: un poker coi quattro semi, o una
             scala che arriva da una parte all'altra. Non ci si puo'
-            attaccare piu' niente."""
+            attaccare piu' niente.
+
+            Col jolly dentro non e' mai chiusa: finche' il jolly sta in
+            tavola qualcuno puo' comprarlo mettendoci la carta vera,
+            quindi la combinazione resta in gioco e non si porta via."""
+            if any(jolly(x.codice) for x in meld):
+                return False
             v = valida_meld([x.codice for x in meld])
             if v is None:
                 return False
@@ -2425,11 +2501,17 @@ def partita_ramino(tv):
             for meld in via:
                 tavola.remove(meld)
                 for c in meld:
+                    # sotto, mai sopra: se no coprono l'ultima carta
+                    # scartata e non si potrebbe piu' prendere
                     scarti.insert(0, c)
                     tv.sposta(c, (scarti_pos[0] + random.uniform(-2, 2),
                                   scarti_pos[1] + random.uniform(-2, 2)),
                               random.uniform(-4, 4), scoperta=False)
             if via:
+                # l'ultima carta scartata torna sopra a tutte: se no le
+                # carte chiuse la coprono e non si potrebbe piu' prendere
+                if scarti:
+                    tv.in_cima(scarti[-1])
                 C.suona("cattura")
                 rifai_tavola()
             return bool(via)
@@ -2450,30 +2532,46 @@ def partita_ramino(tv):
                 mani[chi].remove(c)
                 meld[meld.index(jk)] = c
                 mani[chi].append(jk)
-                if chi == 0:
-                    # il jolly comprato va rigiocato in tavola, come la
-                    # carta presa dallo scarto
-                    jolly_presi.append(jk)
+                # il jolly comprato va rigiocato in tavola, come la
+                # carta presa dallo scarto: vale per tutti e due
+                (jolly_presi if chi == 0 else jolly_cpu).append(jk)
                 ultima[0] = c
                 return "jolly"
             return False
 
-        def attacca(chi, c, quale=None):
+        def attacca(chi, c, quale=None, dove=None):
             if prendi_jolly(chi, c, quale):
+                return True
+            if dove is not None and quale is not None:
+                # un jolly messo dove vuole il giocatore: l'ordine lo
+                # decide lui, non la funzione che valida
+                meld = tavola[quale]
+                nuovo = ([c] + meld) if dove == "giu" else (meld + [c])
+                if valida_meld([x.codice for x in nuovo]) is None:
+                    return False
+                mani[chi].remove(c)
+                tavola[quale] = nuovo
+                ultima[0] = c
                 return True
             quali = [quale] if quale is not None else range(len(tavola))
             for i in quali:
                 meld = tavola[i]
-                v = valida_meld([x.codice for x in meld] + [c.codice])
-                if v:
+                # la carta si mette in fondo o in testa, lasciando la
+                # combinazione com'e': un jolly gia' in tavola non si
+                # sposta, sta facendo quella carta li' e basta
+                for nuovo in (meld + [c], [c] + meld):
+                    cod = [x.codice for x in nuovo]
+                    v = valida_meld(cod)
+                    if v is None:
+                        continue
+                    if v[0] == "scala":
+                        # la scala deve valere COSI' COME STA: se no
+                        # valida_meld la rifa' da capo e sposta i jolly
+                        r = _ranghi_scala(cod)
+                        if r is None or r[0] < 1 or r[-1] > 14:
+                            continue
                     mani[chi].remove(c)
-                    tutte = meld + [c]
-                    ordinate = []
-                    for cod in v[2]:
-                        x = next(y for y in tutte if y.codice == cod
-                                 and y not in ordinate)
-                        ordinate.append(x)
-                    tavola[i] = ordinate
+                    tavola[i] = list(nuovo)
                     ultima[0] = c
                     return True
             return False
@@ -2497,6 +2595,7 @@ def partita_ramino(tv):
         chiude = None
         ultima = [None]         # l'ultima carta messa in tavola
         jolly_presi = []        # i jolly comprati in tavola in questo turno
+        jolly_cpu = []          # quelli comprati dal computer, stessa regola
         in_mano = [False]       # chi chiude ha aperto e chiuso in un turno
         while chiude is None:
             tv.attivo = turno
@@ -2514,6 +2613,7 @@ def partita_ramino(tv):
                     chiude = 0
                     in_mano[0] = not prima      # aperto e chiuso in un turno
             else:
+                del jolly_cpu[:]        # i jolly comprati in questo turno
                 yield from tv.attendi(0.5)
                 cod_mano = [c.codice for c in mani[1]]
                 top = scarti[-1] if scarti else None
@@ -2565,6 +2665,41 @@ def partita_ramino(tv):
                             rifai_tavola()
                             rifai_mano(1)
                             yield from tv.fermi()
+                # i jolly che ha comprato vanno rigiocati in tavola, la
+                # regola vale anche per lui: prima si prova a calarli o
+                # ad attaccarli, e quello che resta va scartato
+                for jk in list(jolly_cpu):
+                    if jk not in mani[1]:
+                        jolly_cpu.remove(jk)
+                        continue
+                    if len(mani[1]) > 1 and attacca(1, jk):
+                        jolly_cpu.remove(jk)
+                        rifai_tavola()
+                        rifai_mano(1)
+                        yield from tv.fermi()
+                        continue
+                    gr = meld_cpu([x.codice for x in mani[1]])
+                    usato = False
+                    for g in gr:
+                        if jk.codice not in g:
+                            continue
+                        carte = []
+                        avanzo = list(mani[1])
+                        for cod in g:
+                            x = next(y for y in avanzo if y.codice == cod)
+                            avanzo.remove(x)
+                            carte.append(x)
+                        if jk not in carte or len(carte) >= len(mani[1]):
+                            continue
+                        cala(1, [carte])
+                        jolly_cpu.remove(jk)
+                        usato = True
+                        rifai_tavola()
+                        rifai_mano(1)
+                        yield from tv.fermi()
+                        break
+                    if usato:
+                        continue
                 if preso is not None and preso in mani[1] and \
                         len(mani[1]) > 1:
                     pass
@@ -2588,9 +2723,15 @@ def partita_ramino(tv):
                                     abs(rango(x.codice) - r) <= 2:
                                 u += 2
                         return u * 20 - punti_in_mano([c.codice])
-                    candidati = [c for c in mani[1] if c is not preso] or \
-                        mani[1]
-                    c = min(candidati, key=utile)
+                    restano = [c for c in jolly_cpu if c in mani[1]]
+                    if restano:
+                        # un jolly comprato e non rigiocato: l'unica cosa
+                        # che puo' scartare e' quello
+                        c = restano[0]
+                    else:
+                        candidati = [c for c in mani[1]
+                                     if c is not preso] or mani[1]
+                        c = min(candidati, key=utile)
                     scarta(1, c)
                     yield from tv.fermi()
                     if not mani[1]:
@@ -2675,6 +2816,7 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
     attacchi = []           # le carte attaccate in questo turno
     fase = ["pesca"]
     preso_scarto = [None]
+    pronta = [None]         # la carta alzata, in attesa di conferma
 
     def vai_su(c):
         """Porta il cursore su quella carta: dopo aver pescato si vede
@@ -2743,6 +2885,11 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
             tv.evidenzia = tavola[dato] if tipo == "meld" else []
             tv.selezionate = sel
             tv.in_mano = sposta[0]
+            if pronta[0] is not None and (tipo != "mano" or
+                                          dato is not pronta[0] or
+                                          pronta[0] not in mano):
+                pronta[0] = None        # ti sei spostato: si riabbassa
+            tv.pronta = pronta[0]
             # la carta presa con X segue il cursore: in mano sta al suo
             # posto, sul tavolo si mette accanto alla combinazione
             if sposta[0] is not None and dove_va[0] != (tipo, dato):
@@ -2858,7 +3005,19 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                                     carta = sposta[0]
                                     prima = valida_meld(
                                         [x.codice for x in tavola[dato]])[1]
-                                    fatto = attacca(0, carta, dato)
+                                    dove = None
+                                    if jolly(carta.codice):
+                                        est = estremi_jolly(
+                                            [x.codice for x in tavola[dato]])
+                                        if len(est) > 1:
+                                            # il jolly puo' stare da tutte
+                                            # e due le parti: sceglie lui
+                                            tv.righe = [T("r_jk_where")]
+                                            k = yield from tv.chiedi(
+                                                [nome_rango(r) for _d, r in est])
+                                            tv.righe = []
+                                            dove = est[k][0]
+                                    fatto = attacca(0, carta, dato, dove)
                                     if fatto:
                                         if carta in sel:
                                             sel.remove(carta)
@@ -2911,7 +3070,7 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                     if sopra is not None:
                         pos[0] = sopra
                         tipo, dato = posti[pos[0]]
-                    azione = "a"
+                    azione = "mouse"
             if azione is None:
                 continue
             # ---- il tasto A: fa la cosa del posto dove sei
@@ -2969,7 +3128,14 @@ def turno_umano_ramino(tv, mani, aperto, tavola, scarti, pesca_mazzo, scarta,
                 sel = []
                 yield from tv.fermi()
                 continue
+            if tipo == "mano" and pronta[0] is not dato:
+                # la prima volta la carta si alza soltanto: si scarta
+                # premendo un'altra volta, cosi' non scappa per sbaglio
+                pronta[0] = dato
+                C.suona("giocata")
+                continue
             if tipo == "mano":
+                pronta[0] = None
                 # scarta: finisce il turno
                 if not aperto[0] and punti_calate[0]:
                     # non sei arrivato a 50: le carte tornano in mano.
@@ -4497,12 +4663,51 @@ def partita_piramide(tv):
                 return "menu"
 
 
+def partita_test(tv):
+    """La prova delle carte: tutto il mazzo scelto, scoperto sul tavolo,
+    in righe ordinate. Serve solo a guardare una per una."""
+    if C.famiglia() == "francesi":
+        codici = mazzo_francese(1, 1)
+        for extra in ("JK2", "JK3", "JK4"):
+            if C.immagine_carta(extra) is not None:
+                codici.append(extra)   # gli altri jolly, dove ci sono
+    else:
+        codici = C.mazzo_codici()
+    w0, h0 = C.misura_carta()
+    colonne = 13 if len(codici) > 40 else 10
+    quante = (len(codici) + colonne - 1) // colonne
+    g = min((tv.z.w * 0.94) / (colonne * w0 * 1.06),
+            (tv.z.h * 0.88) / (quante * h0 * 1.10))
+    px, py = w0 * g * 1.06, h0 * g * 1.10
+
+    tv.nuovo_mazzo(codici)
+    carte = list(tv.mazzo)
+    tv.mazzo = []
+    tv.aiuto = lambda: T("t_help")
+
+    def posto(k):
+        r, i = k // colonne, k % colonne
+        n = min(colonne, len(carte) - r * colonne)
+        return (tv.z.centerx + (i - (n - 1) / 2.0) * px,
+                tv.z.centery + (r - (quante - 1) / 2.0) * py)
+
+    for k, c in enumerate(carte):
+        tv.sposta(c, posto(k), 0.0, scoperta=True, ritardo=k * 0.012,
+                  suono="servi", grande=g)
+    yield from tv.fermi()
+    while True:
+        for k, c in enumerate(carte):
+            _metti(tv, c, posto(k), True, g)
+        yield
+
+
 GIOCHI = (("blackjack", partita_blackjack, "francesi"),
           ("sette", partita_sette, "italiane"),
           ("scopa", partita_scopa, "italiane"),
           ("briscola", partita_briscola, "italiane"),
           ("ramino", partita_ramino, "francesi"),
-          ("texas", partita_texas, "francesi"))
+          ("texas", partita_texas, "francesi"),
+          ("test", partita_test, "tutte"))
 
 # i solitari: si gioca da soli, senza avversario e senza soldi. Quelli
 # con None non ci sono ancora e nel menu dicono "presto"
@@ -4517,14 +4722,38 @@ CATEGORIE_CARTE = (("c_tavolo", GIOCHI), ("c_solitari", SOLITARI))
 
 
 def mazzi_per(tipo):
+    """I mazzi fra cui si sceglie. Nei francesi si elenca solo il dorso
+    blu: il rosso esiste per fare coppia nel ramino, negli altri giochi
+    si gioca con un mazzo solo e la scelta e' fra le facce."""
     m = C.mazzi_disponibili()
+    if tipo == "tutte":
+        return m                    # la prova li mostra tutti
     if tipo == "francesi":
-        return [x for x in m if C.famiglia(x[1]) == "francesi"]
+        fr = [x for x in m if C.famiglia(x[1]) == "francesi"]
+        blu = set(c.rsplit("_", 1)[0] for c, _t in fr
+                  if c.endswith("_blu"))
+        return [x for x in fr if not (x[0].endswith("_rosso") and
+                                      x[0].rsplit("_", 1)[0] in blu)]
     return [x for x in m if C.famiglia(x[1]) != "francesi"]
 
 
-# i nomi che si leggono nel menu, quando quello automatico non va bene
-NOMI_MAZZI = {}
+# i nomi che si leggono nel menu: corti, senza i codici del produttore
+NOMI_MAZZI = {"napoletane_marrone_150": "Napoletane",
+              "toscane_n93": "Toscane",
+              "piacentine_nero": "Piacentine",
+              "genovesi_nero": "Genovesi",
+              "gb_multi_blu": "Multicolor",
+              "gb_multi_rosso": "Multicolor red",
+              "cla_classic_blu": "Classic",
+              "cla_classic_rosso": "Classic red"}
+
+
+NOMI_DISEGNI = {"poker98": "Poker 98", "texas": "Texas",
+                "multi": "Multicolor", "classic": "Classic"}
+
+
+def nome_disegno(dis):
+    return NOMI_DISEGNI.get(dis, (dis or "-").replace("_", " ").title())
 
 
 def nome_mazzo(cartella):
@@ -4533,16 +4762,18 @@ def nome_mazzo(cartella):
 
 # dove il dorso si sceglie: solo i giochi italiani, che hanno le
 # napoletane e le toscane. Tutti gli altri ce l'hanno fisso
-SCELTA_MAZZO = ("scopa", "briscola", "sette")
+SCELTA_MAZZO = ("scopa", "briscola", "sette", "test",
+                "texas", "blackjack", "klondike", "spider",
+                "freecell", "piramide")
 
 # il dorso di ogni gioco che non si sceglie
-MAZZO_PREDEFINITO = {"texas": "francesi_texas_verde-acqua",
-                     "blackjack": "francesi_texas_nero",
-                     "bridge": "francesi_texas_viola",
-                     "klondike": "francesi_poker98_blu",
-                     "spider": "francesi_poker98_rosso",
-                     "freecell": "francesi_texas_verde-acqua",
-                     "piramide": "francesi_texas_nero"}
+MAZZO_PREDEFINITO = {"texas": "cla_classic_blu",
+                     "blackjack": "cla_classic_blu",
+                     "bridge": "cla_classic_blu",
+                     "klondike": "gb_multi_blu",
+                     "spider": "gb_multi_blu",
+                     "freecell": "cla_classic_blu",
+                     "piramide": "cla_classic_blu"}
 
 
 def mazzo_del_gioco(chiave, tipo):
@@ -4569,9 +4800,35 @@ def mazzo_del_gioco(chiave, tipo):
     return i
 
 
+# le partite lasciate a meta': chiave del gioco -> (tavolo, generatore).
+# Durano quanto dura il programma, come la pausa del biliardo.
+SOSPESE = {}
+
+
+def c_e_partita(chiave):
+    return chiave in SOSPESE
+
+
+def chiudi_partita(chiave):
+    SOSPESE.pop(chiave, None)
+
+
 def gioca_gioco(sc, clock, chiave, partita, tipo):
+    sos = SOSPESE.get(chiave)
+    if sos is not None:
+        tv, gen = sos
+        tv.sc = sc
+        C.carica_suoni()
+        C.musica_carte()
+        esito = tv.gioca(partita, gen)
+        C.fine_musica_carte()
+        if esito == "menu" and tv.gen is not None:
+            SOSPESE[chiave] = (tv, tv.gen)
+        else:
+            SOSPESE.pop(chiave, None)
+        return esito
     mazzo_del_gioco(chiave, tipo)
-    if any(chiave == k for k, _p, _t in SOLITARI):
+    if chiave == "test" or any(chiave == k for k, _p, _t in SOLITARI):
         nomi = [nome_giocatore()]       # il solitario si gioca da soli
     else:
         nomi = [nome_giocatore(),
@@ -4583,6 +4840,10 @@ def gioca_gioco(sc, clock, chiave, partita, tipo):
     tv = Tavolo(sc, clock, nomi, chiave)
     esito = tv.gioca(partita)
     C.fine_musica_carte()
+    if esito == "menu" and tv.gen is not None:
+        SOSPESE[chiave] = (tv, tv.gen)      # lasciata a meta'
+    else:
+        SOSPESE.pop(chiave, None)
     return esito
 
 
@@ -4625,6 +4886,8 @@ CARTA_ANTEPRIMA = [None, None]
 def carta_a_caso(tipo):
     """Una carta qualsiasi del mazzo, tenuta finche' non si cambia
     tipo di facce."""
+    if tipo == "tutte":
+        tipo = C.MAZZO_ORA[1]
     if CARTA_ANTEPRIMA[0] != tipo:
         if C.famiglia(tipo) == "francesi":
             quali = [r + sm for sm in "SHDC" for r in "A23456789TJQK"]
@@ -4635,29 +4898,83 @@ def carta_a_caso(tipo):
     return CARTA_ANTEPRIMA[1]
 
 
-def anteprima_mazzo(sc, tipo, centro):
-    """Il dorso scelto, e sotto una carta a caso che spunta per meta':
-    le facce sono sempre quelle, si cambia solo la copertina."""
-    alto = B.s(190)
-    dorso = C.immagine_mazzo("dorso")
-    faccia = C.immagine_carta(carta_a_caso(tipo))
-    if dorso is None:
+def colori_facce():
+    """Quanti colori ha il mazzo scelto: si guarda il seme dei quattro
+    assi e si contano quelli diversi. Il Multicolor ne da' quattro, il
+    Classic due."""
+    visti, quali = [], []
+    for cod in ("AH", "AD", "AC", "AS"):
+        img = C.immagine_carta(cod)
+        if img is None:
+            continue
+        col = img.get_at((img.get_width() // 2, img.get_height() // 2))
+        # il centro e' il seme grande dell'asso
+        c = (col[0] // 24, col[1] // 24, col[2] // 24)
+        if c not in visti:
+            visti.append(c)
+            quali.append(cod)
+    return quali or ["AS"]
+
+
+# le carte dell'anteprima: una per colore, a caso, tenute finche' non
+# si cambia mazzo
+FACCE_ANTEPRIMA = [None, []]
+
+
+def facce_anteprima():
+    """Una carta a caso per ogni colore del mazzo."""
+    ora = C.MAZZO_ORA[0]
+    if FACCE_ANTEPRIMA[0] != ora:
+        semi = [c[1] for c in colori_facce()]
+        FACCE_ANTEPRIMA[0] = ora
+        FACCE_ANTEPRIMA[1] = [random.choice(RANGHI) + sm for sm in semi]
+    return FACCE_ANTEPRIMA[1]
+
+
+def carta_pronta(img, alto):
+    """L'immagine portata all'altezza giusta, con gli angoli tondi: se no
+    in anteprima sembrano cartoncini quadrati."""
+    if img is None:
+        return None
+    largo = max(1, int(img.get_width() * alto / float(img.get_height())))
+    return C._arrotonda(C._riduci(img, largo, alto),
+                        max(3, int(alto * 0.045)))
+
+
+def ventaglio(sc, centro, imgs):
+    """Le carte una sull'altra, scalate, centrate sul punto dato."""
+    imgs = [q for q in imgs if q is not None]
+    if not imgs:
         return
-    largo = max(1, int(dorso.get_width() * alto / float(dorso.get_height())))
-    d = C._riduci(dorso, largo, alto)
-    # il gruppo resta centrato: il dorso sale e va a sinistra, la carta
-    # spunta in basso a destra
-    sx, giu = int(largo * 0.40), int(alto * 0.26)
-    r = d.get_rect(topleft=(centro[0] - largo // 2 - sx // 2,
-                            centro[1] - alto // 2 - giu // 2))
-    if faccia is not None:
-        lf = max(1, int(faccia.get_width() * alto / float(faccia.get_height())))
-        q = C._riduci(faccia, lf, alto)
-        rf = q.get_rect(topleft=(r.x + sx, r.y + giu))
-        sc.blit(q, rf)
-        cornice(sc, rf)
-    sc.blit(d, r)
-    cornice(sc, r)
+    passo = int(imgs[0].get_width() * 0.42)
+    tot = passo * (len(imgs) - 1) + imgs[-1].get_width()
+    x = centro[0] - tot // 2
+    y = centro[1] - imgs[0].get_height() // 2
+    for q in imgs:
+        sc.blit(q, q.get_rect(topleft=(x, y)))
+        x += passo
+
+
+def ventaglio_facce(sc, centro):
+    """Le facce del mazzo, una accanto all'altra a mezzo scoperto: cosi'
+    si vede subito di che colori e'."""
+    alto = B.s(190)
+    ventaglio(sc, centro,
+              [carta_pronta(C.immagine_carta(cod), alto)
+               for cod in facce_anteprima()])
+
+
+def anteprima_mazzo(sc, tipo, centro):
+    """Cosa si vede quando si sceglie il mazzo: nei francesi la scelta e'
+    la faccia, quindi si mostrano i colori; nei regionali il dorso e
+    sopra una carta del mazzo, che e' quello che interessa vedere."""
+    if C.famiglia() == "francesi":
+        ventaglio_facce(sc, centro)
+        return
+    alto = B.s(190)
+    ventaglio(sc, centro,
+              [carta_pronta(C.immagine_mazzo("dorso"), alto),
+               carta_pronta(C.immagine_carta(carta_a_caso(tipo)), alto)])
 
 
 def anteprima_due(sc, due, centro):
@@ -4745,7 +5062,11 @@ def famiglie_francesi():
     Nel ramino si gioca con due mazzi dello stesso disegno e si sceglie
     che colori accoppiare."""
     fam = {}
-    for cartella, _ in mazzi_per("francesi"):
+    # qui servono anche i dorsi blu, che nel menu non si elencano: il
+    # ramino gioca proprio con la coppia rosso e blu
+    tutti = [x for x in C.mazzi_disponibili()
+             if C.famiglia(x[1]) == "francesi"]
+    for cartella, _ in tutti:
         if len(cartella.split("_")) < 3:
             continue        # nel ramino servono disegno e colore
         pezzi = cartella.split("_")
@@ -4758,21 +5079,27 @@ def famiglie_francesi():
 
 
 # il ramino gioca sempre con questi due, rosso e blu
-MAZZI_RAMINO = ("francesi_poker98_rosso", "francesi_poker98_blu")
+MAZZI_RAMINO = ("gb_multi_rosso", "gb_multi_blu")
+
+
+def disegni_ramino():
+    """I disegni che hanno due colori: solo quelli si possono accoppiare."""
+    fam = famiglie_francesi()
+    return sorted(d for d in fam if len(fam[d]) > 1)
 
 
 def mazzi_ramino():
-    """I due mazzi del ramino: fissi, rosso e blu."""
-    ci_sono = [c for c, _t in mazzi_per("francesi") if c in MAZZI_RAMINO]
-    if len(ci_sono) == 2:
-        return "poker98", (MAZZI_RAMINO[0], MAZZI_RAMINO[1])
+    """I due mazzi del ramino: un disegno solo, due colori. Di suo il
+    Poker 98 rosso e blu, ma il disegno si sceglie dal menu."""
     fam = famiglie_francesi()
     if not fam:
         return None, None
     nomi = sorted(fam)
     dis = B.CFG.get("ramino_disegno")
-    if dis not in fam:
-        dis = next((d for d in nomi if len(fam[d]) > 1), nomi[0])
+    if dis not in fam or len(fam.get(dis, ())) < 2:
+        # di suo il ramino gioca col nostro mazzo, blu e oro
+        dis = "multi" if len(fam.get("multi", ())) > 1 else \
+            next((d for d in nomi if len(fam[d]) > 1), nomi[0])
     colori = fam[dis]
     def scegli(chiave, difetto):
         c = B.CFG.get(chiave)
@@ -4800,8 +5127,15 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
     def righe_mazzo():
         """Le righe in piu' fra Gioca e Regole."""
         if doppio:
-            # il ramino ha i suoi due mazzi fissi: resta solo il limite
-            return [(T("limite"), str(punti_partita()))]
+            # il ramino gioca con due mazzi dello stesso disegno: si
+            # sceglie il disegno, non il singolo dorso
+            righe = []
+            if len(disegni_ramino()) > 1:
+                dis, _due = mazzi_ramino()
+                mazzo_del_gioco(chiave, tipo)   # cosi' l'anteprima e' giusta
+                righe.append((T("deck"), nome_disegno(dis)))
+            righe.append((T("limite"), str(punti_partita())))
+            return righe
         righe = []
         if ha_mazzi():
             i = mazzo_del_gioco(chiave, tipo)
@@ -4816,12 +5150,25 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
         return righe
 
     def voci():
-        return [(T("play"), None)] + righe_mazzo() + \
-            [(T("rules"), None), (T("back"), None)]
+        prima = T("continue") if c_e_partita(chiave) else T("play")
+        fine = [(T("endgame"), None)] if c_e_partita(chiave) else []
+        return [(prima, None)] + righe_mazzo() + \
+            [(T("rules"), None)] + fine + [(T("back"), None)]
 
     def gira(i, verso):
         if doppio:
-            if i != 1:
+            righe = righe_mazzo()
+            if not 1 <= i <= len(righe):
+                return
+            if righe[i - 1][0] == T("deck"):
+                dis = disegni_ramino()
+                ora, _due = mazzi_ramino()
+                k = (dis.index(ora) + verso) % len(dis) if ora in dis else 0
+                B.CFG["ramino_disegno"] = dis[k]
+                B.CFG.pop("ramino_a", None)
+                B.CFG.pop("ramino_b", None)
+                B.salva_config()
+                B.suona_fx("menu_tic", 0.6)
                 return
             scelte = (100, 200, 300, 500)
             k = (scelte.index(punti_partita()) + verso) % len(scelte)
@@ -4855,19 +5202,25 @@ def menu_gioco(sc, clock, logo, chiave, partita, tipo):
         if 1 <= i <= n:
             gira(i, 1)
             return None
-        return "regole" if i == n + 1 else "back"
+        if i == n + 1:
+            return "regole"
+        if c_e_partita(chiave) and i == n + 2:
+            return "termina"
+        return "back"
 
     def extra(sel, centro):
-        n = len(righe_mazzo())
-        if not (1 <= sel <= n):
+        righe = righe_mazzo()
+        if not (1 <= sel <= len(righe)):
             return
-        if doppio:
-            return
-        if righe_mazzo()[sel - 1][0] == T("deck"):
+        if righe[sel - 1][0] == T("deck"):
             anteprima_mazzo(sc, tipo, centro)
 
     while True:
         q = lista_menu(sc, clock, logo, T(chiave), voci, scelta, gira, extra)
+        if q == "termina":
+            chiudi_partita(chiave)
+            B.suona_fx("menu_tic", 0.6)
+            continue
         if q == "regole":
             if B.pagina_regole(sc, clock, logo, None, T(chiave),
                                testo_regole_carte(chiave)) == "quit":
