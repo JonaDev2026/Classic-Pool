@@ -900,15 +900,16 @@ RULLI_CHIARI = False
 
 
 CIELI = {}
+STELLE = {}
 # la slot dello spazio non ha le lampadine intorno alla cornice: al loro
 # posto, dietro ai rulli, c'e' il cielo
 SENZA_LUCI = ("nuova",)
 COL_CIELO = ("nuova",)
 
 
-def cielo_stellato(misura):
-    """Il cielo che sta fra il fondo dei rulli e i simboli: il buio, un
-    velo di nebbia e le stelle. Si disegna una volta sola e resta li'."""
+def cielo_fondo(misura):
+    """Il buio e il velo di nebbia dietro ai rulli. Senza stelle: quelle
+    si accendono e si spengono, quindi vanno disegnate ogni volta."""
     if misura in CIELI:
         return CIELI[misura]
     w, h = misura
@@ -917,48 +918,64 @@ def cielo_stellato(misura):
     try:
         import numpy as np
     except ImportError:
-        np = None
-    if np is not None:
-        # il velo di nebbia, a onde intere: sfuma senza tagli
-        yy, xx = np.meshgrid(np.arange(h), np.arange(w))
-        rnd = np.random.RandomState(5)
-        g = np.zeros((w, h), np.float32)
-        for _ in range(4):
-            fx, fy = rnd.randint(1, 3), rnd.randint(1, 3)
-            g += rnd.uniform(0.5, 1.0) * np.sin(
-                2 * math.pi * (fx * xx / float(w) + fy * yy / float(h)) +
-                rnd.uniform(0, 6.28))
-        g = (g - g.min()) / max(1e-6, g.max() - g.min())
-        g = g ** 2.6
-        rgb = (g[:, :, None] * np.array([64, 58, 150], np.float32) +
-               (g ** 2)[:, :, None] * np.array([96, 40, 120], np.float32))
-        velo = pygame.Surface(misura, pygame.SRCALPHA)
-        pygame.surfarray.blit_array(velo, np.clip(rgb, 0, 255).astype(np.uint8))
-        pygame.surfarray.pixels_alpha(velo)[:, :] = np.clip(
-            g * 145, 0, 255).astype(np.uint8)
-        sup.blit(velo, (0, 0))
-    # le stelle: tante piccole, qualcuna media, poche grosse e accese
+        CIELI[misura] = sup
+        return sup
+    # il velo di nebbia, a onde intere: sfuma senza tagli
+    yy, xx = np.meshgrid(np.arange(h), np.arange(w))
+    rnd = np.random.RandomState(5)
+    g = np.zeros((w, h), np.float32)
+    for _ in range(4):
+        fx, fy = rnd.randint(1, 3), rnd.randint(1, 3)
+        g += rnd.uniform(0.5, 1.0) * np.sin(
+            2 * math.pi * (fx * xx / float(w) + fy * yy / float(h)) +
+            rnd.uniform(0, 6.28))
+    g = (g - g.min()) / max(1e-6, g.max() - g.min())
+    g = g ** 2.6
+    rgb = (g[:, :, None] * np.array([64, 58, 150], np.float32) +
+           (g ** 2)[:, :, None] * np.array([96, 40, 120], np.float32))
+    velo = pygame.Surface(misura, pygame.SRCALPHA)
+    pygame.surfarray.blit_array(velo, np.clip(rgb, 0, 255).astype(np.uint8))
+    pygame.surfarray.pixels_alpha(velo)[:, :] = np.clip(
+        g * 145, 0, 255).astype(np.uint8)
+    sup.blit(velo, (0, 0))
+    CIELI[misura] = sup
+    return sup
+
+
+def stelle_cielo(misura):
+    """Dove stanno le stelle, di che colore sono e con che ritmo si
+    accendono. Ognuna va per conto suo, se no battono tutte insieme."""
+    if misura in STELLE:
+        return STELLE[misura]
+    w, h = misura
     rnd = random.Random(9)
+    fuori = []
     for _ in range(max(50, (w * h) // 850)):
         x, y = rnd.randrange(w), rnd.randrange(h)
         k = rnd.random()
         if k > 0.965:
-            col, raggio = (255, 255, 255), max(2, int(B.s(2)))
-            alone = pygame.Surface((raggio * 8, raggio * 8), pygame.SRCALPHA)
-            for i in range(raggio * 4, 0, -1):
-                a = int(30 * (1 - i / float(raggio * 4)) ** 2)
-                pygame.draw.circle(alone, (150, 190, 255, a),
-                                   (raggio * 4, raggio * 4), i)
-            sup.blit(alone, alone.get_rect(center=(x, y)))
+            col, lato = (255, 255, 255), max(2, int(B.s(2)))
         elif k > 0.80:
             col = rnd.choice(((214, 228, 255), (255, 238, 212)))
-            raggio = 1
+            lato = max(1, int(B.s(1.4)))
         else:
-            col = (140, 155, 195)
-            raggio = 1
-        pygame.draw.circle(sup, col, (x, y), raggio)
-    CIELI[misura] = sup
-    return sup
+            col, lato = (150, 168, 210), max(1, int(B.s(1)))
+        fuori.append((x, y, col, lato,
+                      rnd.uniform(0.35, 0.95),      # quanto si spegne
+                      rnd.uniform(0.6, 2.4),        # con che ritmo
+                      rnd.uniform(0.0, 6.28)))
+    STELLE[misura] = fuori
+    return fuori
+
+
+def disegna_cielo(sc, rett, tt):
+    """Il cielo dietro ai rulli: il buio e la nebbia stanno fermi, le
+    stelline si accendono e si spengono una per conto suo."""
+    sc.blit(cielo_fondo(rett.size), rett)
+    for x, y, col, lato, quanto, ritmo, fase in stelle_cielo(rett.size):
+        k = 1.0 - quanto * (0.5 + 0.5 * math.sin(tt * ritmo + fase))
+        sc.fill((int(col[0] * k), int(col[1] * k), int(col[2] * k)),
+                (rett.x + x, rett.y + y, lato, lato))
 
 
 def vetro_fondo(misura):
@@ -2114,7 +2131,7 @@ class Macchina:
         sc.blit(vetro_fondo(vetro.size), vetro)
         # il cielo sta in mezzo: sopra al fondo dei rulli, sotto ai simboli
         if tema() in COL_CIELO:
-            sc.blit(cielo_stellato(vetro.size), vetro)
+            disegna_cielo(sc, vetro, self.t_neon)
         cw, ch = self.cella
         vecchio = sc.get_clip()
         sc.set_clip(vetro)
