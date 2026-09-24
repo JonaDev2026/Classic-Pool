@@ -875,10 +875,6 @@ ANIMAZIONI = {
         # la cometa: fluttua piano e si lascia dietro la polvere
         "fiches": {"onda": 0.045, "giro": 5.0, "scia": 34,
                    "verso": (-1.0, 0.30), "colore": (150, 200, 255)},
-        # l'ufo: sta sospeso e ondeggia appena, e sotto gli cade
-        # qualche granello, come un filo di luce
-        "jolly": {"onda": 0.030, "giro": 2.0, "scia": 12,
-                  "verso": (0.0, 1.0), "colore": (210, 130, 255)},
     },
 }
 
