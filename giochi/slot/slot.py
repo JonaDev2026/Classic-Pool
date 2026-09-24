@@ -2756,11 +2756,16 @@ def pagina_prova(sc, clock, m):
         mini = B.FONTS.get("mini", B.FONTS["small"])
         t = B.FONTS["font"].render(T("pr_titolo"), True, B.ORO_SCELTA)
         sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(18))))
+        # quanti ce ne stanno: le righe si contano e i simboli si
+        # stringono quanto serve, se no gli ultimi finiscono sotto il
+        # bordo dello schermo e non si vedono
         per_riga = 7
-        lato = B.s(72)
-        passo_x = (B.WIN_W - B.s(60)) // per_riga
-        passo_y = lato + B.s(36)
+        righe = (len(elenco) + per_riga - 1) // per_riga
         y0 = B.ALTO + B.s(52)
+        spazio = B.WIN_H - B.s(52) - y0
+        passo_y = min(B.s(108), spazio // max(1, righe))
+        lato = max(B.s(28), passo_y - B.s(36))
+        passo_x = (B.WIN_W - B.s(60)) // per_riga
         for i, nome in enumerate(elenco):
             cx = B.s(30) + passo_x * (i % per_riga) + passo_x // 2
             cy = y0 + passo_y * (i // per_riga) + lato // 2
