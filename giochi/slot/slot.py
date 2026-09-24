@@ -437,7 +437,7 @@ NOMI_TEMA = {
         "cuori": "Mars", "picche": "Exoplanet", "fiori": "Uranus",
         "quadri": "Neptune",
         "campana": "TRAPPIST-1", "ferro": "Proxima", "quadrifoglio": "Jupiter",
-        "carte": "Earth", "roulette": "Saturn", "fiches": "Pleiades",
+        "carte": "Earth", "roulette": "Saturn", "fiches": "Astronaut",
         "gemma": "UFO", "bar": "Rocket", "sette": "Sun",
         "regalo": "Alien",
         "dollaro": "Galaxy", "palla8": "Nebula",
@@ -451,7 +451,7 @@ NOMI_TEMA_LINGUA = {
                "mela": "Plutone", "fragola": "Luna", "anguria": "Mercurio",
                "uva": "Venere", "cuori": "Marte", "picche": "Esopianeta",
                "fiori": "Urano", "quadri": "Nettuno", "quadrifoglio": "Giove",
-               "carte": "Terra", "roulette": "Saturno", "fiches": "Pleiadi",
+               "carte": "Terra", "roulette": "Saturno", "fiches": "Astronauta",
                "gemma": "UFO", "bar": "Razzo", "regalo": "Alieno", "sette": "Sole",
                "dollaro": "Galassia", "palla8": "Nebulosa",
                "jolly": "Spazio", "dadi": "Cometa"},
@@ -459,7 +459,7 @@ NOMI_TEMA_LINGUA = {
                "mela": "Pluton", "fragola": "Lune", "anguria": "Mercure",
                "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
                "fiori": "Uranus", "quadri": "Neptune", "quadrifoglio": "Jupiter",
-               "carte": "Terre", "roulette": "Saturne", "fiches": "Pleiades",
+               "carte": "Terre", "roulette": "Saturne", "fiches": "Astronaute",
                "gemma": "OVNI", "bar": "Fusee", "regalo": "Alien", "sette": "Soleil",
                "dollaro": "Galaxie", "palla8": "Nebuleuse",
                "jolly": "Espace", "dadi": "Comete"},
@@ -467,7 +467,7 @@ NOMI_TEMA_LINGUA = {
                "mela": "Pluton", "fragola": "Luna", "anguria": "Mercurio",
                "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
                "fiori": "Urano", "quadri": "Neptuno", "quadrifoglio": "Jupiter",
-               "carte": "Tierra", "roulette": "Saturno", "fiches": "Pleyades",
+               "carte": "Tierra", "roulette": "Saturno", "fiches": "Astronauta",
                "gemma": "OVNI", "bar": "Cohete", "regalo": "Alien", "sette": "Sol",
                "dollaro": "Galaxia", "palla8": "Nebulosa",
                "jolly": "Espacio", "dadi": "Cometa"},
@@ -1138,9 +1138,8 @@ ANIMAZIONI = {
         "quadrifoglio": {"gira": 0.78},          # Giove, 9 ore e 55
         "carte": {"gira": 0.50},                 # Terra, 24 ore
         "roulette": {"gira": 0.74},           # Saturno, 10 ore e mezza
-        # le sette sorelle: disegnate dal codice, brillano e la nebbia
-        # azzurra che le avvolge scorre piano
-        "fiches": {"pleiadi": 0.11},
+        # l'astronauta: galleggia piano, come chi non ha peso
+        "fiches": {"onda": 0.055},
         # la galassia a spirale: disegnata dal codice, gira su se stessa
         "dollaro": {"galassia": 0.06, "misura": 1.95},
         # la nebulosa non e' una PNG: la disegna il codice, tre veli di
