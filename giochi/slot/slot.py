@@ -858,7 +858,7 @@ COLORI_VINTE = ((120, 230, 255), (255, 170, 205), (160, 245, 170),
 
 
 # quanto della casella riempie il simbolo: piu' piccolo respira meglio
-GRANDE = 0.78
+GRANDE = 0.52
 
 # ------------------------------------------------------ i simboli vivi
 # Certi simboli si muovono da soli, ma solo a rulli fermi: mentre girano
