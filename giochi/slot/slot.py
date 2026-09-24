@@ -438,8 +438,7 @@ NOMI_TEMA = {
         "quadri": "Neptune",
         "campana": "TRAPPIST-1", "ferro": "Proxima", "quadrifoglio": "Jupiter",
         "carte": "Earth", "roulette": "Saturn", "fiches": "Pleiades",
-        "bar": "Rocket", "sette": "Sun",
-        "regalo": "Alien",
+        "gemma": "Alien", "bar": "Rocket", "sette": "Sun",
         "dollaro": "Galaxy", "palla8": "Nebula",
         "jolly": "Space", "dadi": "Comet",
     },
@@ -452,7 +451,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venere", "cuori": "Marte", "picche": "Esopianeta",
                "fiori": "Urano", "quadri": "Nettuno", "quadrifoglio": "Giove",
                "carte": "Terra", "roulette": "Saturno", "fiches": "Pleiadi",
-               "bar": "Razzo", "regalo": "Alieno", "sette": "Sole",
+               "gemma": "Alieno", "bar": "Razzo", "sette": "Sole",
                "dollaro": "Galassia", "palla8": "Nebulosa",
                "jolly": "Spazio", "dadi": "Cometa"},
         "fr": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
@@ -460,7 +459,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
                "fiori": "Uranus", "quadri": "Neptune", "quadrifoglio": "Jupiter",
                "carte": "Terre", "roulette": "Saturne", "fiches": "Pleiades",
-               "bar": "Fusee", "regalo": "Alien", "sette": "Soleil",
+               "gemma": "Alien", "bar": "Fusee", "sette": "Soleil",
                "dollaro": "Galaxie", "palla8": "Nebuleuse",
                "jolly": "Espace", "dadi": "Comete"},
         "es": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
@@ -468,7 +467,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
                "fiori": "Urano", "quadri": "Neptuno", "quadrifoglio": "Jupiter",
                "carte": "Tierra", "roulette": "Saturno", "fiches": "Pleyades",
-               "bar": "Cohete", "regalo": "Alien", "sette": "Sol",
+               "gemma": "Alien", "bar": "Cohete", "sette": "Sol",
                "dollaro": "Galaxia", "palla8": "Nebulosa",
                "jolly": "Espacio", "dadi": "Cometa"},
     },
@@ -784,6 +783,8 @@ def frames_disegnati(nome, misura):
         return frames_nebbia(misura, an.get("colori"))
     if an.get("alieno"):
         return frames_alieno(nome, misura)
+    if an.get("targa"):
+        return frames_targa(nome, misura, an.get("colori"))
     return None
 
 
@@ -1148,15 +1149,18 @@ ANIMAZIONI = {
         # il razzo: balla come i dadi, perche' si muove mentre va, e
         # dietro ha la fiammata che lo spinge
         "bar": {"trema": 0.030, "fiamma": 1.0, "misura": 0.86},
-        # la targa SPACE: respira e si accende
-        "jolly": {"onda": 0.03, "lampo": 0.22},
+        # le targhe: la scritta sta ferma, si muove solo la nebbia
+        # che ci sta dietro
+        "jolly": {"targa": 0.10,
+                  "colori": ((120, 90, 235), (90, 170, 255), (210, 120, 255))},
         # i giri gratis li porta la cometa: fluttua e lascia la scia
         "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                  "colore": (150, 200, 255), "misura": 0.67},
-        # il bonus e' l'alieno: guarda in giro e apre la bocca
-        "regalo": {"alieno": 1.10},
-        # il jackpot lampeggia
-        "jackpot": {"lampo": 0.40, "batte": 0.06},
+        # il regalo batte, il jackpot lampeggia
+        "regalo": {"batte": 0.10},
+        "jackpot": {"targa": 0.10,
+                    "colori": ((235, 120, 60), (255, 70, 120),
+                               (180, 60, 210))},
     },
 }
 
@@ -1469,6 +1473,36 @@ def frames_galassia(misura, quanti=None):
         pygame.surfarray.pixels_alpha(sup)[:, :] = (alfa * 255).astype(np.uint8)
         fuori.append(sup)
     GALASSIE[chiave] = fuori
+    return fuori
+
+
+TARGHE = {}
+QUANTI_TARGA = 48
+
+
+def frames_targa(nome, misura, colori=None, quanti=None):
+    """Le scritte, SPACE e JACKPOT: la scritta sta ferma com'e', si
+    muove soltanto la nebbia che le sta dietro."""
+    quanti = quanti or QUANTI_TARGA
+    chiave = (tema(), nome, misura, quanti)
+    if chiave in TARGHE:
+        return TARGHE[chiave]
+    TARGHE[chiave] = None
+    w, h = misura
+    neb = frames_nebbia((max(4, int(w * 0.98)), max(4, int(h * 0.58))),
+                        colori, quanti)
+    if not neb:
+        return None
+    parola = figura_nuda(nome, misura)
+    fuori = []
+    for f in neb:
+        sup = pygame.Surface((w, h), pygame.SRCALPHA)
+        q = f.copy()
+        q.fill((255, 255, 255, 165), special_flags=pygame.BLEND_RGBA_MULT)
+        sup.blit(q, q.get_rect(center=(w // 2, h // 2)))
+        sup.blit(parola, parola.get_rect(center=(w // 2, h // 2)))
+        fuori.append(sup)
+    TARGHE[chiave] = fuori
     return fuori
 
 
@@ -2124,7 +2158,8 @@ class Macchina:
         fr = frames_disegnati(nome, grande)
         if fr:
             quanto = (an.get("galassia") or an.get("pleiadi")
-                      or an.get("nebbia") or an.get("alieno"))
+                      or an.get("nebbia") or an.get("alieno")
+                      or an.get("targa"))
             img = fotogramma(fr, tt * quanto * len(fr))
         elif an.get("gira"):
             fr = frames_giro(nome, grande)
