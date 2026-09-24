@@ -803,6 +803,12 @@ def figura(nome, misura):
     if fr:
         NUDE[chiave] = fr[0]
         return fr[0]
+    c = corona_di(nome)
+    if c:
+        palla = figura_nuda(nome, (max(4, int(misura[0] * c["palla"])),
+                                   max(4, int(misura[1] * c["palla"]))))
+        NUDE[chiave] = con_corona(nome, palla, misura)
+        return NUDE[chiave]
     if not anello_di(nome):
         NUDE[chiave] = figura_nuda(nome, misura)
         return NUDE[chiave]
@@ -1368,6 +1374,66 @@ def anello_pezzi(nome, misura, R):
         pezzi.append(mezzo)
     ANELLI_FATTI[chiave] = (pezzi[0], pezzi[1])
     return ANELLI_FATTI[chiave]
+
+
+CORONE = {
+    "nuova": {
+        # il sole: la palla piccola in mezzo e tutta la luce intorno
+        "sette": {"palla": 0.56, "fuori": 2.55, "raggi": 16,
+                  "dentro": (255, 246, 190), "orlo": (255, 128, 20)},
+    },
+}
+CORONE_FATTE = {}
+
+
+def corona_di(nome):
+    return CORONE.get(tema(), {}).get(nome)
+
+
+def con_corona(nome, palla, misura):
+    """La luce del sole intorno alla palla: si accende contro il disco e
+    si spegne piano andando fuori, con i raggi che si allungano e si
+    accorciano tutt'intorno. E' luce, quindi non ha un contorno."""
+    d = corona_di(nome)
+    if not d:
+        return palla
+    w, h = misura
+    chiave = (tema(), nome, misura)
+    if chiave not in CORONE_FATTE:
+        try:
+            import numpy as np
+        except ImportError:
+            CORONE_FATTE[chiave] = None
+            return palla
+        _cx, _cy, R = centro_raggio(palla)
+        xx, yy = np.meshgrid(np.arange(w), np.arange(h), indexing="ij")
+        X = xx - (w - 1) / 2.0
+        Y = yy - (h - 1) / 2.0
+        r = np.sqrt(X * X + Y * Y) / max(1.0, R)
+        th = np.arctan2(Y, X)
+        # i raggi: la luce non e' uguale tutt'intorno
+        raggi = 0.74 + 0.26 * np.cos(d["raggi"] * th)
+        luce = np.exp(-((r - 0.96) / 0.62) ** 2) * raggi
+        luce = np.where(r < 0.96, np.exp(-((r - 0.96) / 0.30) ** 2), luce)
+        luce = np.clip(luce * (1.0 - np.clip((r - 1.0) /
+                                             (d["fuori"] - 1.0), 0, 1)), 0, 1)
+        k = np.clip((r - 0.9) / 1.2, 0, 1)[:, :, None]
+        rgb = (np.array(d["dentro"], np.float32)[None, None, :] * (1 - k) +
+               np.array(d["orlo"], np.float32)[None, None, :] * k)
+        sup = pygame.Surface(misura, pygame.SRCALPHA)
+        pygame.surfarray.blit_array(
+            sup, np.clip(rgb * (0.55 + 0.45 * luce[:, :, None]),
+                         0, 255).astype(np.uint8))
+        pygame.surfarray.pixels_alpha(sup)[:, :] = np.clip(
+            luce * 235, 0, 255).astype(np.uint8)
+        CORONE_FATTE[chiave] = sup
+    fondo = CORONE_FATTE[chiave]
+    if fondo is None:
+        return palla
+    fuori = pygame.Surface(misura, pygame.SRCALPHA)
+    fuori.blit(fondo, (0, 0))
+    fuori.blit(palla, palla.get_rect(center=(w // 2, h // 2)))
+    return fuori
 
 
 def con_anello(nome, palla, misura):
