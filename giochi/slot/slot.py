@@ -1317,25 +1317,48 @@ def anello_pezzi(nome, misura, R):
     if not d:
         ANELLI_FATTI[chiave] = None
         return None
-    K = 4                                   # si disegna in grande
-    L = max(misura) * K
-    piano = pygame.Surface((L, L), pygame.SRCALPHA)
+    K = 3                                   # si disegna in grande
+    L = int(max(misura) * K)
     m = L // 2
     a_f, a_d, sch = R * d["fuori"] * K, R * d["dentro"] * K, d["schiaccia"]
     col = tuple(d["colore"])
-    pygame.draw.ellipse(piano, col + (d.get("opaco", 235),),
-                        pygame.Rect(m - a_f, m - a_f * sch,
-                                    a_f * 2, a_f * sch * 2))
-    if d.get("divisione"):
-        q = a_d + (a_f - a_d) * d["divisione"]
+    piano = pygame.Surface((L, L), pygame.SRCALPHA)
+    try:
+        import numpy as np
+    except ImportError:
+        np = None
+    if np is None:
+        pygame.draw.ellipse(piano, col + (d.get("opaco", 235),),
+                            pygame.Rect(m - a_f, m - a_f * sch,
+                                        a_f * 2, a_f * sch * 2))
         pygame.draw.ellipse(piano, (0, 0, 0, 0),
-                            pygame.Rect(m - q, m - q * sch, q * 2, q * sch * 2),
-                            max(2 * K, int((a_f - a_d) * 0.13)))
-    pygame.draw.ellipse(piano, (0, 0, 0, 0),
-                        pygame.Rect(m - a_d, m - a_d * sch,
-                                    a_d * 2, a_d * sch * 2))
+                            pygame.Rect(m - a_d, m - a_d * sch,
+                                        a_d * 2, a_d * sch * 2))
+    else:
+        # l'anello non e' una ciambella piena col bordo netto: sono
+        # fasce, ognuna piu' accesa in mezzo e spenta ai lati, come i
+        # bracci della galassia. Dentro e fuori si spegne piano, cosi'
+        # non si vede dove comincia e dove finisce
+        xx, yy = np.meshgrid(np.arange(L), np.arange(L), indexing="ij")
+        X = xx - m
+        Y = (yy - m) / max(0.05, sch)
+        r = np.sqrt(X * X + Y * Y)
+        u = (r - a_d) / max(1.0, a_f - a_d)
+        fitto = np.zeros((L, L), np.float32)
+        for dove, largo, forza in ((0.16, 0.20, 1.00), (0.50, 0.15, 0.78),
+                                   (0.80, 0.12, 0.50)):
+            fitto += forza * np.exp(-((u - dove) / largo) ** 2)
+        fitto *= np.clip(u / 0.20, 0, 1) * np.clip((1.0 - u) / 0.32, 0, 1)
+        fitto = np.clip(fitto, 0, 1)
+        rgb = (np.array(col, np.float32)[None, None, :] *
+               (0.72 + 0.38 * fitto)[:, :, None])
+        pygame.surfarray.blit_array(piano, np.clip(rgb, 0, 255).astype(np.uint8))
+        pygame.surfarray.pixels_alpha(piano)[:, :] = np.clip(
+            fitto * d.get("opaco", 235), 0, 255).astype(np.uint8)
     pezzi = []
-    for alto, fondo in ((0, m), (m, L)):
+    # i due pezzi si accavallano di un pelo: tagliandoli netti a
+    # meta' resta una riga scura in mezzo all'anello
+    for alto, fondo in ((0, m + K * 5), (m, L)):
         mezzo = pygame.Surface((L, L), pygame.SRCALPHA)
         mezzo.blit(piano, (0, alto), pygame.Rect(0, alto, L, fondo - alto))
         mezzo = pygame.transform.rotozoom(mezzo, d.get("inclina", 0), 1.0)
