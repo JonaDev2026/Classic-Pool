@@ -1381,6 +1381,9 @@ CORONE = {
         # il sole: la palla piccola in mezzo e tutta la luce intorno
         "sette": {"palla": 0.58, "fuori": 2.55,
                   "dentro": (255, 246, 190), "orlo": (255, 128, 20)},
+        # la gigante rossa: stessa luce, ma rossa
+        "redgiant": {"palla": 0.58, "fuori": 2.55,
+                     "dentro": (255, 186, 146), "orlo": (206, 28, 14)},
     },
 }
 CORONE_FATTE = {}
