@@ -438,7 +438,8 @@ NOMI_TEMA = {
         "quadri": "Neptune",
         "campana": "TRAPPIST-1", "ferro": "Proxima", "quadrifoglio": "Jupiter",
         "carte": "Earth", "roulette": "Saturn", "fiches": "Pleiades",
-        "gemma": "Alien", "bar": "Rocket", "sette": "Sun",
+        "gemma": "Martian", "bar": "Rocket", "sette": "Sun",
+        "regalo": "Alien",
         "dollaro": "Galaxy", "palla8": "Nebula",
         "jolly": "Space", "dadi": "Comet",
     },
@@ -451,7 +452,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venere", "cuori": "Marte", "picche": "Esopianeta",
                "fiori": "Urano", "quadri": "Nettuno", "quadrifoglio": "Giove",
                "carte": "Terra", "roulette": "Saturno", "fiches": "Pleiadi",
-               "gemma": "Alieno", "bar": "Razzo", "sette": "Sole",
+               "gemma": "Marziano", "bar": "Razzo", "regalo": "Alieno", "sette": "Sole",
                "dollaro": "Galassia", "palla8": "Nebulosa",
                "jolly": "Spazio", "dadi": "Cometa"},
         "fr": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
@@ -459,7 +460,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
                "fiori": "Uranus", "quadri": "Neptune", "quadrifoglio": "Jupiter",
                "carte": "Terre", "roulette": "Saturne", "fiches": "Pleiades",
-               "gemma": "Alien", "bar": "Fusee", "sette": "Soleil",
+               "gemma": "Martien", "bar": "Fusee", "regalo": "Alien", "sette": "Soleil",
                "dollaro": "Galaxie", "palla8": "Nebuleuse",
                "jolly": "Espace", "dadi": "Comete"},
         "es": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
@@ -467,7 +468,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
                "fiori": "Urano", "quadri": "Neptuno", "quadrifoglio": "Jupiter",
                "carte": "Tierra", "roulette": "Saturno", "fiches": "Pleyades",
-               "gemma": "Alien", "bar": "Cohete", "sette": "Sol",
+               "gemma": "Marciano", "bar": "Cohete", "regalo": "Alien", "sette": "Sol",
                "dollaro": "Galaxia", "palla8": "Nebulosa",
                "jolly": "Espacio", "dadi": "Cometa"},
     },
@@ -781,6 +782,8 @@ def frames_disegnati(nome, misura):
         return frames_pleiadi(misura)
     if an.get("nebbia"):
         return frames_nebbia(misura, an.get("colori"))
+    if an.get("alieno"):
+        return frames_alieno(nome, misura)
     return None
 
 
@@ -1150,8 +1153,9 @@ ANIMAZIONI = {
         # i giri gratis li porta la cometa: fluttua e lascia la scia
         "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                  "colore": (150, 200, 255), "misura": 0.67},
-        # il regalo batte, il jackpot lampeggia
-        "regalo": {"batte": 0.10},
+        # il bonus e' l'alieno: guarda in giro e apre la bocca
+        "regalo": {"alieno": 1.10},
+        # il jackpot lampeggia
         "jackpot": {"lampo": 0.40, "batte": 0.06},
     },
 }
@@ -1465,6 +1469,136 @@ def frames_galassia(misura, quanti=None):
         pygame.surfarray.pixels_alpha(sup)[:, :] = (alfa * 255).astype(np.uint8)
         fuori.append(sup)
     GALASSIE[chiave] = fuori
+    return fuori
+
+
+PEZZI = {}
+ALIENI = {}
+QUANTI_ALIENO = 36
+
+
+def pezzi_faccia(nome):
+    """Dove stanno le pupille e la bocca dentro al disegno, in frazione.
+    Si guarda una volta sola: e' un disegno a tinte piatte, quindi le tre
+    tinte piu' usate sono il corpo, gli occhi e lo scuro. Le pupille sono
+    lo scuro dentro ai due tondi degli occhi, la bocca e' lo scuro che sta
+    nella meta' di sotto. Se non si capisce, si lascia perdere."""
+    if nome in PEZZI:
+        return PEZZI[nome]
+    PEZZI[nome] = None
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    base = figura_nuda(nome, (512, 512))
+    w, h = base.get_size()
+    rgb = pygame.surfarray.array3d(base).astype("int16")
+    alf = pygame.surfarray.array_alpha(base)
+    pieno = alf > 100
+    if pieno.sum() < 100:
+        return None
+    tinte, quante = np.unique(rgb[pieno].reshape(-1, 3), axis=0,
+                              return_counts=True)
+    ordine = np.argsort(-quante)[:3]
+    if len(ordine) < 3:
+        return None
+    corpo, occhio, scuro = [tinte[i] for i in ordine]
+
+    def come(c, quanto=70):
+        return (np.abs(rgb - c.astype("int16")).sum(2) < quanto) & pieno
+
+    def riquadro(m):
+        xs, ys = np.where(m)
+        if len(xs) < 12:
+            return None
+        return (xs.min(), ys.min(), xs.max() - xs.min() + 1,
+                ys.max() - ys.min() + 1)
+
+    m_occhio, m_scuro = come(occhio), come(scuro)
+    mezzo = w // 2
+    tondi = []
+    for lato in (slice(0, mezzo), slice(mezzo, w)):
+        m = np.zeros_like(m_occhio)
+        m[lato] = m_occhio[lato]
+        r = riquadro(m)
+        if r is None:
+            return None
+        dentro = np.zeros_like(m_scuro)
+        dentro[r[0]:r[0] + r[2], r[1]:r[1] + r[3]] = \
+            m_scuro[r[0]:r[0] + r[2], r[1]:r[1] + r[3]]
+        p = riquadro(dentro)
+        if p is None:
+            return None
+        tondi.append((p, r))
+    giu = np.zeros_like(m_scuro)
+    taglio = int(h * 0.45)
+    giu[:, taglio:] = m_scuro[:, taglio:]
+    for p, r in tondi:                      # gli occhi non sono la bocca
+        giu[r[0]:r[0] + r[2], r[1]:r[1] + r[3]] = False
+    bocca = riquadro(giu)
+    if bocca is None:
+        return None
+
+    def frazione(r):
+        return (r[0] / float(w), r[1] / float(h),
+                r[2] / float(w), r[3] / float(h))
+
+    PEZZI[nome] = ([(frazione(p), frazione(r)) for p, r in tondi],
+                   frazione(bocca), tuple(int(v) for v in occhio),
+                   tuple(int(v) for v in corpo),
+                   tuple(int(v) for v in scuro))
+    return PEZZI[nome]
+
+
+def frames_alieno(nome, misura, quanti=None):
+    """L'alieno che guarda in giro e apre la bocca. Le pupille si
+    spostano dentro ai loro tondi e la bocca si allunga in giu': si
+    ritaglia il pezzo, si ritappa il buco con la tinta che ci sta sotto
+    e si riattacca il pezzo spostato."""
+    p = pezzi_faccia(nome)
+    if not p:
+        return None
+    quanti = quanti or QUANTI_ALIENO
+    chiave = (tema(), nome, misura, quanti)
+    if chiave in ALIENI:
+        return ALIENI[chiave]
+    occhi, bocca, c_occhio, c_corpo, c_scuro = p
+    base = figura_nuda(nome, misura)
+    w, h = base.get_size()
+
+    def rett(fr):
+        return pygame.Rect(int(fr[0] * w), int(fr[1] * h),
+                           max(1, int(fr[2] * w)), max(1, int(fr[3] * h)))
+
+    fuori = []
+    for f in range(quanti):
+        k = f / float(quanti)
+        sup = base.copy()
+        # lo sguardo gira: un otto, cosi' torna al punto di partenza
+        sx = math.sin(2 * math.pi * k)
+        sy = math.sin(4 * math.pi * k)
+        for fr_p, fr_t in occhi:
+            rp, rt = rett(fr_p), rett(fr_t)
+            if rp.w < 1 or rp.h < 1:
+                continue
+            amp = max(1.0, rt.w * 0.16)
+            # e' un disegno a tinte piatte: invece di ritagliare e
+            # riattaccare, si ridipinge il tondo di giallo e ci si
+            # rifa' sopra la pupilla dove deve stare adesso
+            pygame.draw.ellipse(sup, c_occhio, rt.inflate(-1, -1))
+            pygame.draw.ellipse(sup, c_scuro,
+                                rp.move(int(round(sx * amp)),
+                                        int(round(sy * amp * 0.55))))
+        rb = rett(bocca)
+        if rb.w >= 2 and rb.h >= 1:
+            apre = 1.0 + 0.55 * (0.5 - 0.5 * math.cos(6 * math.pi * k))
+            pez = sup.subsurface(rb).copy()
+            pygame.draw.ellipse(sup, c_corpo, rb.inflate(3, 3))
+            alta = max(1, int(round(rb.h * apre)))
+            pez = pygame.transform.smoothscale(pez, (rb.w, alta))
+            sup.blit(pez, (rb.x, rb.y))
+        fuori.append(sup)
+    ALIENI[chiave] = fuori
     return fuori
 
 
@@ -1990,7 +2124,7 @@ class Macchina:
         fr = frames_disegnati(nome, grande)
         if fr:
             quanto = (an.get("galassia") or an.get("pleiadi")
-                      or an.get("nebbia"))
+                      or an.get("nebbia") or an.get("alieno"))
             img = fotogramma(fr, tt * quanto * len(fr))
         elif an.get("gira"):
             fr = frames_giro(nome, grande)
