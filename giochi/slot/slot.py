@@ -1230,7 +1230,7 @@ ANIMAZIONI = {
         # le targhe: la scritta sta ferma, si muove solo la nebbia
         # che ci sta dietro
         "jolly": {"targa": 0.10, "scia": 26, "verso": (0.0, -0.22),
-                  "sparso": 0.46, "colore": (170, 215, 255),
+                  "sparso": 0.46, "colore": (170, 215, 255), "pixel": True,
                   "colori": ((120, 90, 235), (90, 170, 255), (210, 120, 255))},
         # i giri gratis li porta la cometa: fluttua e lascia la scia
         "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
@@ -1239,7 +1239,7 @@ ANIMAZIONI = {
         "regalo": {"onda": 0.040},
         # il jackpot:
         "jackpot": {"targa": 0.10, "scia": 26, "verso": (0.0, -0.22),
-                    "sparso": 0.46, "colore": (255, 205, 120),
+                    "sparso": 0.46, "colore": (255, 205, 120), "pixel": True,
                     "colori": ((235, 120, 60), (255, 70, 120),
                                (180, 60, 210))},
     },
@@ -2251,7 +2251,8 @@ class Macchina:
             0.0, random.uniform(0.5, 1.2),
             random.choice((0.45, 0.65, 0.9)) * misura[0] / float(B.s(41)),
             an.get("colore", (200, 220, 255)),
-            random.uniform(0.0, 6.28)])
+            random.uniform(0.0, 6.28),
+            bool(an.get("pixel"))])
 
     def scia_passo(self):
         """La scia: si muove, rallenta e si spegne. I granelli nuovi li
@@ -2285,11 +2286,19 @@ class Macchina:
 
     def disegna_scia(self):
         """I granelli della scia, sotto ai simboli."""
-        for x, y, _vx, _vy, vita, durata, grande, col, fase in self.scia:
+        for x, y, _vx, _vy, vita, durata, grande, col, fase, fine \
+                in self.scia:
             vivo = math.sin(math.pi * vita / durata) ** 0.8
             luce = 0.55 + 0.45 * math.sin(fase + vita * 9.0)
             forza = vivo * luce
             if forza < 0.05:
+                continue
+            if fine:
+                # pixellini e basta: nessun alone, se no coprono tutto
+                lato = max(1, int(B.s(1.7) * grande))
+                self.sc.fill(tuple(int(c * forza) for c in col),
+                             (int(x), int(y), lato, lato),
+                             special_flags=pygame.BLEND_RGB_ADD)
                 continue
             q = granello(max(3, int(B.s(12) * grande)), col, forza)
             self.sc.blit(q, q.get_rect(center=(int(x), int(y))),
