@@ -649,6 +649,17 @@ def tema():
 NUDE = {}
 
 
+def misura_simbolo(nome, misura):
+    """Quanto va disegnato grande quel simbolo. Di suo ognuno occupa la
+    stessa casella, ma certi disegni chiedono piu' spazio (la galassia)
+    e certi ne vogliono meno (un sasso)."""
+    an = ANIMAZIONI.get(tema(), {}).get(nome)
+    k = (an or {}).get("misura", 1.0)
+    if k == 1.0:
+        return misura
+    return (max(4, int(misura[0] * k)), max(4, int(misura[1] * k)))
+
+
 def frames_disegnati(nome, misura):
     """I fotogrammi dei simboli che non sono una PNG ma li disegna il
     codice. Niente se questo simbolo non e' uno di quelli."""
@@ -673,6 +684,7 @@ def figura(nome, misura):
     # i simboli che disegna il codice (galassia, nebulosa, Pleiadi) non
     # hanno una PNG: il loro primo fotogramma E' la loro faccia, se no
     # sui rulli si vedrebbe ancora il disegno vecchio
+    misura = misura_simbolo(nome, misura)
     fr = frames_disegnati(nome, misura)
     if fr:
         NUDE[chiave] = fr[0]
@@ -980,6 +992,11 @@ GRANDE = 0.52
 #   colore   di che colore sono i granelli
 #   onda     di quanto ondeggia, in frazione di casella
 # Chi non e' qui dentro fa quello di sempre: respira e basta.
+# Quanto vanno veloci tutte le animazioni, tutte insieme. I numeri della
+# tabella qui sotto restano i rapporti fra un simbolo e l'altro: questo
+# li rallenta o li accelera tutti mantenendo le proporzioni.
+VELOCITA = 0.5
+
 ANIMAZIONI = {
     "nuova": {
         # Ogni pianeta gira alla SUA velocita', e l'ordine e' quello
@@ -988,7 +1005,8 @@ ANIMAZIONI = {
         # perche' e' l'unico del sistema solare a farlo davvero.
         # I numeri sono giri al secondo, compressi: a tenere le
         # proporzioni vere Venere avrebbe impiegato mezz'ora a girare.
-        "ciliegia": {"onda": 0.05},              # asteroide: galleggia
+        # l'asteroide e' un sasso: galleggia, e sta piccolo
+        "ciliegia": {"onda": 0.05, "misura": 0.67},
         "limone": {"gira": 0.80},                # Cerere, 9 ore
         "arancia": {"gira": 0.52},               # Makemake, 22 ore
         "prugna": {"gira": 0.47},                # Eris, 26 ore
@@ -1007,10 +1025,10 @@ ANIMAZIONI = {
         "roulette": {"gira": 0.74},           # Saturno, 10 ore e mezza
         # la cometa non e' una sfera: fluttua e lascia la scia
         "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
-                   "colore": (150, 200, 255)},
+                   "colore": (150, 200, 255), "misura": 0.67},
         "sette": {"gira": 0.20},                 # il Sole, 25 giorni
         # la galassia a spirale: disegnata dal codice, gira su se stessa
-        "dollaro": {"galassia": 0.06},
+        "dollaro": {"galassia": 0.06, "misura": 1.95},
         # la nebulosa non e' una PNG: la disegna il codice, tre veli di
         # nebbia che scorrono uno sull'altro e le stelle che brillano
         "palla8": {"nebbia": 0.18,
@@ -1265,6 +1283,15 @@ def frames_galassia(misura, quanti=None):
     # la granella di stelle sparse dentro al disco
     rnd = np.random.RandomState(11)
     grana = (rnd.rand(w, h) > 0.985).astype(np.float32) * rnd.rand(w, h)
+    # le macchie rosa, a onde intere cosi' girano senza cuciture
+    rosa = np.zeros((w, h), np.float32)
+    for _ in range(4):
+        fx, fy = rnd.randint(1, 4), rnd.randint(1, 4)
+        rosa += rnd.uniform(0.4, 1.0) * np.sin(
+            2 * math.pi * (fx * xx / float(w) + fy * yy / float(h)) +
+            rnd.uniform(0, 6.28))
+    rosa = np.clip((rosa - rosa.min()) / max(1e-6, rosa.max() - rosa.min()),
+                   0, 1) ** 2.6
     fuori = []
     for f in range(quanti):
         fase = math.pi * f / float(quanti)    # mezzo giro: due bracci
@@ -1281,15 +1308,23 @@ def frames_galassia(misura, quanti=None):
         d = np.clip(bracci * 1.5 + alone + velo - buio, 0, 1)
         rgb = np.zeros((w, h, 3), np.float32)
         # i bracci azzurri con le stelle rosa dentro, il nucleo caldo
-        rgb += d[:, :, None] * np.array([120, 170, 255], np.float32)
-        rgb += (d ** 3)[:, :, None] * np.array([210, 120, 255], np.float32)
+        rgb += d[:, :, None] * np.array([110, 160, 255], np.float32)
+        # le nubi rosa lungo i bracci: nelle galassie vere sono le zone
+        # dove nascono le stelle, ed e' quello che le fa colorate
+        nubi = np.roll(rosa, int(round(fase / math.pi * w)), axis=0)
+        fiore = np.clip(bracci * 2.2, 0, 1) * nubi
+        rgb += fiore[:, :, None] * np.array([255, 96, 168], np.float32) * 1.4
+        rgb += (d ** 3)[:, :, None] * np.array([190, 120, 255], np.float32)
+        # l'alone caldo che avvolge tutto il disco
+        rgb += (velo * 1.6)[:, :, None] * np.array([120, 90, 190], np.float32)
         # la granella di stelle, che gira insieme al disco
         gr = np.roll(grana, int(round(fase / math.pi * w)), axis=0)
         stelline = gr * np.clip(d * 1.6, 0, 1)
         rgb += stelline[:, :, None] * np.array([235, 245, 255], np.float32)
         rgb += (nucleo[:, :, None] *
                 np.array([255, 224, 150], np.float32) * 1.5)
-        alfa = np.clip(d * 1.6 + nucleo * 1.6 + stelline, 0, 1) * dentro
+        alfa = np.clip(d * 1.6 + nucleo * 1.6 + stelline + fiore * 0.8,
+                       0, 1) * dentro
         # il bordo che sfuma, se no si vede il cerchio netto
         alfa *= np.clip((1.0 - r) / 0.28, 0, 1)
         sup = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -1816,15 +1851,16 @@ class Macchina:
         an = animazione(nome)
         if not an:
             return figura(nome, misura), (0.0, 0.0)
-        tt = self.t_neon
+        tt = self.t_neon * VELOCITA
         img = None
-        fr = frames_disegnati(nome, misura)
+        grande = misura_simbolo(nome, misura)
+        fr = frames_disegnati(nome, grande)
         if fr:
             quanto = (an.get("galassia") or an.get("pleiadi")
                       or an.get("nebbia"))
             img = fr[int(tt * quanto * len(fr)) % len(fr)]
         elif an.get("gira"):
-            fr = frames_giro(nome, misura)
+            fr = frames_giro(nome, grande)
             if fr:
                 img = fr[int(tt * an["gira"] * len(fr)) % len(fr)]
         if img is None:
