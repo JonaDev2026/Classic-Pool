@@ -438,7 +438,8 @@ NOMI_TEMA = {
         "quadri": "Neptune",
         "campana": "TRAPPIST-1", "ferro": "Proxima", "quadrifoglio": "Jupiter",
         "carte": "Earth", "roulette": "Saturn", "fiches": "Pleiades",
-        "gemma": "Alien", "bar": "Rocket", "sette": "Sun",
+        "gemma": "Martian", "bar": "Rocket", "sette": "Sun",
+        "regalo": "Alien",
         "dollaro": "Galaxy", "palla8": "Nebula",
         "jolly": "Space", "dadi": "Comet",
     },
@@ -451,7 +452,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venere", "cuori": "Marte", "picche": "Esopianeta",
                "fiori": "Urano", "quadri": "Nettuno", "quadrifoglio": "Giove",
                "carte": "Terra", "roulette": "Saturno", "fiches": "Pleiadi",
-               "gemma": "Alieno", "bar": "Razzo", "sette": "Sole",
+               "gemma": "Marziano", "bar": "Razzo", "regalo": "Alieno", "sette": "Sole",
                "dollaro": "Galassia", "palla8": "Nebulosa",
                "jolly": "Spazio", "dadi": "Cometa"},
         "fr": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
@@ -459,7 +460,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
                "fiori": "Uranus", "quadri": "Neptune", "quadrifoglio": "Jupiter",
                "carte": "Terre", "roulette": "Saturne", "fiches": "Pleiades",
-               "gemma": "Alien", "bar": "Fusee", "sette": "Soleil",
+               "gemma": "Martien", "bar": "Fusee", "regalo": "Alien", "sette": "Soleil",
                "dollaro": "Galaxie", "palla8": "Nebuleuse",
                "jolly": "Espace", "dadi": "Comete"},
         "es": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
@@ -467,7 +468,7 @@ NOMI_TEMA_LINGUA = {
                "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
                "fiori": "Urano", "quadri": "Neptuno", "quadrifoglio": "Jupiter",
                "carte": "Tierra", "roulette": "Saturno", "fiches": "Pleyades",
-               "gemma": "Alien", "bar": "Cohete", "sette": "Sol",
+               "gemma": "Marciano", "bar": "Cohete", "regalo": "Alien", "sette": "Sol",
                "dollaro": "Galaxia", "palla8": "Nebulosa",
                "jolly": "Espacio", "dadi": "Cometa"},
     },
@@ -1156,8 +1157,9 @@ ANIMAZIONI = {
         # i giri gratis li porta la cometa: fluttua e lascia la scia
         "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                  "colore": (150, 200, 255), "misura": 0.67},
-        # il regalo batte, il jackpot lampeggia
-        "regalo": {"batte": 0.10},
+        # il bonus e' l'alieno: guarda a destra e a sinistra
+        "regalo": {"alieno": 0.68},
+        # il jackpot:
         "jackpot": {"targa": 0.10,
                     "colori": ((235, 120, 60), (255, 70, 120),
                                (180, 60, 210))},
@@ -1508,15 +1510,16 @@ def frames_targa(nome, misura, colori=None, quanti=None):
 
 PEZZI = {}
 ALIENI = {}
-QUANTI_ALIENO = 36
+QUANTI_ALIENO = 48
 
 
 def pezzi_faccia(nome):
     """Dove stanno le pupille e la bocca dentro al disegno, in frazione.
-    Si guarda una volta sola: e' un disegno a tinte piatte, quindi le tre
-    tinte piu' usate sono il corpo, gli occhi e lo scuro. Le pupille sono
-    lo scuro dentro ai due tondi degli occhi, la bocca e' lo scuro che sta
-    nella meta' di sotto. Se non si capisce, si lascia perdere."""
+    Si guarda una volta sola. E' roba disegnata a tinte piatte: la tinta
+    piu' usata e' il corpo, e le altre due sono l'occhio e la pupilla -
+    ma non si sa quale delle due e' quale, dipende dal disegno. Allora si
+    provano tutt'e due nei due versi e si tiene quella dove la pupilla
+    sta DENTRO all'occhio. Se non torna, niente animazione."""
     if nome in PEZZI:
         return PEZZI[nome]
     PEZZI[nome] = None
@@ -1529,14 +1532,15 @@ def pezzi_faccia(nome):
     rgb = pygame.surfarray.array3d(base).astype("int16")
     alf = pygame.surfarray.array_alpha(base)
     pieno = alf > 100
-    if pieno.sum() < 100:
+    if pieno.sum() < 400:
         return None
     tinte, quante = np.unique(rgb[pieno].reshape(-1, 3), axis=0,
                               return_counts=True)
     ordine = np.argsort(-quante)[:3]
     if len(ordine) < 3:
         return None
-    corpo, occhio, scuro = [tinte[i] for i in ordine]
+    corpo = tinte[ordine[0]]
+    due = [tinte[ordine[1]], tinte[ordine[2]]]
 
     def come(c, quanto=70):
         return (np.abs(rgb - c.astype("int16")).sum(2) < quanto) & pieno
@@ -1545,92 +1549,171 @@ def pezzi_faccia(nome):
         xs, ys = np.where(m)
         if len(xs) < 12:
             return None
-        return (xs.min(), ys.min(), xs.max() - xs.min() + 1,
-                ys.max() - ys.min() + 1)
+        return pygame.Rect(int(xs.min()), int(ys.min()),
+                           int(xs.max() - xs.min() + 1),
+                           int(ys.max() - ys.min() + 1))
 
-    m_occhio, m_scuro = come(occhio), come(scuro)
-    mezzo = w // 2
-    tondi = []
-    for lato in (slice(0, mezzo), slice(mezzo, w)):
-        m = np.zeros_like(m_occhio)
-        m[lato] = m_occhio[lato]
-        r = riquadro(m)
-        if r is None:
+    def prova(c_occhio, c_pupilla):
+        """Gli occhi sono due, uno per parte, e dentro ci sta la pupilla,
+        che e' piu' piccola e non tocca i bordi."""
+        m_o, m_p = come(c_occhio), come(c_pupilla)
+        alto = np.zeros_like(m_o)
+        alto[:, :int(h * 0.72)] = m_o[:, :int(h * 0.72)]
+        fuori = []
+        for lato in (slice(0, w // 2), slice(w // 2, w)):
+            m = np.zeros_like(alto)
+            m[lato] = alto[lato]
+            occhio = riquadro(m)
+            if occhio is None or occhio.w < w * 0.06:
+                return None
+            # un occhio e' un pezzo raccolto: se il riquadro e' mezza
+            # faccia, quella tinta e' dell'altra roba (le corna, l'ombra)
+            if occhio.w > w * 0.42 or occhio.h > h * 0.42:
+                return None
+            d = np.zeros_like(m_p)
+            d[occhio.x:occhio.right, occhio.y:occhio.bottom] = \
+                m_p[occhio.x:occhio.right, occhio.y:occhio.bottom]
+            pup = riquadro(d)
+            if pup is None:
+                return None
+            if pup.w >= occhio.w * 0.92 or pup.h >= occhio.h * 0.92:
+                return None            # non e' dentro: e' lo stesso pezzo
+            if pup.w * pup.h < occhio.w * occhio.h * 0.015:
+                return None            # troppo piccola: e' un riflesso
+            fuori.append((pup, occhio))
+        # gli occhi sono due e stanno alla stessa altezza, uno per parte
+        (p1, o1), (p2, o2) = fuori
+        if abs(o1.centery - o2.centery) > h * 0.12:
             return None
-        dentro = np.zeros_like(m_scuro)
-        dentro[r[0]:r[0] + r[2], r[1]:r[1] + r[3]] = \
-            m_scuro[r[0]:r[0] + r[2], r[1]:r[1] + r[3]]
-        p = riquadro(dentro)
-        if p is None:
+        if min(o1.w, o2.w) < max(o1.w, o2.w) * 0.60:
             return None
-        tondi.append((p, r))
-    giu = np.zeros_like(m_scuro)
-    taglio = int(h * 0.45)
-    giu[:, taglio:] = m_scuro[:, taglio:]
-    for p, r in tondi:                      # gli occhi non sono la bocca
-        giu[r[0]:r[0] + r[2], r[1]:r[1] + r[3]] = False
-    bocca = riquadro(giu)
-    if bocca is None:
+        return fuori
+
+    tondi = prova(due[0], due[1])
+    scuro = due[1]
+    if tondi is None:
+        tondi = prova(due[1], due[0])
+        scuro = due[0]
+        due = [due[1], due[0]]
+    if tondi is None:
         return None
+    # la bocca: lo scuro che sta sotto, ma solo se e' un pezzo raccolto
+    # in mezzo alla faccia. Un alieno senza bocca non ne ha bisogno
+    m_s = come(scuro)
+    giu = np.zeros_like(m_s)
+    taglio = int(h * 0.45)
+    giu[:, taglio:] = m_s[:, taglio:]
+    for pup, occhio in tondi:
+        giu[occhio.x:occhio.right, occhio.y:occhio.bottom] = False
+    bocca = riquadro(giu)
+    if bocca is not None:
+        largo_ok = bocca.w < w * 0.50 and bocca.h < h * 0.30
+        centro_ok = abs(bocca.centerx - w * 0.5) < w * 0.18
+        if not (largo_ok and centro_ok):
+            bocca = None
 
     def frazione(r):
-        return (r[0] / float(w), r[1] / float(h),
-                r[2] / float(w), r[3] / float(h))
+        return (r.x / float(w), r.y / float(h),
+                r.w / float(w), r.h / float(h))
 
-    PEZZI[nome] = ([(frazione(p), frazione(r)) for p, r in tondi],
-                   frazione(bocca), tuple(int(v) for v in occhio),
+    PEZZI[nome] = ([(frazione(p), frazione(o)) for p, o in tondi],
+                   frazione(bocca) if bocca else None,
+                   tuple(int(v) for v in due[0]),
                    tuple(int(v) for v in corpo),
-                   tuple(int(v) for v in scuro))
+                   tuple(int(v) for v in due[1]))
     return PEZZI[nome]
 
 
+def sguardo(k):
+    """Guarda da una parte, ci resta un momento buono, poi passa
+    dall'altra. Le due punte sono addolcite, cosi' non parte di scatto."""
+    fermo, passo = 0.34, 0.16
+    if k < fermo:
+        return 1.0
+    if k < fermo + passo:
+        u = (k - fermo) / passo
+        return 1.0 - 2.0 * (u * u * (3.0 - 2.0 * u))
+    if k < 2 * fermo + passo:
+        return -1.0
+    u = min(1.0, (k - 2 * fermo - passo) / passo)
+    return -1.0 + 2.0 * (u * u * (3.0 - 2.0 * u))
+
+
 def frames_alieno(nome, misura, quanti=None):
-    """L'alieno che guarda in giro e apre la bocca. Le pupille si
-    spostano dentro ai loro tondi e la bocca si allunga in giu': si
-    ritaglia il pezzo, si ritappa il buco con la tinta che ci sta sotto
-    e si riattacca il pezzo spostato."""
+    """L'alieno che guarda a destra e a sinistra.
+
+    La pupilla non si ritaglia e si riattacca: si lavora sulle maschere.
+    Si sa quali pixel sono pupilla e quali sono il bianco dell'occhio; si
+    ridipinge di bianco dove stava la pupilla e la si ridipinge spostata,
+    ma SOLO dentro all'occhio. Cosi' l'occhio tiene la sua forma, anche
+    storta o arrabbiata, e la pupilla non scappa mai sulla faccia: quando
+    arriva al bordo si taglia da sola, come succede davvero."""
     p = pezzi_faccia(nome)
     if not p:
+        return None
+    try:
+        import numpy as np
+    except ImportError:
         return None
     quanti = quanti or QUANTI_ALIENO
     chiave = (tema(), nome, misura, quanti)
     if chiave in ALIENI:
         return ALIENI[chiave]
-    occhi, bocca, c_occhio, c_corpo, c_scuro = p
+    occhi, bocca, c_occhio, c_corpo, c_pupilla = p
     base = figura_nuda(nome, misura)
     w, h = base.get_size()
+    rgb = pygame.surfarray.array3d(base)
 
     def rett(fr):
         return pygame.Rect(int(fr[0] * w), int(fr[1] * h),
-                           max(1, int(fr[2] * w)), max(1, int(fr[3] * h)))
+                           max(1, int(round(fr[2] * w))),
+                           max(1, int(round(fr[3] * h))))
 
+    zone = []
+    for fr_p, fr_o in occhi:
+        ro = rett(fr_o).inflate(2, 2).clip(base.get_rect())
+        if ro.w < 3 or ro.h < 3:
+            continue
+        pezzo = rgb[ro.x:ro.right, ro.y:ro.bottom].astype("int16")
+        m_pup = (np.abs(pezzo - np.array(c_pupilla, "int16")).sum(2) < 110)
+        m_occ = (np.abs(pezzo - np.array(c_occhio, "int16")).sum(2) < 110)
+        if m_pup.sum() < 4:
+            continue
+        fondo = pezzo.copy()
+        fondo[m_pup] = np.array(c_occhio, "int16")
+        zone.append((ro, m_pup, m_pup | m_occ, fondo))
+    if not zone:
+        ALIENI[chiave] = None
+        return None
     fuori = []
     for f in range(quanti):
         k = f / float(quanti)
         sup = base.copy()
-        # lo sguardo gira: un otto, cosi' torna al punto di partenza
-        sx = math.sin(2 * math.pi * k)
-        sy = math.sin(4 * math.pi * k)
-        for fr_p, fr_t in occhi:
-            rp, rt = rett(fr_p), rett(fr_t)
-            if rp.w < 1 or rp.h < 1:
-                continue
-            amp = max(1.0, rt.w * 0.16)
-            # e' un disegno a tinte piatte: invece di ritagliare e
-            # riattaccare, si ridipinge il tondo di giallo e ci si
-            # rifa' sopra la pupilla dove deve stare adesso
-            pygame.draw.ellipse(sup, c_occhio, rt.inflate(-1, -1))
-            pygame.draw.ellipse(sup, c_scuro,
-                                rp.move(int(round(sx * amp)),
-                                        int(round(sy * amp * 0.55))))
-        rb = rett(bocca)
-        if rb.w >= 2 and rb.h >= 1:
-            apre = 1.0 + 0.55 * (0.5 - 0.5 * math.cos(6 * math.pi * k))
-            pez = sup.subsurface(rb).copy()
-            pygame.draw.ellipse(sup, c_corpo, rb.inflate(3, 3))
-            alta = max(1, int(round(rb.h * apre)))
-            pez = pygame.transform.smoothscale(pez, (rb.w, alta))
-            sup.blit(pez, (rb.x, rb.y))
+        sx = sguardo(k)
+        vista = pygame.surfarray.pixels3d(sup)
+        for ro, m_pup, dentro, fondo in zone:
+            d = int(round(sx * max(1.0, ro.w * 0.17)))
+            mossa = np.zeros_like(m_pup)
+            if d == 0:
+                mossa = m_pup.copy()
+            elif d > 0:
+                mossa[d:, :] = m_pup[:-d, :]
+            else:
+                mossa[:d, :] = m_pup[-d:, :]
+            mossa &= dentro
+            nuovo = fondo.copy()
+            nuovo[mossa] = np.array(c_pupilla, "int16")
+            vista[ro.x:ro.right, ro.y:ro.bottom] = nuovo.astype("uint8")
+        del vista
+        if bocca:
+            rb = rett(bocca)
+            if rb.w >= 2 and rb.h >= 1:
+                apre = 1.0 + 0.55 * (0.5 - 0.5 * math.cos(6 * math.pi * k))
+                pez = sup.subsurface(rb).copy()
+                pygame.draw.ellipse(sup, c_corpo, rb.inflate(3, 3))
+                pez = pygame.transform.smoothscale(
+                    pez, (rb.w, max(1, int(round(rb.h * apre)))))
+                sup.blit(pez, (rb.x, rb.y))
         fuori.append(sup)
     ALIENI[chiave] = fuori
     return fuori
