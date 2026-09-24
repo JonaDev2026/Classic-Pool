@@ -858,7 +858,30 @@ COLORI_VINTE = ((120, 230, 255), (255, 170, 205), (160, 245, 170),
 
 
 # quanto della casella riempie il simbolo: piu' piccolo respira meglio
-GRANDE = 0.52
+GRANDE = 0.78
+
+# ------------------------------------------------------ i simboli vivi
+# Certi simboli si muovono da soli, ma solo a rulli fermi: mentre girano
+# scorrono gia' di loro e una cosa che fluttua dentro un rullo in corsa
+# e' solo confusione. Per tema e per simbolo:
+#   onda    di quanto ondeggia, in frazione di casella
+#   giro    di quanti gradi oscilla
+#   scia    quanti granelli al secondo si lascia dietro
+#   verso   da che parte se ne va la scia
+#   colore  di che colore sono i granelli
+# Aggiungerne uno e' una riga: non serve toccare altro.
+ANIMAZIONI = {
+    "nuova": {
+        # la cometa: fluttua piano e si lascia dietro la polvere
+        "fiches": {"onda": 0.045, "giro": 5.0, "scia": 34,
+                   "verso": (-1.0, 0.30), "colore": (150, 200, 255)},
+    },
+}
+
+
+def animazione(nome):
+    """Come si muove quel simbolo in questa macchina, o niente."""
+    return ANIMAZIONI.get(tema(), {}).get(nome)
 
 # quanto e' grande la griglia rispetto allo spazio che avrebbe: 1.0 la
 # riempie tutta, 0.5 la fa meta'. Un numero solo, si cambia qui.
@@ -879,6 +902,7 @@ class Macchina:
         self.vinte, self.mostra, self.t_mostra = [], -1, 0.0
         self.storico = []       # le ultime vincite, a sinistra
         self.polvere = []       # la polvere sui simboli che pagano
+        self.scia = []          # la scia dei simboli che si muovono
         self.t_vinta = 0.0      # per far respirare i simboli vincenti
         self.sotto = ""         # la riga piccola sotto il totale
         self.totale = 0         # quanto ha pagato tutto il giro
@@ -923,6 +947,7 @@ class Macchina:
         """Lancia i rulli: si sa gia' dove si fermano, e ognuno ci arriva
         rallentando, uno dopo l'altro."""
         del self.polvere[:]
+        del self.scia[:]
         griglia, fermi = tira(self.strisce)
         self.griglia = griglia
         self.da = list(self.pos)
@@ -1006,6 +1031,7 @@ class Macchina:
         cw, ch = self.cella
         vecchio = sc.get_clip()
         sc.set_clip(vetro)
+        self.disegna_scia()          # la scia va sotto ai simboli
         acceso = set()
         if 0 <= self.mostra < len(self.vinte):
             acceso = set(self.vinte[self.mostra][4])
@@ -1019,7 +1045,17 @@ class Macchina:
                 r = pygame.Rect(vetro.x + c * cw,
                                 int(vetro.y + i * ch - sotto), cw, ch)
                 img = figura(nome, (int(cw * GRANDE), int(ch * GRANDE)))
-                sc.blit(img, img.get_rect(center=r.center))
+                cx, cy = r.center
+                an = animazione(nome) if not self.gira else None
+                if an and 0 <= i < RIGHE:
+                    dx, dy = self.scosta(nome, c, i)
+                    cx, cy = cx + dx, cy + dy
+                    giro = an.get("giro", 0.0)
+                    if giro:
+                        img = pygame.transform.rotozoom(
+                            img, math.sin(self.t_neon * 1.3 + c * 1.7
+                                          + i * 2.3) * giro, 1.0)
+                sc.blit(img, img.get_rect(center=(int(cx), int(cy))))
         if acceso and not self.gira:
             # le caselle che non c'entrano si spengono, cosi' si vede
             # bene la combinazione che sta pagando
@@ -1095,6 +1131,73 @@ class Macchina:
                                  0.0, random.uniform(0.7, 1.5),
                                  random.choice((0.35, 0.5, 0.7)),
                                  fine, random.uniform(0.0, 6.28)])
+
+    def scosta(self, nome, c, i):
+        """Di quanto si e' spostato dal suo posto un simbolo vivo. Ogni
+        casella ha la sua fase, se no si muovono tutti insieme come un
+        banco di pesci."""
+        an = animazione(nome)
+        if not an or self.gira:
+            return 0.0, 0.0
+        cw, ch = self.cella
+        fase = c * 1.7 + i * 2.3
+        onda = an.get("onda", 0.0)
+        return (math.cos(self.t_neon * 1.15 + fase) * cw * onda * 0.6,
+                math.sin(self.t_neon * 1.70 + fase) * ch * onda)
+
+    def scia_passo(self):
+        """La scia: nasce dalla casella del simbolo e se ne va dalla
+        parte che dice la tabella, rallentando e spegnendosi."""
+        vive = []
+        for p in self.scia:
+            p[4] += self.dt
+            if p[4] >= p[5]:
+                continue
+            p[0] += p[2] * self.dt
+            p[1] += p[3] * self.dt
+            p[2] *= 0.99
+            p[3] *= 0.99
+            vive.append(p)
+        self.scia = vive
+        # mentre i rulli girano, e mentre si mostra una vincita, sta
+        # ferma: sarebbe rumore sopra la cosa che il giocatore guarda
+        if self.gira or self.vinte or len(self.scia) >= 220:
+            return
+        cw, ch = self.cella
+        for c in range(COLONNE):
+            for i in range(RIGHE):
+                nome = self.griglia[c][i]
+                an = animazione(nome)
+                if not an or not an.get("scia"):
+                    continue
+                if random.random() > an["scia"] * self.dt:
+                    continue
+                vx, vy = an.get("verso", (-1.0, 0.0))
+                dx, dy = self.scosta(nome, c, i)
+                v = B.s(random.uniform(26, 64))
+                self.scia.append([
+                    self.vetro.x + (c + 0.5) * cw + dx
+                    + random.uniform(-0.15, 0.15) * cw,
+                    self.vetro.y + (i + 0.5) * ch + dy
+                    + random.uniform(-0.15, 0.15) * ch,
+                    vx * v + random.uniform(-B.s(10), B.s(10)),
+                    vy * v + random.uniform(-B.s(10), B.s(10)),
+                    0.0, random.uniform(0.5, 1.2),
+                    random.choice((0.45, 0.65, 0.9)),
+                    an.get("colore", (200, 220, 255)),
+                    random.uniform(0.0, 6.28)])
+
+    def disegna_scia(self):
+        """I granelli della scia, sotto ai simboli."""
+        for x, y, _vx, _vy, vita, durata, grande, col, fase in self.scia:
+            vivo = math.sin(math.pi * vita / durata) ** 0.8
+            luce = 0.55 + 0.45 * math.sin(fase + vita * 9.0)
+            forza = vivo * luce
+            if forza < 0.05:
+                continue
+            q = granello(max(3, int(B.s(12) * grande)), col, forza)
+            self.sc.blit(q, q.get_rect(center=(int(x), int(y))),
+                         special_flags=pygame.BLEND_RGB_ADD)
 
     def disegna_polvere(self):
         """I granelli, sommati alla luce di sotto: brillano perche' la
@@ -1291,6 +1394,7 @@ class Macchina:
             corsa = 0.45
         self.t_luci += self.dt * corsa
         self.polvere_passo()
+        self.scia_passo()
         if self.lampo > 0:
             self.lampo = max(0.0, self.lampo - self.dt)
 
