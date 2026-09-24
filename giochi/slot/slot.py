@@ -929,7 +929,9 @@ GRANDE = 0.52
 # Chi non e' qui dentro fa quello di sempre: respira e basta.
 ANIMAZIONI = {
     "nuova": {
-        "ciliegia": {"gira": 0.10}, "limone": {"gira": 0.10},
+        # l'asteroide non e' una sfera liscia: galleggia, senza scia
+        "ciliegia": {"onda": 0.05},
+        "limone": {"gira": 0.10},
         "arancia": {"gira": 0.10}, "prugna": {"gira": 0.10},
         "mela": {"gira": 0.10}, "fragola": {"gira": 0.08},
         "anguria": {"gira": 0.12}, "uva": {"gira": 0.12},
@@ -1193,17 +1195,7 @@ class Macchina:
                 r = pygame.Rect(vetro.x + c * cw,
                                 int(vetro.y + i * ch - sotto), cw, ch)
                 img = figura(nome, (int(cw * GRANDE), int(ch * GRANDE)))
-                cx, cy = r.center
-                an = animazione(nome) if not self.gira else None
-                if an and 0 <= i < RIGHE:
-                    dx, dy = self.scosta(nome, c, i)
-                    cx, cy = cx + dx, cy + dy
-                    giro = an.get("giro", 0.0)
-                    if giro:
-                        img = pygame.transform.rotozoom(
-                            img, math.sin(self.t_neon * 1.3 + c * 1.7
-                                          + i * 2.3) * giro, 1.0)
-                sc.blit(img, img.get_rect(center=(int(cx), int(cy))))
+                sc.blit(img, img.get_rect(center=r.center))
         if acceso and not self.gira:
             # le caselle che non c'entrano si spengono, cosi' si vede
             # bene la combinazione che sta pagando
@@ -1246,7 +1238,10 @@ class Macchina:
                                         int(ch * GRANDE * k))).copy()
                     img.fill((255, 255, 255, int(165 + 90 * respiro)),
                              special_flags=pygame.BLEND_RGBA_MULT)
-                sc.blit(img, img.get_rect(center=r.center))
+                # chi galleggia si sposta davvero dal suo posto
+                dx, dy = self.scosta(nome, c, i)
+                sc.blit(img, img.get_rect(
+                    center=(int(r.centerx + dx), int(r.centery + dy))))
         self.disegna_polvere()
         sc.set_clip(vecchio)
         for c in range(1, COLONNE):
@@ -1319,33 +1314,37 @@ class Macchina:
             p[3] *= 0.99
             vive.append(p)
         self.scia = vive
-        # mentre i rulli girano, e mentre si mostra una vincita, sta
-        # ferma: sarebbe rumore sopra la cosa che il giocatore guarda
-        if self.gira or self.vinte or len(self.scia) >= 220:
+        # nasce solo dalle caselle che stanno pagando, a rulli fermi
+        if self.gira or len(self.scia) >= 220:
+            return
+        if not (0 <= self.mostra < len(self.vinte)):
+            return
+        if not self.vinte[self.mostra][3]:
             return
         cw, ch = self.cella
-        for c in range(COLONNE):
-            for i in range(RIGHE):
-                nome = self.griglia[c][i]
-                an = animazione(nome)
-                if not an or not an.get("scia"):
-                    continue
-                if random.random() > an["scia"] * self.dt:
-                    continue
-                vx, vy = an.get("verso", (-1.0, 0.0))
-                dx, dy = self.scosta(nome, c, i)
-                v = B.s(random.uniform(26, 64))
-                self.scia.append([
-                    self.vetro.x + (c + 0.5) * cw + dx
-                    + random.uniform(-0.15, 0.15) * cw,
-                    self.vetro.y + (i + 0.5) * ch + dy
-                    + random.uniform(-0.15, 0.15) * ch,
-                    vx * v + random.uniform(-B.s(10), B.s(10)),
-                    vy * v + random.uniform(-B.s(10), B.s(10)),
-                    0.0, random.uniform(0.5, 1.2),
-                    random.choice((0.45, 0.65, 0.9)),
-                    an.get("colore", (200, 220, 255)),
-                    random.uniform(0.0, 6.28)])
+        for c, i in self.vinte[self.mostra][4]:
+            if not 0 <= i < RIGHE:
+                continue
+            nome = self.griglia[c][i]
+            an = animazione(nome)
+            if not an or not an.get("scia"):
+                continue
+            if random.random() > an["scia"] * self.dt:
+                continue
+            vx, vy = an.get("verso", (-1.0, 0.0))
+            dx, dy = self.scosta(nome, c, i)
+            v = B.s(random.uniform(26, 64))
+            self.scia.append([
+                self.vetro.x + (c + 0.5) * cw + dx
+                + random.uniform(-0.15, 0.15) * cw,
+                self.vetro.y + (i + 0.5) * ch + dy
+                + random.uniform(-0.15, 0.15) * ch,
+                vx * v + random.uniform(-B.s(10), B.s(10)),
+                vy * v + random.uniform(-B.s(10), B.s(10)),
+                0.0, random.uniform(0.5, 1.2),
+                random.choice((0.45, 0.65, 0.9)),
+                an.get("colore", (200, 220, 255)),
+                random.uniform(0.0, 6.28)])
 
     def disegna_scia(self):
         """I granelli della scia, sotto ai simboli."""
