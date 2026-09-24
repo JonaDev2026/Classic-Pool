@@ -954,6 +954,25 @@ def disegna_cielo(sc, rett, tt):
                 (rett.x + x, rett.y + y, lato, lato))
 
 
+SEPARATORE = [None]
+
+
+def separatore(alta):
+    """La riga fra un rullo e l'altro: appena accennata, e che si spegne
+    verso le due punte invece di tagliare netto da cima a fondo."""
+    if SEPARATORE[0] is not None and SEPARATORE[0].get_height() == alta:
+        return SEPARATORE[0]
+    largo = max(1, int(B.s(1)))
+    col = (206, 198, 180) if RULLI_CHIARI else (108, 104, 136)
+    q = pygame.Surface((largo, alta), pygame.SRCALPHA)
+    sfuma = max(1.0, alta * 0.22)
+    for y in range(alta):
+        k = min(1.0, y / sfuma, (alta - 1 - y) / sfuma)
+        q.fill(col + (int(58 * k),), (0, y, largo, 1))
+    SEPARATORE[0] = q
+    return q
+
+
 def vetro_fondo(misura):
     """Il fondo dei rulli fatto come un cilindro vero: si scurisce verso
     l'alto e verso il basso, dove il rullo gira via, e in mezzo prende la
@@ -2172,11 +2191,10 @@ class Macchina:
                     center=(int(r.centerx + dx), int(r.centery + dy))))
         self.disegna_polvere()
         sc.set_clip(vecchio)
+        riga = separatore(vetro.h)
         for c in range(1, COLONNE):
-            x = vetro.x + c * cw
-            col_r = (206, 198, 180) if RULLI_CHIARI else (86, 82, 110)
-            pygame.draw.line(sc, col_r, (x, vetro.y),
-                             (x, vetro.bottom), max(1, B.s(1)))
+            sc.blit(riga, (int(vetro.x + c * cw - riga.get_width() * 0.5),
+                           vetro.y))
 
     def polvere_passo(self):
         """La polvere sui simboli che stanno pagando: nasce dalle
