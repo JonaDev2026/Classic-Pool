@@ -1006,44 +1006,63 @@ def frames_giro(nome, misura):
     except (ValueError, pygame.error):
         GIRI[chiave] = None
         return None
-    cx, cy = (w - 1) / 2.0, (h - 1) / 2.0
-    R = min(cx, cy) + 0.5
+    # centro e raggio si prendono dal DISEGNO, non dal bordo del file:
+    # certe PNG hanno il pianeta piccolo in mezzo al vuoto, e pescando
+    # fino al bordo si finiva fuori dalla palla -- il pianeta diventava
+    # nero a meta' giro
+    col = np.where(alfa.max(axis=1) > 8)[0]
+    rig = np.where(alfa.max(axis=0) > 8)[0]
+    if len(col) and len(rig):
+        cx = (col[0] + col[-1]) / 2.0
+        cy = (rig[0] + rig[-1]) / 2.0
+        R = max(col[-1] - col[0], rig[-1] - rig[0]) / 2.0 + 0.5
+    else:
+        cx, cy = (w - 1) / 2.0, (h - 1) / 2.0
+        R = min(cx, cy) + 0.5
     xs = (np.arange(w) - cx) / R                 # -1..1 sullo schermo
     ys = (np.arange(h) - cy) / R
     X, Y = np.meshgrid(xs, ys, indexing="ij")
     dentro = (X * X + Y * Y) <= 1.0
     cosphi = np.sqrt(np.clip(1.0 - Y * Y, 1e-6, 1.0))   # quanto e' larga
-    sin_lon = np.clip(X / cosphi, -1.0, 1.0)            # la riga a quella
-    lon = np.arcsin(sin_lon)                            # latitudine
+    lon = np.arcsin(np.clip(X / cosphi, -1.0, 1.0))     # la riga a quella
+                                                        # latitudine
+
+    # --- la striscia dei 360 gradi.
+    # Il disegno mostra mezzo pianeta: il lato nascosto non esiste.
+    # Prima lo specchiavo, e si vedeva -- meta' pianeta appariva
+    # ribaltata, con una cucitura netta in mezzo. Adesso il disegno si
+    # STENDE su tutto il giro, mezzo grado di disegno per ogni grado di
+    # pianeta: niente specchio, niente meta' al rovescio, e il pianeta
+    # gira sempre nello stesso verso. Si pesca dall'84% del raggio in
+    # dentro, se no il contorno scuro della PNG finirebbe in mezzo.
+    N_TEX = 2 * QUANTI_GIRO
+    theta = (np.arange(N_TEX) / float(N_TEX) * 2.0 - 1.0) * math.pi
+    cos_riga = np.sqrt(np.clip(1.0 - ys * ys, 1e-6, 1.0))        # (h,)
+    sx = np.clip(np.rint(cx + R * DENTRO *
+                         np.outer(np.sin(theta * 0.5), cos_riga)),
+                 0, w - 1).astype(int)                           # (N_TEX,h)
+    sy = np.clip(np.rint(cy + (np.arange(h) - cy) * DENTRO),
+                 0, h - 1).astype(int)                           # (h,)
+    tex = rgb[sx, sy[None, :]]                                   # (N_TEX,h,3)
 
     # la luce sta ferma: viene da sopra a sinistra e non gira col pianeta
     Z = np.sqrt(np.clip(1.0 - X * X - Y * Y, 0.0, 1.0))
     luce = 0.58 + 0.52 * np.clip(-0.42 * X - 0.42 * Y + 0.76 * Z, 0.0, 1.0)
     luce = luce[:, :, None]
+    # la sagoma resta quella del disegno originale: bordo netto
+    maschera = (alfa * dentro).astype(np.uint8)
+    righe = np.arange(h)[None, :]
 
     fuori = []
     for i in range(QUANTI_GIRO):
         fase = 2.0 * math.pi * i / QUANTI_GIRO
-        lt = lon + fase
-        lt = (lt + math.pi) % (2.0 * math.pi) - math.pi   # in -pi..pi
-        # il lato nascosto si specchia su quello che si vede
-        dietro = np.abs(lt) > math.pi / 2.0
-        lm = np.where(lt > 0, math.pi - lt, -math.pi - lt)
-        lv = np.where(dietro, lm, lt)
-        # si pesca da un disco un po' piu' stretto dell'originale: sul
-        # bordo c'e' il contorno scuro del disegno, e ruotando finirebbe
-        # in mezzo al pianeta come una cucitura nera
-        sx = np.clip(np.rint(cx + R * DENTRO * cosphi * np.sin(lv)),
-                     0, w - 1).astype(int)
-        sy = np.clip(np.rint(cy + (np.arange(h) - cy) * DENTRO),
-                     0, h - 1).astype(int)
-        sy = np.tile(sy, (w, 1))
-        q = rgb[sx, sy]
-        a = alfa[sx, sy] * dentro * (alfa > 0)
-        q = np.clip(q * luce, 0, 255)
+        lt = (lon + fase + math.pi) % (2.0 * math.pi) - math.pi
+        j = np.mod(np.rint((lt / (2.0 * math.pi) + 0.5) * N_TEX
+                           ).astype(int), N_TEX)
+        q = np.clip(tex[j, righe] * luce, 0, 255)
         sup = pygame.Surface((w, h), pygame.SRCALPHA)
         pygame.surfarray.blit_array(sup, q.astype(np.uint8))
-        pygame.surfarray.pixels_alpha(sup)[:, :] = a.astype(np.uint8)
+        pygame.surfarray.pixels_alpha(sup)[:, :] = maschera
         fuori.append(sup)
     GIRI[chiave] = fuori
     return fuori
