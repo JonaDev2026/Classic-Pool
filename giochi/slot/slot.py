@@ -441,7 +441,7 @@ NOMI_TEMA = {
         "gemma": "UFO", "bar": "Rocket", "sette": "Sun",
         "regalo": "Alien",
         "dollaro": "Galaxy", "palla8": "Nebula",
-        "jolly": "Space", "dadi": "Comet",
+        "jolly": "Wild", "dadi": "Comet",
     },
 }
 # le poche che cambiano da lingua a lingua
@@ -454,7 +454,7 @@ NOMI_TEMA_LINGUA = {
                "carte": "Terra", "roulette": "Saturno", "fiches": "Pleiadi",
                "gemma": "UFO", "bar": "Razzo", "regalo": "Alieno", "sette": "Sole",
                "dollaro": "Galassia", "palla8": "Nebulosa",
-               "jolly": "Spazio", "dadi": "Cometa"},
+               "jolly": "Wild", "dadi": "Cometa"},
         "fr": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
                "mela": "Pluton", "fragola": "Lune", "anguria": "Mercure",
                "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
@@ -462,7 +462,7 @@ NOMI_TEMA_LINGUA = {
                "carte": "Terre", "roulette": "Saturne", "fiches": "Pleiades",
                "gemma": "OVNI", "bar": "Fusee", "regalo": "Alien", "sette": "Soleil",
                "dollaro": "Galaxie", "palla8": "Nebuleuse",
-               "jolly": "Espace", "dadi": "Comete"},
+               "jolly": "Wild", "dadi": "Comete"},
         "es": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
                "mela": "Pluton", "fragola": "Luna", "anguria": "Mercurio",
                "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
@@ -470,7 +470,7 @@ NOMI_TEMA_LINGUA = {
                "carte": "Tierra", "roulette": "Saturno", "fiches": "Pleyades",
                "gemma": "OVNI", "bar": "Cohete", "regalo": "Alien", "sette": "Sol",
                "dollaro": "Galaxia", "palla8": "Nebulosa",
-               "jolly": "Espacio", "dadi": "Cometa"},
+               "jolly": "Wild", "dadi": "Cometa"},
     },
 }
 
@@ -1150,6 +1150,9 @@ ANIMAZIONI = {
         # il razzo: balla come i dadi, perche' si muove mentre va, e
         # dietro ha la fiammata che lo spinge
         "bar": {"trema": 0.030, "fiamma": 1.0, "misura": 0.86},
+        # l'astronauta non e' ancora di nessuno: sta in magazzino e
+        # intanto capitombola piano
+        "astronauta": {"rotola": 0.16, "misura": 0.80},
         # le targhe: la scritta sta ferma, si muove solo la nebbia
         # che ci sta dietro
         "jolly": {"targa": 0.10,
@@ -2255,6 +2258,11 @@ class Macchina:
                        else fotogramma(fr, passo))
         if img is None:
             img = figura(nome, misura)
+        # il capitombolo: gira nel suo piano, in senso antiorario,
+        # come uno che galleggia e non ha niente a cui appoggiarsi
+        if an.get("rotola"):
+            img = pygame.transform.rotozoom(
+                img, (tt * an["rotola"] * 360.0) % 360.0, 1.0)
         # la moneta gira di taglio: si schiaccia e si riapre
         if an.get("moneta"):
             k = abs(math.cos(tt * an["moneta"] * math.pi))
