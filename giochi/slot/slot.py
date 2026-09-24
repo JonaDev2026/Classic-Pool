@@ -929,25 +929,36 @@ GRANDE = 0.52
 # Chi non e' qui dentro fa quello di sempre: respira e basta.
 ANIMAZIONI = {
     "nuova": {
-        # l'asteroide non e' una sfera liscia: galleggia, senza scia
-        "ciliegia": {"onda": 0.05},
-        "limone": {"gira": 0.10},
-        "arancia": {"gira": 0.10}, "prugna": {"gira": 0.10},
-        "mela": {"gira": 0.10}, "fragola": {"gira": 0.08},
-        "anguria": {"gira": 0.12}, "uva": {"gira": 0.12},
-        "cuori": {"gira": 0.14}, "picche": {"gira": 0.14},
-        "fiori": {"gira": 0.12}, "quadri": {"gira": 0.12},
-        "campana": {"gira": 0.14}, "ferro": {"gira": 0.14},
-        "quadrifoglio": {"gira": 0.18},
-        "carte": {"gira": 0.16},
+        # Ogni pianeta gira alla SUA velocita', e l'ordine e' quello
+        # vero: Giove e Cerere sono i piu' svelti (dieci ore di giornata),
+        # Mercurio e la Luna quasi fermi, e Venere gira AL CONTRARIO,
+        # perche' e' l'unico del sistema solare a farlo davvero.
+        # I numeri sono giri al secondo, compressi: a tenere le
+        # proporzioni vere Venere avrebbe impiegato mezz'ora a girare.
+        "ciliegia": {"onda": 0.05},              # asteroide: galleggia
+        "limone": {"gira": 0.80},                # Cerere, 9 ore
+        "arancia": {"gira": 0.52},               # Makemake, 22 ore
+        "prugna": {"gira": 0.47},                # Eris, 26 ore
+        "mela": {"gira": 0.30},                  # Plutone, 6 giorni
+        "fragola": {"gira": 0.22},               # Luna, 27 giorni
+        "anguria": {"gira": 0.18},               # Mercurio, 59 giorni
+        "uva": {"gira": -0.14},                  # Venere, al contrario
+        "cuori": {"gira": 0.49},                 # Marte, 24 ore e mezza
+        "picche": {"gira": 0.44},                # esopianeta
+        "fiori": {"gira": 0.60},                 # Urano, 17 ore
+        "quadri": {"gira": 0.62},                # Nettuno, 16 ore
+        "campana": {"gira": 0.25},               # TRAPPIST-1, una stella
+        "ferro": {"gira": 0.28},                 # Proxima, una stella
+        "quadrifoglio": {"gira": 0.78},          # Giove, 9 ore e 55
+        "carte": {"gira": 0.50},                 # Terra, 24 ore
         # saturno per ora sta fermo: l'anello non e' parte della sfera e
         # girando si accartoccia. Va staccato dalla palla e rimesso
         # sopra, fermo -- si fa, ma e' un lavoro a parte
-        # "roulette": {"gira": 0.16},
+        # "roulette": {"gira": 0.74},
         # la cometa non e' una sfera: fluttua e lascia la scia
         "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                    "colore": (150, 200, 255)},
-        "sette": {"gira": 0.10},
+        "sette": {"gira": 0.20},                 # il Sole, 25 giorni
     },
 }
 
@@ -958,7 +969,11 @@ def animazione(nome):
 
 
 GIRI = {}
-QUANTI_GIRO = 24            # fotogrammi per un giro completo
+# Quanti fotogrammi fanno un giro completo. Tanti: il pianeta gira
+# piano, e con pochi fotogrammi si vedrebbe scattare. A centoventi, un
+# pianeta che ci mette due secondi a girare cambia disegno sessanta
+# volte al secondo, cioe' fluido quanto lo schermo.
+QUANTI_GIRO = 120
 DENTRO = 0.84               # da quanto dentro il disco si pesca il colore
 
 
