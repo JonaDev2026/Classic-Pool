@@ -2234,7 +2234,6 @@ class Macchina:
         cw, ch = self.cella
         vecchio = sc.get_clip()
         sc.set_clip(vetro)
-        self.disegna_scia()          # la scia va sotto ai simboli
         acceso = set()
         if 0 <= self.mostra < len(self.vinte):
             acceso = set(self.vinte[self.mostra][4])
@@ -2256,6 +2255,9 @@ class Macchina:
             velo.fill((246, 241, 228, 170) if RULLI_CHIARI
                       else (14, 13, 20, 185))
             sc.blit(velo, vetro)
+            # la scia va SOPRA al velo e sotto ai simboli: messa prima,
+            # il velo se la mangiava e non si vedeva niente
+            self.disegna_scia()
             respiro = 0.5 + 0.5 * math.sin(self.t_vinta * 7.0)
             k = 1.0 + 0.12 * respiro
             nome_v = self.vinte[self.mostra][0] if self.vinte else None
@@ -2296,6 +2298,8 @@ class Macchina:
                     dx = dy = 0.0
                 sc.blit(img, img.get_rect(
                     center=(int(r.centerx + dx), int(r.centery + dy))))
+        if not (acceso and not self.gira):
+            self.disegna_scia()
         self.disegna_polvere()
         sc.set_clip(vecchio)
         riga = separatore(vetro.h)
@@ -2333,9 +2337,11 @@ class Macchina:
             return 0.0, 0.0
         cw, ch = self.cella
         fase = c * 1.7 + i * 2.3
+        tt = self.t_neon * VELOCITA
         onda = an.get("onda", 0.0)
-        return (math.cos(self.t_neon * 1.15 + fase) * cw * onda * 0.6,
-                math.sin(self.t_neon * 1.70 + fase) * ch * onda)
+        largo, alto = cw * GRANDE, ch * GRANDE
+        return (math.cos(tt * 1.15 + fase) * largo * onda,
+                math.sin(tt * 1.70 + fase) * alto * onda)
 
     def semina(self, nome, centro, misura, fase=0.0):
         """Butta fuori qualche granello di scia da quel simbolo, se ne
@@ -2377,8 +2383,6 @@ class Macchina:
         self.scia = vive
         # sui rulli nasce dalle caselle che stanno pagando, a rulli fermi
         if self.gira or not (0 <= self.mostra < len(self.vinte)):
-            return
-        if not self.vinte[self.mostra][3]:
             return
         cw, ch = self.cella
         for c, i in self.vinte[self.mostra][4]:
