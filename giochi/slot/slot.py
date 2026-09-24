@@ -2517,11 +2517,27 @@ def gruppi_pagamenti():
     return fuori
 
 
+def in_magazzino():
+    """Le immagini che stanno nella cartella del tema ma che non sono
+    (ancora) di nessun simbolo. Si fanno vedere in fondo alla pagina di
+    prova, cosi' si guardano senza doverle mettere al posto di un altro."""
+    usati = set(s[0] for s in SIMBOLI)
+    d = os.path.join(GFX, tema())
+    if not os.path.isdir(d):
+        return []
+    fuori = []
+    for f in sorted(os.listdir(d)):
+        n, e = os.path.splitext(f)
+        if e.lower() == ".png" and n not in usati:
+            fuori.append(n)
+    return fuori
+
+
 def pagina_prova(sc, clock, m):
     """La pagina di prova: tutti i simboli della macchina, ognuno con la
     sua animazione, tutti insieme. Serve a guardare le animazioni senza
     dover aspettare di vincere con quel simbolo."""
-    elenco = [s[0] for s in SIMBOLI]
+    elenco = [s[0] for s in SIMBOLI] + in_magazzino()
     while True:
         m.dt = min(0.05, clock.tick(60) / 1000.0)
         m.t_neon += m.dt
