@@ -1157,8 +1157,8 @@ ANIMAZIONI = {
         # i giri gratis li porta la cometa: fluttua e lascia la scia
         "dadi": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                  "colore": (150, 200, 255), "misura": 0.67},
-        # il bonus e' l'alieno: guarda a destra e a sinistra
-        "regalo": {"alieno": 0.68},
+        # il bonus e' l'alieno: sta com'e' e galleggia piano
+        "regalo": {"onda": 0.040},
         # il jackpot:
         "jackpot": {"targa": 0.10,
                     "colori": ((235, 120, 60), (255, 70, 120),
