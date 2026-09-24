@@ -1205,7 +1205,7 @@ ANIMAZIONI = {
         "arancia": {"gira": 0.52},               # Makemake, 22 ore
         "prugna": {"gira": 0.47},                # Eris, 26 ore
         # Plutone e' un nano: gira, ma sta piccolo
-        "mela": {"gira": 0.30, "misura": 0.58},  # Plutone, 6 giorni
+        "mela": {"gira": 0.30, "misura": 0.68},  # Plutone, 6 giorni
         "fragola": {"gira": 0.22},               # Luna, 27 giorni
         "anguria": {"gira": 0.18},               # Mercurio, 59 giorni
         "uva": {"gira": -0.14},                  # Venere, al contrario
