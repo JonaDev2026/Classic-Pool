@@ -646,7 +646,7 @@ def figura(nome, misura):
         NUDE[chiave] = figura_nuda(nome, misura)
         return NUDE[chiave]
     palla = figura_nuda(nome, misura_palla(nome, misura))
-    NUDE[chiave] = con_anello(nome, palla, misura)
+    NUDE[chiave] = con_anello(nome, palla, misura_anello(nome, misura))
     return NUDE[chiave]
 
 
@@ -994,10 +994,10 @@ def animazione(nome):
 #   divisione     dove passa la riga vuota dentro l'anello (0 = nessuna)
 ANELLI = {
     "nuova": {
-        "roulette": {"fuori": 2.15, "dentro": 1.30, "schiaccia": 0.44,
+        "roulette": {"fuori": 1.95, "dentro": 1.26, "schiaccia": 0.44,
                      "inclina": -11, "colore": (228, 206, 158),
                      "opaco": 235, "divisione": 0.0},
-        "fiori": {"fuori": 1.72, "dentro": 1.34, "schiaccia": 0.30,
+        "fiori": {"fuori": 1.62, "dentro": 1.28, "schiaccia": 0.30,
                   "inclina": 80, "colore": (168, 202, 222),
                   "opaco": 165, "divisione": 0.0},
     },
@@ -1084,14 +1084,28 @@ def con_anello(nome, palla, misura):
     return fuori
 
 
+PALLA_CON_ANELLO = 0.82     # quanto resta grossa la palla che ha l'anello
+
+
 def misura_palla(nome, misura):
-    """Quanto viene grande la palla quando ha un anello: si stringe,
-    perche' l'anello deve starci dentro alla casella."""
+    """Quanto viene grande la palla quando ha un anello. Si stringe
+    appena, non fino a farci stare l'anello: l'anello esce fuori dalla
+    misura del simbolo, e va bene, perche' nella casella del rullo c'e'
+    aria di avanzo."""
+    if not anello_di(nome):
+        return misura
+    k = PALLA_CON_ANELLO
+    return (max(4, int(misura[0] * k)), max(4, int(misura[1] * k)))
+
+
+def misura_anello(nome, misura):
+    """Quanto viene grande tutto insieme, palla piu' anello."""
     d = anello_di(nome)
     if not d:
         return misura
-    k = 1.0 / (d["fuori"] * 1.02)
-    return (max(4, int(misura[0] * k)), max(4, int(misura[1] * k)))
+    p = misura_palla(nome, misura)
+    k = d["fuori"] * 1.04
+    return (max(4, int(p[0] * k)), max(4, int(p[1] * k)))
 
 
 GIRI = {}
@@ -1205,7 +1219,7 @@ def frames_giro(nome, misura):
         # l'anello si rimette sopra a giro fatto: sta fermo mentre la
         # palla ruota sotto, che e' il punto di tutta la faccenda
         if anello_di(nome):
-            sup = con_anello(nome, sup, misura)
+            sup = con_anello(nome, sup, misura_anello(nome, misura))
         fuori.append(sup)
     GIRI[chiave] = fuori
     return fuori
@@ -1392,24 +1406,31 @@ class Macchina:
                 r = pygame.Rect(vetro.x + c * cw, vetro.y + i * ch, cw, ch)
                 # l'alone si misura sul simbolo, non sulla casella:
                 # cosi' se le icone cambiano misura lui le segue
+                an = animazione(nome)
+                # chi ha un'animazione sua non pulsa e non sfuma: quella
+                # animazione E' il suo modo di festeggiare, e pulsare in
+                # piu' sarebbe due cose sopra la stessa casella
+                suo = bool(an)
                 al = alone_radiale(int(min(cw, ch) * GRANDE * 1.73), col)
                 al = al.copy()
-                al.fill((255, 255, 255, int(150 + 105 * respiro)),
+                al.fill((255, 255, 255,
+                         225 if suo else int(150 + 105 * respiro)),
                         special_flags=pygame.BLEND_RGBA_MULT)
                 sc.blit(al, al.get_rect(center=r.center))
-                an = animazione(nome)
                 giri = (frames_giro(nome, (int(cw * GRANDE),
                                            int(ch * GRANDE)))
                         if an and an.get("gira") else None)
                 # l'alfa si moltiplica sui pixel: set_alpha su una
                 # superficie trasparente farebbe un quadrato nero
                 if giri:
-                    # gira sul proprio asse e basta: girare e respirare
-                    # insieme da' il mal di mare
-                    quale = int(self.t_vinta * an["gira"] * len(giri))
-                    img = giri[quale % len(giri)].copy()
-                    img.fill((255, 255, 255, int(195 + 60 * respiro)),
-                             special_flags=pygame.BLEND_RGBA_MULT)
+                    # il giro segue un orologio che non si azzera mai.
+                    # Con quello della vincita, che riparte da zero a
+                    # ogni combinazione mostrata, il pianeta scattava
+                    # indietro ogni volta che cambiava riga
+                    quale = int(self.t_neon * an["gira"] * len(giri))
+                    img = giri[quale % len(giri)]
+                elif suo:
+                    img = figura(nome, (int(cw * GRANDE), int(ch * GRANDE)))
                 else:
                     img = figura(nome, (int(cw * GRANDE * k),
                                         int(ch * GRANDE * k))).copy()
@@ -1442,27 +1463,11 @@ class Macchina:
             p[1] += p[3] * self.dt
             vive.append(p)
         self.polvere = vive
-        if self.gira or not self.vinte or not 0 <= self.mostra < len(self.vinte):
-            return
-        nome, _l, _s, paga, celle = self.vinte[self.mostra]
-        if not celle or not paga:
-            return
-        col = tuple(colore_simbolo(nome))
-        cw, ch = self.cella
-        for c, i in celle:
-            if not 0 <= i < RIGHE or len(self.polvere) >= 90:
-                continue
-            if random.random() > 0.18:
-                continue
-            x = self.vetro.x + c * cw + random.uniform(0.2, 0.8) * cw
-            y = self.vetro.y + i * ch + random.uniform(0.25, 0.9) * ch
-            fine = col if random.random() < 0.72 else (255, 240, 200)
-            self.polvere.append([x, y,
-                                 random.uniform(-B.s(18), B.s(18)),
-                                 random.uniform(-B.s(34), -B.s(10)),
-                                 0.0, random.uniform(0.7, 1.5),
-                                 random.choice((0.35, 0.5, 0.7)),
-                                 fine, random.uniform(0.0, 6.28)])
+        # La polvere generica sui simboli vincenti non si fa piu': ogni
+        # simbolo ha la sua animazione, e chi deve lasciare qualcosa
+        # dietro (la cometa) ha la sua scia. Quella che e' gia' in aria
+        # finisce di spegnersi da sola.
+        return
 
     def scosta(self, nome, c, i):
         """Di quanto si e' spostato dal suo posto un simbolo vivo. Ogni
