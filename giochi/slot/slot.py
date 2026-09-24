@@ -1045,6 +1045,19 @@ def frames_giro(nome, misura):
                  0, h - 1).astype(int)                           # (h,)
     tex = rgb[sx, sy[None, :]]                                   # (N_TEX,h,3)
 
+    # La striscia si richiude su se stessa, e li' i due capi non
+    # combaciano: passando da quel punto si vedeva uno scatto, come se
+    # l'animazione ricominciasse da capo. Su una fetta di giro i due
+    # capi si sfumano l'uno nell'altro, cosi' il giro e' continuo e la
+    # giuntura passa come una velatura morbida invece che come un salto.
+    banda = max(4, N_TEX // 7)
+    peso = (0.5 - 0.5 * np.cos(np.pi * np.arange(banda) / (banda - 1.0)))
+    peso = peso[:, None, None]
+    coda = tex[N_TEX - banda:].copy()        # l'ultimo pezzo del giro
+    testa = tex[:banda].copy()               # e il primo
+    tex[N_TEX - banda:] = coda * (1.0 - peso * 0.5) + testa * (peso * 0.5)
+    tex[:banda] = testa * (0.5 + peso * 0.5) + coda * (0.5 - peso * 0.5)
+
     # la luce sta ferma: viene da sopra a sinistra e non gira col pianeta
     Z = np.sqrt(np.clip(1.0 - X * X - Y * Y, 0.0, 1.0))
     luce = 0.58 + 0.52 * np.clip(-0.42 * X - 0.42 * Y + 0.76 * Z, 0.0, 1.0)
