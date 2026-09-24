@@ -412,8 +412,64 @@ def T(k):
     return d.get(k, TXT["en"].get(k, k))
 
 
+# Come si chiamano i simboli in una macchina che non e' la classica.
+# I nomi dei file sono le CASELLE della tabella dei pagamenti, non i
+# nomi dei disegni: "prugna" vuol dire "il quarto simbolo basso". Qui
+# si dice come si chiama davvero quel disegno in quella macchina, cosi'
+# il tabellone non scrive Prugna sotto un pianeta nano.
+# I nomi propri (Eris, Cerere, Titano...) si scrivono una volta sola e
+# valgono per tutte le lingue; quelli che si traducono hanno il loro
+# dizionario per lingua.
+NOMI_TEMA = {
+    "nuova": {
+        "ciliegia": "Asteroid", "limone": "Ceres", "arancia": "Makemake",
+        "prugna": "Eris", "mela": "Pluto", "fragola": "Moon",
+        "anguria": "Mercury", "uva": "Venus",
+        "cuori": "Mars", "picche": "Exoplanet", "fiori": "Uranus",
+        "quadri": "Neptune",
+        "campana": "TRAPPIST-1", "ferro": "Proxima", "quadrifoglio": "Jupiter",
+        "carte": "Earth", "roulette": "Saturn", "fiches": "Comet",
+        "gemma": "Alien", "bar": "Rocket", "sette": "Sun",
+        "jolly": "Space",
+    },
+}
+# le poche che cambiano da lingua a lingua
+NOMI_TEMA_LINGUA = {
+    "nuova": {
+        "it": {"ciliegia": "Asteroide", "limone": "Cerere", "prugna": "Eride",
+               "mela": "Plutone", "fragola": "Luna", "anguria": "Mercurio",
+               "uva": "Venere", "cuori": "Marte", "picche": "Esopianeta",
+               "fiori": "Urano", "quadri": "Nettuno", "quadrifoglio": "Giove",
+               "carte": "Terra", "roulette": "Saturno", "fiches": "Cometa",
+               "gemma": "Alieno", "bar": "Razzo", "sette": "Sole",
+               "jolly": "Spazio"},
+        "fr": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
+               "mela": "Pluton", "fragola": "Lune", "anguria": "Mercure",
+               "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
+               "fiori": "Uranus", "quadri": "Neptune", "quadrifoglio": "Jupiter",
+               "carte": "Terre", "roulette": "Saturne", "fiches": "Comete",
+               "gemma": "Alien", "bar": "Fusee", "sette": "Soleil",
+               "jolly": "Espace"},
+        "es": {"ciliegia": "Asteroide", "limone": "Ceres", "prugna": "Eris",
+               "mela": "Pluton", "fragola": "Luna", "anguria": "Mercurio",
+               "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
+               "fiori": "Urano", "quadri": "Neptuno", "quadrifoglio": "Jupiter",
+               "carte": "Tierra", "roulette": "Saturno", "fiches": "Cometa",
+               "gemma": "Alien", "bar": "Cohete", "sette": "Sol",
+               "jolly": "Espacio"},
+    },
+}
+
+
 def nome_simbolo(s):
-    d = NOMI_SIM.get(B.CFG.get("lingua", "en"), NOMI_SIM["en"])
+    """Come si chiama questo simbolo adesso. Se la macchina ha i suoi
+    nomi si usano quelli, se no quelli della classica."""
+    lg = B.CFG.get("lingua", "en")
+    suoi = NOMI_TEMA.get(tema())
+    if suoi and s in suoi:
+        per_lingua = NOMI_TEMA_LINGUA.get(tema(), {}).get(lg, {})
+        return per_lingua.get(s) or suoi[s]
+    d = NOMI_SIM.get(lg, NOMI_SIM["en"])
     return d.get(s, s)
 
 
