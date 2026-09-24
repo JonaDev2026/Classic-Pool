@@ -281,7 +281,9 @@ def vincite(griglia, unita):
 
 # ------------------------------------------------------------- i testi
 TXT = {
-    "en": {"slot": "Slots", "spin": "Spin", "play": "Play",
+    "en": {"slot": "Slots",
+           "test": "Test", "pr_titolo": "All symbols, with their animations",
+           "pr_aiuto": "any key  back", "spin": "Spin", "play": "Play",
            "m_prova": "Classic Slot", "m_nuova": "Space Slot",
            "bet": "Bet", "pays": "Paytable",
            "back": "Back", "win": "You win %s", "no_win": "No win",
@@ -300,7 +302,9 @@ TXT = {
            "pt_line": "Same symbol on touching reels from the left, in any position: %d ways. The numbers are per way, so a win on three ways pays three times.",
            "help": "click / ENTER  spin     < >  bet     %s  paytable     ESC  back",
            "sp_spin": "spin", "sp_bet": "bet", "sp_pays": "paytable", "help_pt": "ENTER / ESC  back"},
-    "it": {"slot": "Slot", "spin": "Gira", "play": "Gioca",
+    "it": {"slot": "Slot",
+           "test": "Prova", "pr_titolo": "Tutti i simboli, con le loro animazioni",
+           "pr_aiuto": "un tasto qualsiasi  indietro", "spin": "Gira", "play": "Gioca",
            "m_prova": "Classic Slot", "m_nuova": "Space Slot",
            "bet": "Puntata",
            "pays": "Pagamenti", "back": "Indietro", "win": "Vinci %s",
@@ -321,7 +325,10 @@ TXT = {
            "pt_line": "Stesso simbolo su rulli attaccati da sinistra, in qualunque posizione: %d modi. I numeri sono per ogni modo, quindi una vincita su tre modi paga tre volte.",
            "help": "clic / INVIO  gira     < >  puntata     %s  pagamenti     ESC  indietro",
            "sp_spin": "gira", "sp_bet": "puntata", "sp_pays": "pagamenti", "help_pt": "INVIO / ESC  indietro"},
-    "fr": {"slot": "Machine", "spin": "Tourner", "play": "Jouer",
+    "fr": {"slot": "Machine",
+           "test": "Essai",
+           "pr_titolo": "Tous les symboles, avec leurs animations",
+           "pr_aiuto": "une touche  retour", "spin": "Tourner", "play": "Jouer",
            "m_prova": "Classic Slot", "m_nuova": "Space Slot",
            "bet": "Mise",
            "pays": "Gains", "back": "Retour", "win": "Vous gagnez %s",
@@ -342,7 +349,9 @@ TXT = {
            "pt_line": "Meme symbole sur des rouleaux voisins depuis la gauche : %d facons. Les gains sont par facon.",
            "help": "clic / ENTREE  tourner     < >  mise     %s  gains     ECHAP  retour",
            "sp_spin": "tourner", "sp_bet": "mise", "sp_pays": "gains", "help_pt": "ENTREE / ECHAP  retour"},
-    "es": {"slot": "Tragaperras", "spin": "Girar", "play": "Jugar",
+    "es": {"slot": "Tragaperras",
+           "test": "Prueba", "pr_titolo": "Todos los simbolos, con sus animaciones",
+           "pr_aiuto": "una tecla  volver", "spin": "Girar", "play": "Jugar",
            "m_prova": "Classic Slot", "m_nuova": "Space Slot",
            "bet": "Apuesta",
            "pays": "Premios", "back": "Atras", "win": "Ganas %s",
@@ -1557,6 +1566,23 @@ class Macchina:
             self.sc.blit(q, q.get_rect(center=(int(x), int(y))),
                          special_flags=pygame.BLEND_RGB_ADD)
 
+    def icona_viva(self, nome, misura, fase=0.0):
+        """Il simbolo con la sua animazione, per i posti fuori dai rulli
+        -- la lista delle vincite, la pagina di prova. Torna l'immagine
+        e di quanto si e' spostata dal suo posto."""
+        an = animazione(nome)
+        if not an:
+            return figura(nome, misura), (0.0, 0.0)
+        img = figura(nome, misura)
+        if an.get("gira"):
+            giri = frames_giro(nome, misura)
+            if giri:
+                quale = int(self.t_neon * an["gira"] * len(giri))
+                img = giri[quale % len(giri)]
+        onda = an.get("onda", 0.0)
+        return img, (math.cos(self.t_neon * 1.15 + fase) * misura[0] * onda,
+                     math.sin(self.t_neon * 1.70 + fase) * misura[1] * onda)
+
     def disegna_ultime(self):
         """A sinistra, come alla roulette: le ultime vincite, ognuna col
         suo simbolo e col suo colore."""
@@ -1573,8 +1599,9 @@ class Macchina:
         lato = B.s(26)
         for nome, lung, paga in self.storico[:10]:
             mezzo = y + lato // 2
-            img = figura(nome, (lato, lato))
-            self.sc.blit(img, img.get_rect(midleft=(x0, mezzo)))
+            img, (dx, dy) = self.icona_viva(nome, (lato, lato), y * 0.03)
+            self.sc.blit(img, img.get_rect(
+                midleft=(int(x0 + dx), int(mezzo + dy))))
             soldi = f.render(B.dollari(paga), True, B.VERDE_SOLDI)
             self.sc.blit(soldi, soldi.get_rect(midright=(x0 + largo, mezzo)))
             # il nome e quanti rulli, fra l'icona e la cifra. Se il nome
@@ -1778,6 +1805,42 @@ def gruppi_pagamenti():
     return fuori
 
 
+def pagina_prova(sc, clock, m):
+    """La pagina di prova: tutti i simboli della macchina, ognuno con la
+    sua animazione, tutti insieme. Serve a guardare le animazioni senza
+    dover aspettare di vincere con quel simbolo."""
+    elenco = [s[0] for s in SIMBOLI]
+    while True:
+        m.dt = min(0.05, clock.tick(60) / 1000.0)
+        m.t_neon += m.dt
+        for ev in B.eventi():
+            if ev.type == pygame.QUIT:
+                return "quit"
+            if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
+                return "su"
+        sc.blit(fondo_slot(), (0, 0))
+        mini = B.FONTS.get("mini", B.FONTS["small"])
+        t = B.FONTS["font"].render(T("pr_titolo"), True, B.ORO_SCELTA)
+        sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(18))))
+        per_riga = 7
+        lato = B.s(72)
+        passo_x = (B.WIN_W - B.s(60)) // per_riga
+        passo_y = lato + B.s(36)
+        y0 = B.ALTO + B.s(52)
+        for i, nome in enumerate(elenco):
+            cx = B.s(30) + passo_x * (i % per_riga) + passo_x // 2
+            cy = y0 + passo_y * (i // per_riga) + lato // 2
+            img, (dx, dy) = m.icona_viva(nome, (lato, lato), i * 0.7)
+            sc.blit(img, img.get_rect(center=(int(cx + dx), int(cy + dy))))
+            an = animazione(nome)
+            q = mini.render(nome_simbolo(nome), True,
+                            (150, 212, 255) if an else (138, 144, 156))
+            sc.blit(q, q.get_rect(center=(cx, cy + lato // 2 + B.s(14))))
+        r = mini.render(T("pr_aiuto"), True, (150, 156, 168))
+        sc.blit(r, r.get_rect(center=(B.WIN_W // 2, B.WIN_H - B.s(24))))
+        B.presenta()
+
+
 def pagina_pagamenti(sc, clock):
     """Il tabellone: i simboli in due colonne, con quanto pagano da tre a
     sei rulli in soldi veri, alla puntata scelta."""
@@ -1875,7 +1938,7 @@ def gioca_slot(sc, clock, logo):
 
     def voci():
         return [T("spin"), "%s  %s" % (T("bet"), B.dollari(punta)),
-                T("pays"), T("back")]
+                T("pays"), T("test"), T("back")]
 
     def per_linea():
         """L'unita': i premi del tabellone sono per unita', e la puntata
@@ -1921,10 +1984,10 @@ def gioca_slot(sc, clock, logo):
                         ferma_suono(n)
                     return "su"
                 if ev.key in (pygame.K_DOWN, pygame.K_s):
-                    sel = (sel + 1) % 4
+                    sel = (sel + 1) % len(voci())
                     B.suona_fx("menu_tic", 0.6)
                 elif ev.key in (pygame.K_UP, pygame.K_w):
-                    sel = (sel - 1) % 4
+                    sel = (sel - 1) % len(voci())
                     B.suona_fx("menu_tic", 0.6)
                 elif ev.key in (pygame.K_LEFT, pygame.K_a) and sel == 1:
                     cambia_punta(-1)
@@ -1940,6 +2003,9 @@ def gioca_slot(sc, clock, logo):
                         cambia_punta(1)
                     elif sel == 2:
                         if pagina_pagamenti(sc, clock) == "quit":
+                            return "quit"
+                    elif sel == 3:
+                        if pagina_prova(sc, clock, m) == "quit":
                             return "quit"
                     else:
                         return "su"
@@ -1957,6 +2023,9 @@ def gioca_slot(sc, clock, logo):
                                 cambia_punta(1)
                             elif i == 2:
                                 if pagina_pagamenti(sc, clock) == "quit":
+                                    return "quit"
+                            elif i == 3:
+                                if pagina_prova(sc, clock, m) == "quit":
                                     return "quit"
                             else:
                                 return "su"
