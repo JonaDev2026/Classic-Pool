@@ -899,6 +899,68 @@ VETRO = [None]
 RULLI_CHIARI = False
 
 
+CIELI = {}
+# la slot dello spazio non ha le lampadine intorno alla cornice: al loro
+# posto, dietro ai rulli, c'e' il cielo
+SENZA_LUCI = ("nuova",)
+COL_CIELO = ("nuova",)
+
+
+def cielo_stellato(misura):
+    """Il cielo che sta fra il fondo dei rulli e i simboli: il buio, un
+    velo di nebbia e le stelle. Si disegna una volta sola e resta li'."""
+    if misura in CIELI:
+        return CIELI[misura]
+    w, h = misura
+    sup = pygame.Surface(misura, pygame.SRCALPHA)
+    sup.fill((7, 8, 18, 194))
+    try:
+        import numpy as np
+    except ImportError:
+        np = None
+    if np is not None:
+        # il velo di nebbia, a onde intere: sfuma senza tagli
+        yy, xx = np.meshgrid(np.arange(h), np.arange(w))
+        rnd = np.random.RandomState(5)
+        g = np.zeros((w, h), np.float32)
+        for _ in range(4):
+            fx, fy = rnd.randint(1, 3), rnd.randint(1, 3)
+            g += rnd.uniform(0.5, 1.0) * np.sin(
+                2 * math.pi * (fx * xx / float(w) + fy * yy / float(h)) +
+                rnd.uniform(0, 6.28))
+        g = (g - g.min()) / max(1e-6, g.max() - g.min())
+        g = g ** 2.6
+        rgb = (g[:, :, None] * np.array([64, 58, 150], np.float32) +
+               (g ** 2)[:, :, None] * np.array([96, 40, 120], np.float32))
+        velo = pygame.Surface(misura, pygame.SRCALPHA)
+        pygame.surfarray.blit_array(velo, np.clip(rgb, 0, 255).astype(np.uint8))
+        pygame.surfarray.pixels_alpha(velo)[:, :] = np.clip(
+            g * 145, 0, 255).astype(np.uint8)
+        sup.blit(velo, (0, 0))
+    # le stelle: tante piccole, qualcuna media, poche grosse e accese
+    rnd = random.Random(9)
+    for _ in range(max(50, (w * h) // 850)):
+        x, y = rnd.randrange(w), rnd.randrange(h)
+        k = rnd.random()
+        if k > 0.965:
+            col, raggio = (255, 255, 255), max(2, int(B.s(2)))
+            alone = pygame.Surface((raggio * 8, raggio * 8), pygame.SRCALPHA)
+            for i in range(raggio * 4, 0, -1):
+                a = int(30 * (1 - i / float(raggio * 4)) ** 2)
+                pygame.draw.circle(alone, (150, 190, 255, a),
+                                   (raggio * 4, raggio * 4), i)
+            sup.blit(alone, alone.get_rect(center=(x, y)))
+        elif k > 0.80:
+            col = rnd.choice(((214, 228, 255), (255, 238, 212)))
+            raggio = 1
+        else:
+            col = (140, 155, 195)
+            raggio = 1
+        pygame.draw.circle(sup, col, (x, y), raggio)
+    CIELI[misura] = sup
+    return sup
+
+
 def vetro_fondo(misura):
     """Il fondo dei rulli fatto come un cilindro vero: si scurisce verso
     l'alto e verso il basso, dove il rullo gira via, e in mezzo prende la
@@ -2026,7 +2088,8 @@ class Macchina:
         pygame.draw.rect(sc, (13, 15, 21), self.cassa,
                          border_radius=B.s(14))
         cornice_neon(sc, self.cassa, self.t_neon)
-        self.lampadine()
+        if tema() not in SENZA_LUCI:
+            self.lampadine()
         self.disegna_jackpot()
         self.disegna_rulli()
         self.disegna_sotto()
@@ -2049,6 +2112,9 @@ class Macchina:
         sc = self.sc
         vetro = self.vetro
         sc.blit(vetro_fondo(vetro.size), vetro)
+        # il cielo sta in mezzo: sopra al fondo dei rulli, sotto ai simboli
+        if tema() in COL_CIELO:
+            sc.blit(cielo_stellato(vetro.size), vetro)
         cw, ch = self.cella
         vecchio = sc.get_clip()
         sc.set_clip(vetro)
