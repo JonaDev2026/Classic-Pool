@@ -437,7 +437,7 @@ NOMI_TEMA = {
         "cuori": "Mars", "picche": "Exoplanet", "fiori": "Uranus",
         "quadri": "Neptune",
         "campana": "TRAPPIST-1", "ferro": "Proxima", "quadrifoglio": "Jupiter",
-        "carte": "Earth", "roulette": "Saturn", "fiches": "Comet",
+        "carte": "Earth", "roulette": "Saturn", "fiches": "Pleiades",
         "gemma": "Alien", "bar": "Rocket", "sette": "Sun",
         "dollaro": "Galaxy", "palla8": "Nebula",
         "jolly": "Space", "dadi": "Comet",
@@ -450,7 +450,7 @@ NOMI_TEMA_LINGUA = {
                "mela": "Plutone", "fragola": "Luna", "anguria": "Mercurio",
                "uva": "Venere", "cuori": "Marte", "picche": "Esopianeta",
                "fiori": "Urano", "quadri": "Nettuno", "quadrifoglio": "Giove",
-               "carte": "Terra", "roulette": "Saturno", "fiches": "Cometa",
+               "carte": "Terra", "roulette": "Saturno", "fiches": "Pleiadi",
                "gemma": "Alieno", "bar": "Razzo", "sette": "Sole",
                "dollaro": "Galassia", "palla8": "Nebulosa",
                "jolly": "Spazio", "dadi": "Cometa"},
@@ -458,7 +458,7 @@ NOMI_TEMA_LINGUA = {
                "mela": "Pluton", "fragola": "Lune", "anguria": "Mercure",
                "uva": "Venus", "cuori": "Mars", "picche": "Exoplanete",
                "fiori": "Uranus", "quadri": "Neptune", "quadrifoglio": "Jupiter",
-               "carte": "Terre", "roulette": "Saturne", "fiches": "Comete",
+               "carte": "Terre", "roulette": "Saturne", "fiches": "Pleiades",
                "gemma": "Alien", "bar": "Fusee", "sette": "Soleil",
                "dollaro": "Galaxie", "palla8": "Nebuleuse",
                "jolly": "Espace", "dadi": "Comete"},
@@ -466,7 +466,7 @@ NOMI_TEMA_LINGUA = {
                "mela": "Pluton", "fragola": "Luna", "anguria": "Mercurio",
                "uva": "Venus", "cuori": "Marte", "picche": "Exoplaneta",
                "fiori": "Urano", "quadri": "Neptuno", "quadrifoglio": "Jupiter",
-               "carte": "Tierra", "roulette": "Saturno", "fiches": "Cometa",
+               "carte": "Tierra", "roulette": "Saturno", "fiches": "Pleyades",
                "gemma": "Alien", "bar": "Cohete", "sette": "Sol",
                "dollaro": "Galaxia", "palla8": "Nebulosa",
                "jolly": "Espacio", "dadi": "Cometa"},
@@ -729,12 +729,14 @@ def con_fiamma(img, forza, tt, fase=0.0):
         return img
     w, h = img.get_size()
     lungo = max(8, int(h * 0.78))
+    su = int(lungo * 0.62)
     sfuria = (0.74 + 0.20 * math.sin(tt * 9.0 + fase) +
               0.10 * math.sin(tt * 15.7 + fase * 1.7))
-    yy, xx = np.meshgrid(np.arange(h + lungo), np.arange(w), indexing="ij")
+    yy, xx = np.meshgrid(np.arange(h + lungo + su), np.arange(w),
+                         indexing="ij")
     yy = yy.astype("float32")
     xx = xx.astype("float32")
-    y0 = h * 0.90
+    y0 = su + h * 0.90
     t = np.clip((yy - y0) / (lungo * sfuria), 0.0, 1.0)
     vivo = (yy >= y0) & (t < 1.0)
     # il getto ondeggia piano mentre scende
@@ -742,17 +744,17 @@ def con_fiamma(img, forza, tt, fase=0.0):
     largo = np.maximum(w * 0.035, w * 0.150 * (1.0 - t * 0.62))
     calore = np.exp(-((xx - cx) / largo) ** 2) * (1.0 - t) ** 1.15 * vivo
     calore *= forza * 1.25 * (0.85 + 0.15 * math.sin(tt * 21.0 + fase))
-    rgb = np.zeros((w, h + lungo, 3), "float32")
+    rgb = np.zeros((w, h + lungo + su, 3), "float32")
     c = calore.T
     # dal bianco al giallo all'arancio: il cuore e' quasi bianco
     rgb += (c ** 2.6)[:, :, None] * np.array([255, 250, 225], "float32")
     rgb += (c ** 1.5)[:, :, None] * np.array([255, 186, 60], "float32") * 0.95
     rgb += c[:, :, None] * np.array([255, 92, 30], "float32") * 0.70
     alfa = np.clip(c * 1.35, 0, 1) * 255
-    sup = pygame.Surface((w, h + lungo), pygame.SRCALPHA)
+    sup = pygame.Surface((w, h + lungo + su), pygame.SRCALPHA)
     pygame.surfarray.blit_array(sup, np.clip(rgb, 0, 255).astype("uint8"))
     pygame.surfarray.pixels_alpha(sup)[:, :] = alfa.astype("uint8")
-    sup.blit(img, (0, 0))
+    sup.blit(img, (0, su))
     return sup
 
 
@@ -1131,9 +1133,9 @@ ANIMAZIONI = {
         "quadrifoglio": {"gira": 0.78},          # Giove, 9 ore e 55
         "carte": {"gira": 0.50},                 # Terra, 24 ore
         "roulette": {"gira": 0.74},           # Saturno, 10 ore e mezza
-        # la cometa non e' una sfera: fluttua e lascia la scia
-        "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
-                   "colore": (150, 200, 255), "misura": 0.67},
+        # le sette sorelle: disegnate dal codice, brillano e la nebbia
+        # azzurra che le avvolge scorre piano
+        "fiches": {"pleiadi": 0.11},
         # la galassia a spirale: disegnata dal codice, gira su se stessa
         "dollaro": {"galassia": 0.06, "misura": 1.95},
         # la nebulosa non e' una PNG: la disegna il codice, tre veli di
@@ -1428,20 +1430,20 @@ def frames_galassia(misura, quanti=None):
         # dove nascono le stelle, ed e' quello che le fa colorate
         nubi = np.roll(rosa, int(round(fase / math.pi * w)), axis=0)
         fiore = np.clip(bracci * 2.2, 0, 1) * nubi
-        rgb += fiore[:, :, None] * np.array([255, 78, 150],
-                                            np.float32) * 1.75
+        rgb += fiore[:, :, None] * np.array([150, 224, 255],
+                                            np.float32) * 1.70
         rgb += (d ** 3)[:, :, None] * np.array([190, 120, 255],
                                                np.float32) * 0.35
         # l'alone caldo che avvolge tutto il disco
         rgb += (velo * 1.6)[:, :, None] * np.array([120, 90, 190], np.float32)
-        # la nebbiolina: una foschia rosa larga, che esce oltre i bracci,
-        # e una celeste piu' stretta che riempie fra un braccio e
-        # l'altro. In Andromeda e' quella che si vede intorno al disco:
-        # senza, restano due virgole azzurre e sembra un disegno
+        # la nebbiolina: un anello di foschia intorno al disco e una
+        # velatura piu' stretta fra un braccio e l'altro. E' quella che
+        # in Andromeda si vede oltre i bracci: senza, restano due
+        # virgole e sembra un disegno
         foschia = (np.exp(-((r - 0.58) / 0.34) ** 2) *
                    (0.22 + 0.40 * np.clip(onda, 0, 1)))
         rgb += (foschia[:, :, None] *
-                np.array([255, 128, 190], np.float32) * 0.62)
+                np.array([104, 170, 255], np.float32) * 0.70)
         celeste = (np.exp(-(r / 0.66) ** 2) *
                    np.clip(0.90 - bracci, 0, 1) * 0.42)
         rgb += celeste[:, :, None] * np.array([120, 205, 255], np.float32)
