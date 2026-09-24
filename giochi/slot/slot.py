@@ -282,7 +282,8 @@ def vincite(griglia, unita):
 # ------------------------------------------------------------- i testi
 TXT = {
     "en": {"slot": "Slots", "spin": "Spin", "play": "Play",
-           "m_prova": "Classic Slot", "bet": "Bet", "pays": "Paytable",
+           "m_prova": "Classic Slot", "m_nuova": "New Slot",
+           "bet": "Bet", "pays": "Paytable",
            "back": "Back", "win": "You win %s", "no_win": "No win",
            "broke": "Not enough money", "tot_bet": "Total bet",
            "per_line": "Per unit", "lines": "Ways",
@@ -300,7 +301,8 @@ TXT = {
            "help": "click / ENTER  spin     < >  bet     %s  paytable     ESC  back",
            "sp_spin": "spin", "sp_bet": "bet", "sp_pays": "paytable", "help_pt": "ENTER / ESC  back"},
     "it": {"slot": "Slot", "spin": "Gira", "play": "Gioca",
-           "m_prova": "Classic Slot", "bet": "Puntata",
+           "m_prova": "Classic Slot", "m_nuova": "New Slot",
+           "bet": "Puntata",
            "pays": "Pagamenti", "back": "Indietro", "win": "Vinci %s",
            "no_win": "Niente", "broke": "Non hai abbastanza soldi",
            "tot_bet": "Puntata", "per_line": "Per unita", "lines": "Modi",
@@ -320,7 +322,8 @@ TXT = {
            "help": "clic / INVIO  gira     < >  puntata     %s  pagamenti     ESC  indietro",
            "sp_spin": "gira", "sp_bet": "puntata", "sp_pays": "pagamenti", "help_pt": "INVIO / ESC  indietro"},
     "fr": {"slot": "Machine", "spin": "Tourner", "play": "Jouer",
-           "m_prova": "Classic Slot", "bet": "Mise",
+           "m_prova": "Classic Slot", "m_nuova": "New Slot",
+           "bet": "Mise",
            "pays": "Gains", "back": "Retour", "win": "Vous gagnez %s",
            "no_win": "Rien", "broke": "Pas assez d'argent",
            "tot_bet": "Mise", "per_line": "Par unite", "lines": "Facons",
@@ -340,7 +343,8 @@ TXT = {
            "help": "clic / ENTREE  tourner     < >  mise     %s  gains     ECHAP  retour",
            "sp_spin": "tourner", "sp_bet": "mise", "sp_pays": "gains", "help_pt": "ENTREE / ECHAP  retour"},
     "es": {"slot": "Tragaperras", "spin": "Girar", "play": "Jugar",
-           "m_prova": "Classic Slot", "bet": "Apuesta",
+           "m_prova": "Classic Slot", "m_nuova": "New Slot",
+           "bet": "Apuesta",
            "pays": "Premios", "back": "Atras", "win": "Ganas %s",
            "no_win": "Nada", "broke": "No tienes bastante dinero",
            "tot_bet": "Apuesta", "per_line": "Por unidad", "lines": "Modos",
@@ -427,25 +431,47 @@ SUONI = {}
 DURATE = {}
 
 
-def carica_suoni():
-    """I suoni della slot, da audio/slot/fx. I file col trattino e un
+SUONI_TEMA = [None]
+
+
+def _carica_cartella(cartella, solo_nuovi=False):
+    """I file di una cartella dentro SUONI. I file col trattino e un
     numero stanno insieme: vinci1-1, vinci1-2... sono tutti "vinci1", e
     a ogni vincita se ne sente uno a caso."""
-    if SUONI or not B.MUSICA_OK:
-        return
-    cartella = os.path.join(B.SUONI_DIR, "slot", "fx")
     if not os.path.isdir(cartella):
         return
     for f in sorted(os.listdir(cartella)):
         if not f.lower().endswith((".ogg", ".wav", ".mp3")):
             continue
         nome = re.sub(r"-\d+$", "", os.path.splitext(f)[0].lower())
+        if solo_nuovi and nome in SUONI:
+            continue
         try:
             s = pygame.mixer.Sound(os.path.join(cartella, f))
             SUONI.setdefault(nome, []).append(s)
             DURATE[nome] = s.get_length()
         except pygame.error:
             pass
+
+
+def carica_suoni():
+    """I suoni della macchina di adesso: prima i suoi, in
+    audio/slot/<tema>/fx, poi quelli della classica per tutto quello che
+    lui non ha. Cosi' una macchina nuova suona fin dal primo giorno e i
+    suoi suoni si mettono uno alla volta."""
+    if not B.MUSICA_OK:
+        return
+    ora = tema()
+    if SUONI and SUONI_TEMA[0] == ora:
+        return
+    SUONI.clear()
+    DURATE.clear()
+    SENTITO.clear()
+    SUONI_TEMA[0] = ora
+    _carica_cartella(os.path.join(B.SUONI_DIR, "slot", ora, "fx"))
+    _carica_cartella(os.path.join(B.SUONI_DIR, "slot", TEMA_BASE, "fx"), True)
+    # e la vecchia cartella senza tema, per non perdere niente
+    _carica_cartella(os.path.join(B.SUONI_DIR, "slot", "fx"), True)
 
 
 # a chi tocca quale suono: il regalo usa "bonus", il jolly dentro una
@@ -561,6 +587,9 @@ def figura(nome, misura):
     w, h = misura
     q = None
     f = os.path.join(GFX, tema(), nome + ".png")
+    if not os.path.isfile(f):
+        # il tema non ce l'ha ancora: si usa quello della classica
+        f = os.path.join(GFX, TEMA_BASE, nome + ".png")
     if os.path.isfile(f):
         try:
             img = pygame.image.load(f).convert_alpha()
@@ -1266,9 +1295,14 @@ class Macchina:
             self.lampo = max(0.0, self.lampo - self.dt)
 
 
-# le macchine: chiave, come si chiama, che tema usa. Ognuna avra' i suoi
-# simboli e i suoi pagamenti; per ora c'e' solo quella di prova
-MACCHINE = (("prova", "m_prova", "classica"),)
+# le macchine: chiave, come si chiama, che tema usa. Il motore, i
+# pagamenti e le regole sono gli stessi per tutte: cambiano solo i
+# simboli (immagini/slot/<tema>/) e i suoni (audio/slot/<tema>/fx/).
+# Quello che manca in un tema si prende da "classica", cosi' una
+# macchina si puo' vestire un simbolo alla volta senza mai rompersi.
+MACCHINE = (("prova", "m_prova", "classica"),
+            ("nuova", "m_nuova", "nuova"))
+TEMA_BASE = "classica"
 
 
 def gruppi_pagamenti():
