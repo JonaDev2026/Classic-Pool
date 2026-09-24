@@ -1238,7 +1238,8 @@ ANIMAZIONI = {
         # il bonus e' l'alieno: sta com'e' e galleggia piano
         "regalo": {"onda": 0.040},
         # il jackpot:
-        "jackpot": {"targa": 0.10, "scia": 26, "verso": (0.0, -0.22),
+        "jackpot": {"targa": 0.10, "misura": 1.35,
+                    "scia": 26, "verso": (0.0, -0.22),
                     "sparso": 0.46, "colore": (255, 205, 120), "pixel": True,
                     "colori": ((235, 120, 60), (255, 70, 120),
                                (180, 60, 210))},
