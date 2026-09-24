@@ -983,8 +983,18 @@ ANIMAZIONI = {
         "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                    "colore": (150, 200, 255)},
         "sette": {"gira": 0.20},                 # il Sole, 25 giorni
-        # la targa SPACE: non e' una sfera, respira appena
-        "jolly": {"onda": 0.035},
+        # la moneta gira di taglio, come una moneta lanciata
+        "dollaro": {"moneta": 0.55},
+        # la nebulosa non e' una PNG: la disegna il codice, tre veli di
+        # nebbia che scorrono uno sull'altro e le stelle che brillano
+        "palla8": {"nebbia": 0.18,
+                   "colori": ((188, 92, 224), (236, 96, 168), (86, 150, 255))},
+        # la targa SPACE: respira e si accende
+        "jolly": {"onda": 0.03, "lampo": 0.22},
+        # i dadi ballano, il regalo batte, il jackpot lampeggia
+        "dadi": {"trema": 0.035},
+        "regalo": {"batte": 0.10},
+        "jackpot": {"lampo": 0.40, "batte": 0.06},
     },
 }
 
@@ -1117,6 +1127,77 @@ def misura_anello(nome, misura):
     p = misura_palla(nome, misura)
     k = d["fuori"] * 1.04
     return (max(4, int(p[0] * k)), max(4, int(p[1] * k)))
+
+
+NEBBIE = {}
+QUANTI_NEBBIA = 60
+
+
+def frames_nebbia(misura, colori=None, quanti=None):
+    """La nebulosa: non e' una PNG, si disegna. Tre veli di nebbia che
+    scorrono uno sull'altro a velocita' diverse, piu' i punti di luce
+    delle stelle dentro. Siccome i veli scorrono e si richiudono su se
+    stessi, il giro e' continuo e non si vede dove ricomincia."""
+    quanti = quanti or QUANTI_NEBBIA
+    chiave = (misura, tuple(colori or ()), quanti)
+    if chiave in NEBBIE:
+        return NEBBIE[chiave]
+    try:
+        import numpy as np
+    except ImportError:
+        NEBBIE[chiave] = None
+        return None
+    w, h = misura
+    colori = colori or ((188, 92, 224), (236, 96, 168), (86, 150, 255))
+    rnd = np.random.RandomState(7)
+    # ogni velo e' una nuvola di macchie morbide, che si ripete
+    # Le macchie si fanno con onde a frequenza intera invece che con
+    # chiazze sparse: cosi' il disegno si richiude esattamente su se
+    # stesso, e facendolo scorrere non si vede la cucitura.
+    yy, xx = np.meshgrid(np.arange(h), np.arange(w))
+    veli = []
+    for i, col in enumerate(colori):
+        g = np.zeros((w, h), np.float32)
+        for _ in range(5):
+            fx, fy = rnd.randint(1, 4), rnd.randint(1, 4)
+            fase = rnd.uniform(0, 2 * math.pi)
+            g += rnd.uniform(0.5, 1.0) * np.sin(
+                2 * math.pi * (fx * xx / float(w) + fy * yy / float(h)) + fase)
+        g = (g - g.min()) / max(1e-6, g.max() - g.min())
+        g = g ** 1.9                       # piu' buchi che nuvola
+        veli.append((g, np.array(col, np.float32)))
+    # la sagoma tonda, sfumata verso il bordo
+    yy, xx = np.meshgrid(np.arange(h), np.arange(w))
+    rr = np.sqrt(((xx - (w - 1) / 2.0) / (w / 2.0)) ** 2 +
+                 ((yy - (h - 1) / 2.0) / (h / 2.0)) ** 2)
+    sagoma = np.clip(1.0 - (rr - 0.45) / 0.55, 0.0, 1.0) ** 1.5
+    # le stelle
+    stelle = np.zeros((w, h), np.float32)
+    for _ in range(max(8, w // 5)):
+        sx, sy = rnd.randint(0, w), rnd.randint(0, h)
+        stelle[sx, sy] = rnd.uniform(0.6, 1.0)
+    fuori = []
+    for f in range(quanti):
+        k = f / float(quanti)
+        rgb = np.zeros((w, h, 3), np.float32)
+        alfa = np.zeros((w, h), np.float32)
+        for i, (g, col) in enumerate(veli):
+            sp = int(round(k * w * (1 + i)))          # ognuno a modo suo
+            gg = np.roll(g, sp, axis=0)
+            gg = np.roll(gg, int(round(k * h * (1 if i == 1 else -1))), axis=1)
+            rgb += gg[:, :, None] * col[None, None, :]
+            alfa = np.maximum(alfa, gg)
+        rgb = np.clip(rgb * 0.85, 0, 255)
+        luce = np.roll(stelle, int(round(k * w * 0.4)), axis=0)
+        brilla = 0.5 + 0.5 * math.sin(2 * math.pi * (k * 3))
+        rgb += (luce * 255 * brilla)[:, :, None]
+        alfa = np.clip((alfa * 1.25 + luce) * sagoma, 0, 1) * 255
+        sup = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.surfarray.blit_array(sup, np.clip(rgb, 0, 255).astype(np.uint8))
+        pygame.surfarray.pixels_alpha(sup)[:, :] = alfa.astype(np.uint8)
+        fuori.append(sup)
+    NEBBIE[chiave] = fuori
+    return fuori
 
 
 GIRI = {}
@@ -1428,27 +1509,18 @@ class Macchina:
                          225 if suo else int(150 + 105 * respiro)),
                         special_flags=pygame.BLEND_RGBA_MULT)
                 sc.blit(al, al.get_rect(center=r.center))
-                giri = (frames_giro(nome, (int(cw * GRANDE),
-                                           int(ch * GRANDE)))
-                        if an and an.get("gira") else None)
                 # l'alfa si moltiplica sui pixel: set_alpha su una
                 # superficie trasparente farebbe un quadrato nero
-                if giri:
-                    # il giro segue un orologio che non si azzera mai.
-                    # Con quello della vincita, che riparte da zero a
-                    # ogni combinazione mostrata, il pianeta scattava
-                    # indietro ogni volta che cambiava riga
-                    quale = int(self.t_neon * an["gira"] * len(giri))
-                    img = giri[quale % len(giri)]
-                elif suo:
-                    img = figura(nome, (int(cw * GRANDE), int(ch * GRANDE)))
+                if suo:
+                    img, (dx, dy) = self.icona_viva(
+                        nome, (int(cw * GRANDE), int(ch * GRANDE)),
+                        c * 1.7 + i * 2.3)
                 else:
                     img = figura(nome, (int(cw * GRANDE * k),
                                         int(ch * GRANDE * k))).copy()
                     img.fill((255, 255, 255, int(165 + 90 * respiro)),
                              special_flags=pygame.BLEND_RGBA_MULT)
-                # chi galleggia si sposta davvero dal suo posto
-                dx, dy = self.scosta(nome, c, i)
+                    dx = dy = 0.0
                 sc.blit(img, img.get_rect(
                     center=(int(r.centerx + dx), int(r.centery + dy))))
         self.disegna_polvere()
@@ -1493,9 +1565,31 @@ class Macchina:
         return (math.cos(self.t_neon * 1.15 + fase) * cw * onda * 0.6,
                 math.sin(self.t_neon * 1.70 + fase) * ch * onda)
 
+    def semina(self, nome, centro, misura, fase=0.0):
+        """Butta fuori qualche granello di scia da quel simbolo, se ne
+        ha una. Vuole il centro sullo schermo e quanto e' grande, cosi'
+        funziona dovunque il simbolo sia disegnato: sui rulli, nella
+        lista a sinistra, nella pagina di prova."""
+        an = animazione(nome)
+        if not an or not an.get("scia") or len(self.scia) >= 260:
+            return
+        if random.random() > an["scia"] * self.dt:
+            return
+        vx, vy = an.get("verso", (-1.0, 0.0))
+        v = misura[0] * random.uniform(0.6, 1.5)
+        self.scia.append([
+            centro[0] + random.uniform(-0.16, 0.16) * misura[0],
+            centro[1] + random.uniform(-0.16, 0.16) * misura[1],
+            vx * v + random.uniform(-0.2, 0.2) * misura[0],
+            vy * v + random.uniform(-0.2, 0.2) * misura[1],
+            0.0, random.uniform(0.5, 1.2),
+            random.choice((0.45, 0.65, 0.9)) * misura[0] / float(B.s(41)),
+            an.get("colore", (200, 220, 255)),
+            random.uniform(0.0, 6.28)])
+
     def scia_passo(self):
-        """La scia: nasce dalla casella del simbolo e se ne va dalla
-        parte che dice la tabella, rallentando e spegnendosi."""
+        """La scia: si muove, rallenta e si spegne. I granelli nuovi li
+        chiede semina(), da dove serve."""
         vive = []
         for p in self.scia:
             p[4] += self.dt
@@ -1507,10 +1601,8 @@ class Macchina:
             p[3] *= 0.99
             vive.append(p)
         self.scia = vive
-        # nasce solo dalle caselle che stanno pagando, a rulli fermi
-        if self.gira or len(self.scia) >= 220:
-            return
-        if not (0 <= self.mostra < len(self.vinte)):
+        # sui rulli nasce dalle caselle che stanno pagando, a rulli fermi
+        if self.gira or not (0 <= self.mostra < len(self.vinte)):
             return
         if not self.vinte[self.mostra][3]:
             return
@@ -1519,25 +1611,11 @@ class Macchina:
             if not 0 <= i < RIGHE:
                 continue
             nome = self.griglia[c][i]
-            an = animazione(nome)
-            if not an or not an.get("scia"):
-                continue
-            if random.random() > an["scia"] * self.dt:
-                continue
-            vx, vy = an.get("verso", (-1.0, 0.0))
             dx, dy = self.scosta(nome, c, i)
-            v = B.s(random.uniform(26, 64))
-            self.scia.append([
-                self.vetro.x + (c + 0.5) * cw + dx
-                + random.uniform(-0.15, 0.15) * cw,
-                self.vetro.y + (i + 0.5) * ch + dy
-                + random.uniform(-0.15, 0.15) * ch,
-                vx * v + random.uniform(-B.s(10), B.s(10)),
-                vy * v + random.uniform(-B.s(10), B.s(10)),
-                0.0, random.uniform(0.5, 1.2),
-                random.choice((0.45, 0.65, 0.9)),
-                an.get("colore", (200, 220, 255)),
-                random.uniform(0.0, 6.28)])
+            self.semina(nome,
+                        (self.vetro.x + (c + 0.5) * cw + dx,
+                         self.vetro.y + (i + 0.5) * ch + dy),
+                        (cw * GRANDE, ch * GRANDE))
 
     def disegna_scia(self):
         """I granelli della scia, sotto ai simboli."""
@@ -1567,21 +1645,54 @@ class Macchina:
                          special_flags=pygame.BLEND_RGB_ADD)
 
     def icona_viva(self, nome, misura, fase=0.0):
-        """Il simbolo con la sua animazione, per i posti fuori dai rulli
-        -- la lista delle vincite, la pagina di prova. Torna l'immagine
-        e di quanto si e' spostata dal suo posto."""
+        """Il simbolo come si vede adesso, con la sua animazione gia'
+        applicata, e di quanto si e' spostato dal suo posto. Vale
+        dovunque: sui rulli, nella lista a sinistra, nella pagina di
+        prova. Chi non ha un'animazione torna com'e'."""
         an = animazione(nome)
         if not an:
             return figura(nome, misura), (0.0, 0.0)
-        img = figura(nome, misura)
-        if an.get("gira"):
-            giri = frames_giro(nome, misura)
-            if giri:
-                quale = int(self.t_neon * an["gira"] * len(giri))
-                img = giri[quale % len(giri)]
+        tt = self.t_neon
+        img = None
+        if an.get("nebbia"):
+            fr = frames_nebbia(misura, an.get("colori"))
+            if fr:
+                img = fr[int(tt * an["nebbia"] * len(fr)) % len(fr)]
+        elif an.get("gira"):
+            fr = frames_giro(nome, misura)
+            if fr:
+                img = fr[int(tt * an["gira"] * len(fr)) % len(fr)]
+        if img is None:
+            img = figura(nome, misura)
+        # la moneta gira di taglio: si schiaccia e si riapre
+        if an.get("moneta"):
+            k = abs(math.cos(tt * an["moneta"] * math.pi))
+            larga = max(2, int(img.get_width() * max(0.10, k)))
+            img = pygame.transform.smoothscale(img,
+                                               (larga, img.get_height()))
+        # il battito: si allarga e si stringe tutto insieme
+        if an.get("batte"):
+            k = 1.0 + an["batte"] * (0.5 + 0.5 * math.sin(tt * 5.0 + fase))
+            img = pygame.transform.smoothscale(
+                img, (max(2, int(img.get_width() * k)),
+                      max(2, int(img.get_height() * k))))
+        # il lampo: si accende e si spegne
+        if an.get("lampo"):
+            v = 1.0 - an["lampo"] * (0.5 + 0.5 * math.sin(tt * 6.0 + fase))
+            q = int(max(0, min(255, 255 * v)))
+            img = img.copy()
+            img.fill((255, 255, 255, q), special_flags=pygame.BLEND_RGBA_MULT)
+        dx = dy = 0.0
         onda = an.get("onda", 0.0)
-        return img, (math.cos(self.t_neon * 1.15 + fase) * misura[0] * onda,
-                     math.sin(self.t_neon * 1.70 + fase) * misura[1] * onda)
+        if onda:
+            dx += math.cos(tt * 1.15 + fase) * misura[0] * onda
+            dy += math.sin(tt * 1.70 + fase) * misura[1] * onda
+        # il tremolio: scatti piccoli e veloci, come i dadi che ballano
+        tr = an.get("trema", 0.0)
+        if tr:
+            dx += math.sin(tt * 23.0 + fase * 3) * misura[0] * tr
+            dy += math.cos(tt * 19.0 + fase * 5) * misura[1] * tr
+        return img, (dx, dy)
 
     def disegna_ultime(self):
         """A sinistra, come alla roulette: le ultime vincite, ognuna col
@@ -1819,6 +1930,8 @@ def pagina_prova(sc, clock, m):
             if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
                 return "su"
         sc.blit(fondo_slot(), (0, 0))
+        m.scia_passo()
+        m.disegna_scia()
         mini = B.FONTS.get("mini", B.FONTS["small"])
         t = B.FONTS["font"].render(T("pr_titolo"), True, B.ORO_SCELTA)
         sc.blit(t, t.get_rect(center=(B.WIN_W // 2, B.ALTO + B.s(18))))
@@ -1831,6 +1944,7 @@ def pagina_prova(sc, clock, m):
             cx = B.s(30) + passo_x * (i % per_riga) + passo_x // 2
             cy = y0 + passo_y * (i // per_riga) + lato // 2
             img, (dx, dy) = m.icona_viva(nome, (lato, lato), i * 0.7)
+            m.semina(nome, (cx + dx, cy + dy), (lato, lato))
             sc.blit(img, img.get_rect(center=(int(cx + dx), int(cy + dy))))
             an = animazione(nome)
             q = mini.render(nome_simbolo(nome), True,
