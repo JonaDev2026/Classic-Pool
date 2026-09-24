@@ -633,10 +633,28 @@ def tema():
     return B.CFG.get("slot_tema", "classica")
 
 
+NUDE = {}
+
+
 def figura(nome, misura):
-    """Il disegno di un simbolo, della misura voluta. Se la PNG del tema
-    non c'e' si disegna un segnaposto: cosi' la macchina si prova anche
-    senza grafica."""
+    """Il disegno di un simbolo come si vede nel gioco: la palla con il
+    suo anello, se ne ha uno."""
+    chiave = (tema(), nome, misura)
+    if chiave in NUDE:
+        return NUDE[chiave]
+    if not anello_di(nome):
+        NUDE[chiave] = figura_nuda(nome, misura)
+        return NUDE[chiave]
+    palla = figura_nuda(nome, misura_palla(nome, misura))
+    NUDE[chiave] = con_anello(nome, palla, misura)
+    return NUDE[chiave]
+
+
+def figura_nuda(nome, misura):
+    """La palla e basta, senza anello: e' da questa che si fanno i
+    fotogrammi della rotazione, se no girerebbe anche l'anello.
+    Se la PNG del tema non c'e' si disegna un segnaposto, cosi' la
+    macchina si prova anche senza grafica."""
     chiave = (tema(), nome, misura)
     if chiave in FIGURE:
         return FIGURE[chiave]
@@ -951,10 +969,7 @@ ANIMAZIONI = {
         "ferro": {"gira": 0.28},                 # Proxima, una stella
         "quadrifoglio": {"gira": 0.78},          # Giove, 9 ore e 55
         "carte": {"gira": 0.50},                 # Terra, 24 ore
-        # saturno per ora sta fermo: l'anello non e' parte della sfera e
-        # girando si accartoccia. Va staccato dalla palla e rimesso
-        # sopra, fermo -- si fa, ma e' un lavoro a parte
-        # "roulette": {"gira": 0.74},
+        "roulette": {"gira": 0.74},           # Saturno, 10 ore e mezza
         # la cometa non e' una sfera: fluttua e lascia la scia
         "fiches": {"onda": 0.05, "scia": 60, "verso": (-1.0, 0.30),
                    "colore": (150, 200, 255)},
@@ -968,11 +983,120 @@ def animazione(nome):
     return ANIMAZIONI.get(tema(), {}).get(nome)
 
 
+# ------------------------------------------------------------ gli anelli
+# Saturno e Urano si scaricano come palle lisce e l'anello glielo
+# disegniamo noi: se stesse dentro la PNG girerebbe insieme al pianeta,
+# che e' sbagliato. Cosi' invece resta fermo mentre la palla ruota.
+#   fuori/dentro  dove comincia e dove finisce, in raggi del pianeta
+#   schiaccia     quanto e' di taglio (0 = visto di spigolo, 1 = di faccia)
+#   inclina       di quanti gradi e' storto. Urano e' coricato su un
+#                 fianco per davvero, quindi i suoi anelli sono verticali
+#   divisione     dove passa la riga vuota dentro l'anello (0 = nessuna)
+ANELLI = {
+    "nuova": {
+        "roulette": {"fuori": 2.15, "dentro": 1.30, "schiaccia": 0.44,
+                     "inclina": -11, "colore": (228, 206, 158),
+                     "opaco": 235, "divisione": 0.0},
+        "fiori": {"fuori": 1.72, "dentro": 1.34, "schiaccia": 0.30,
+                  "inclina": 80, "colore": (168, 202, 222),
+                  "opaco": 165, "divisione": 0.0},
+    },
+}
+
+
+def anello_di(nome):
+    return ANELLI.get(tema(), {}).get(nome)
+
+
+def centro_raggio(src):
+    """Dove sta la palla dentro l'immagine e quanto e' grossa: si misura
+    sul disegno, non sul bordo del file."""
+    w, h = src.get_size()
+    try:
+        import numpy as np
+        a = pygame.surfarray.array_alpha(src)
+        col = np.where(a.max(axis=1) > 8)[0]
+        rig = np.where(a.max(axis=0) > 8)[0]
+        if len(col) and len(rig):
+            return ((col[0] + col[-1]) / 2.0, (rig[0] + rig[-1]) / 2.0,
+                    max(col[-1] - col[0], rig[-1] - rig[0]) / 2.0 + 0.5)
+    except (ImportError, ValueError, pygame.error):
+        pass
+    return ((w - 1) / 2.0, (h - 1) / 2.0, min(w, h) / 2.0)
+
+
+ANELLI_FATTI = {}
+
+
+def anello_pezzi(nome, misura, R):
+    """L'anello in due pezzi: quello che passa DIETRO al pianeta e quello
+    che passa DAVANTI. E' la separazione che lo fa sembrare un anello e
+    non un cerchio appiccicato sopra."""
+    d = anello_di(nome)
+    chiave = (tema(), nome, misura, int(R))
+    if chiave in ANELLI_FATTI:
+        return ANELLI_FATTI[chiave]
+    if not d:
+        ANELLI_FATTI[chiave] = None
+        return None
+    K = 4                                   # si disegna in grande
+    L = max(misura) * K
+    piano = pygame.Surface((L, L), pygame.SRCALPHA)
+    m = L // 2
+    a_f, a_d, sch = R * d["fuori"] * K, R * d["dentro"] * K, d["schiaccia"]
+    col = tuple(d["colore"])
+    pygame.draw.ellipse(piano, col + (d.get("opaco", 235),),
+                        pygame.Rect(m - a_f, m - a_f * sch,
+                                    a_f * 2, a_f * sch * 2))
+    if d.get("divisione"):
+        q = a_d + (a_f - a_d) * d["divisione"]
+        pygame.draw.ellipse(piano, (0, 0, 0, 0),
+                            pygame.Rect(m - q, m - q * sch, q * 2, q * sch * 2),
+                            max(2 * K, int((a_f - a_d) * 0.13)))
+    pygame.draw.ellipse(piano, (0, 0, 0, 0),
+                        pygame.Rect(m - a_d, m - a_d * sch,
+                                    a_d * 2, a_d * sch * 2))
+    pezzi = []
+    for alto, fondo in ((0, m), (m, L)):
+        mezzo = pygame.Surface((L, L), pygame.SRCALPHA)
+        mezzo.blit(piano, (0, alto), pygame.Rect(0, alto, L, fondo - alto))
+        mezzo = pygame.transform.rotozoom(mezzo, d.get("inclina", 0), 1.0)
+        mezzo = pygame.transform.smoothscale(
+            mezzo, (max(1, mezzo.get_width() // K),
+                    max(1, mezzo.get_height() // K)))
+        pezzi.append(mezzo)
+    ANELLI_FATTI[chiave] = (pezzi[0], pezzi[1])
+    return ANELLI_FATTI[chiave]
+
+
+def con_anello(nome, palla, misura):
+    """La palla con l'anello intorno, dentro una casella di quella
+    misura: prima il pezzo di dietro, poi la palla, poi quello davanti."""
+    _cx, _cy, R = centro_raggio(palla)
+    pezzi = anello_pezzi(nome, misura, R)
+    if not pezzi:
+        return palla
+    fuori = pygame.Surface(misura, pygame.SRCALPHA)
+    mezzo = (misura[0] // 2, misura[1] // 2)
+    fuori.blit(pezzi[0], pezzi[0].get_rect(center=mezzo))
+    fuori.blit(palla, palla.get_rect(center=mezzo))
+    fuori.blit(pezzi[1], pezzi[1].get_rect(center=mezzo))
+    return fuori
+
+
+def misura_palla(nome, misura):
+    """Quanto viene grande la palla quando ha un anello: si stringe,
+    perche' l'anello deve starci dentro alla casella."""
+    d = anello_di(nome)
+    if not d:
+        return misura
+    k = 1.0 / (d["fuori"] * 1.02)
+    return (max(4, int(misura[0] * k)), max(4, int(misura[1] * k)))
+
+
 GIRI = {}
-# Quanti fotogrammi fanno un giro completo. Tanti: il pianeta gira
-# piano, e con pochi fotogrammi si vedrebbe scattare. A centoventi, un
-# pianeta che ci mette due secondi a girare cambia disegno sessanta
-# volte al secondo, cioe' fluido quanto lo schermo.
+# Quanti fotogrammi fanno un giro completo. Tanti: il pianeta gira piano,
+# e con pochi fotogrammi si vedrebbe scattare.
 QUANTI_GIRO = 120
 DENTRO = 0.84               # da quanto dentro il disco si pesca il colore
 
@@ -998,7 +1122,9 @@ def frames_giro(nome, misura):
     except ImportError:
         GIRI[chiave] = None
         return None
-    src = figura(nome, misura)
+    # se ha l'anello la palla e' piu' piccola della casella: si fanno i
+    # fotogrammi della palla e l'anello si rimette sopra alla fine
+    src = figura_nuda(nome, misura_palla(nome, misura))
     w, h = src.get_size()
     try:
         rgb = pygame.surfarray.array3d(src).astype(np.float32)
@@ -1076,6 +1202,10 @@ def frames_giro(nome, misura):
         sup = pygame.Surface((w, h), pygame.SRCALPHA)
         pygame.surfarray.blit_array(sup, q.astype(np.uint8))
         pygame.surfarray.pixels_alpha(sup)[:, :] = maschera
+        # l'anello si rimette sopra a giro fatto: sta fermo mentre la
+        # palla ruota sotto, che e' il punto di tutta la faccenda
+        if anello_di(nome):
+            sup = con_anello(nome, sup, misura)
         fuori.append(sup)
     GIRI[chiave] = fuori
     return fuori
