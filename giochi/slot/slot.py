@@ -908,36 +908,12 @@ COL_CIELO = ("nuova",)
 
 
 def cielo_fondo(misura):
-    """Il buio e il velo di nebbia dietro ai rulli. Senza stelle: quelle
-    si accendono e si spengono, quindi vanno disegnate ogni volta."""
+    """Il buio dietro ai rulli, e basta: niente nebbie, niente aloni.
+    Le stelle si disegnano a parte, perche' si accendono."""
     if misura in CIELI:
         return CIELI[misura]
-    w, h = misura
     sup = pygame.Surface(misura, pygame.SRCALPHA)
-    sup.fill((7, 8, 18, 194))
-    try:
-        import numpy as np
-    except ImportError:
-        CIELI[misura] = sup
-        return sup
-    # il velo di nebbia, a onde intere: sfuma senza tagli
-    yy, xx = np.meshgrid(np.arange(h), np.arange(w))
-    rnd = np.random.RandomState(5)
-    g = np.zeros((w, h), np.float32)
-    for _ in range(4):
-        fx, fy = rnd.randint(1, 3), rnd.randint(1, 3)
-        g += rnd.uniform(0.5, 1.0) * np.sin(
-            2 * math.pi * (fx * xx / float(w) + fy * yy / float(h)) +
-            rnd.uniform(0, 6.28))
-    g = (g - g.min()) / max(1e-6, g.max() - g.min())
-    g = g ** 2.6
-    rgb = (g[:, :, None] * np.array([64, 58, 150], np.float32) +
-           (g ** 2)[:, :, None] * np.array([96, 40, 120], np.float32))
-    velo = pygame.Surface(misura, pygame.SRCALPHA)
-    pygame.surfarray.blit_array(velo, np.clip(rgb, 0, 255).astype(np.uint8))
-    pygame.surfarray.pixels_alpha(velo)[:, :] = np.clip(
-        g * 145, 0, 255).astype(np.uint8)
-    sup.blit(velo, (0, 0))
+    sup.fill((6, 7, 15, 216))
     CIELI[misura] = sup
     return sup
 
