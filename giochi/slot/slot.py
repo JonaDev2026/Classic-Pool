@@ -1379,7 +1379,7 @@ def anello_pezzi(nome, misura, R):
 CORONE = {
     "nuova": {
         # il sole: la palla piccola in mezzo e tutta la luce intorno
-        "sette": {"palla": 0.56, "fuori": 2.55, "raggi": 16,
+        "sette": {"palla": 0.58, "fuori": 2.55,
                   "dentro": (255, 246, 190), "orlo": (255, 128, 20)},
     },
 }
@@ -1410,13 +1410,15 @@ def con_corona(nome, palla, misura):
         X = xx - (w - 1) / 2.0
         Y = yy - (h - 1) / 2.0
         r = np.sqrt(X * X + Y * Y) / max(1.0, R)
-        th = np.arctan2(Y, X)
-        # i raggi: la luce non e' uguale tutt'intorno
-        raggi = 0.74 + 0.26 * np.cos(d["raggi"] * th)
-        luce = np.exp(-((r - 0.96) / 0.62) ** 2) * raggi
+        # la luce e' uguale tutt'intorno: un radiale e basta
+        luce = np.exp(-((r - 0.96) / 0.70) ** 2)
         luce = np.where(r < 0.96, np.exp(-((r - 0.96) / 0.30) ** 2), luce)
+        # deve spegnersi ESATTAMENTE dove finisce la casella, se no
+        # resta il quadrato scuro intorno
+        bordo = min(w, h) * 0.5 / max(1.0, R)
         luce = np.clip(luce * (1.0 - np.clip((r - 1.0) /
-                                             (d["fuori"] - 1.0), 0, 1)), 0, 1)
+                                             max(0.2, bordo - 1.0), 0, 1))
+                       ** 1.35, 0, 1)
         k = np.clip((r - 0.9) / 1.2, 0, 1)[:, :, None]
         rgb = (np.array(d["dentro"], np.float32)[None, None, :] * (1 - k) +
                np.array(d["orlo"], np.float32)[None, None, :] * k)
