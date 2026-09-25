@@ -2074,6 +2074,27 @@ def valore_carta_ramino(r):
     return 10 if r >= 11 else r
 
 
+def scorcia_per_scartare(gruppi):
+    """Lascia fuori una carta, cosi' resta qualcosa da scartare.
+
+    Non si toglie l'ultima carta e via: in una scala col buco tappato
+    dal jolly (5-6-JK-8) l'ultima e' proprio il jolly, e togliendolo la
+    scala si spezza. Si cerca una carta che si possa togliere lasciando
+    la combinazione ancora buona; se in nessun gruppo ce n'e' una, si
+    cala un gruppo in meno."""
+    for i in range(len(gruppi) - 1, -1, -1):
+        gr = gruppi[i]
+        if len(gr) <= 3:
+            continue
+        for k in range(len(gr) - 1, -1, -1):
+            meno = gr[:k] + gr[k + 1:]
+            if valida_meld([c.codice for c in meno]):
+                fuori = list(gruppi)
+                fuori[i] = meno
+                return fuori
+    return gruppi[:-1]
+
+
 def valida_meld(codici):
     """Se le carte fanno una combinazione valida: (tipo, punti, ordine)
     con l'ordine in cui vanno messe in tavola; se no None. Tris o poker:
@@ -2637,7 +2658,8 @@ def partita_ramino(tv):
                 gruppi_cod = meld_cpu([c.codice for c in mani[1]])
                 apre_ora = False
                 if not aperto[1]:
-                    if sum(valida_meld(g)[1] for g in gruppi_cod) >= APERTURA:
+                    buoni = [valida_meld(g) for g in gruppi_cod]
+                    if sum(v[1] for v in buoni if v) >= APERTURA:
                         aperto[1] = True
                         apre_ora = True
                     else:
@@ -2654,11 +2676,14 @@ def partita_ramino(tv):
                             gr.append(x)
                         gruppi.append(gr)
                     # una carta la tiene per scartare
-                    if sum(len(g) for g in gruppi) == len(mani[1]) and \
-                            len(gruppi) > 0 and len(gruppi[-1]) > 3:
-                        gruppi[-1] = gruppi[-1][:-1]
-                    cala(1, gruppi)
-                    yield from tv.fermi()
+                    if gruppi and sum(len(g) for g in gruppi) == len(mani[1]):
+                        gruppi = scorcia_per_scartare(gruppi)
+                    if gruppi:
+                        cala(1, gruppi)
+                        yield from tv.fermi()
+                    elif apre_ora:
+                        # non e' rimasto niente da calare: non ha aperto
+                        aperto[1], apre_ora = False, False
                 if aperto[1]:
                     for c in list(mani[1]):
                         if len(mani[1]) > 1 and attacca(1, c):
