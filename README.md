@@ -10,14 +10,15 @@ tables and a slot machine.
 
 - Python 3
 - [pygame](https://www.pygame.org) 2
-- [numpy](https://numpy.org) (recommended: ball rendering and sound need it)
+- [numpy](https://numpy.org) (required: without it the balls do not spin,
+  the ball textures and shadows are flat and the sound is off)
 
 ## Install
 
 ```
 git clone https://github.com/JonaDev2026/Classic-Pool.git
 cd Classic-Pool
-python3 -m pip install pygame numpy
+python3 -m pip install -r requirements.txt
 ```
 
 On Windows use `py` instead of `python3`.
