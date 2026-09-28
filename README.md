@@ -23,6 +23,39 @@ python3 -m pip install -r requirements.txt
 
 On Windows use `py` instead of `python3`.
 
+On Debian, Ubuntu and Linux Mint pip cannot install system-wide any
+more, so use the distribution packages:
+
+```
+sudo apt install python3-pygame python3-numpy
+```
+
+or, if you want the newest pygame, a virtual environment:
+
+```
+sudo apt install python3-venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+With a virtual environment, run `source .venv/bin/activate` from the
+game folder every time before playing.
+
+### In the applications menu (Linux)
+
+`linux/golden-break.desktop` is a ready template. Put a square PNG named
+`icon.png` in the game folder, then:
+
+```
+sed "s|/path/to/Classic-Pool|$PWD|g" linux/golden-break.desktop \
+    > ~/.local/share/applications/golden-break.desktop
+update-desktop-database ~/.local/share/applications
+```
+
+The game shows up under Games. If you installed in a virtual
+environment, point `Exec` at `.venv/bin/python` instead of `python3`.
+
 ## Play
 
 ```

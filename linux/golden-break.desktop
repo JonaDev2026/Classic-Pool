@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Golden Break
+GenericName=Games Room
+Comment=Billiards, card games, roulette and a slot machine
+Exec=python3 /path/to/Classic-Pool/golden_break.py
+Path=/path/to/Classic-Pool
+Icon=/path/to/Classic-Pool/icon.png
+Terminal=false
+Categories=Game;
+Keywords=pool;billiards;snooker;cards;roulette;slot;
+StartupNotify=true
