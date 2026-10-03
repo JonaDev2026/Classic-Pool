@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=Classic Pool
-Comment=Gioco di biliardo in Python
+Name=Golden Break
+Comment=Gioco di biliardo e carte in Python
 Exec=python3 /home/jonathan/Classic-Pool-main/golden_break.py
 Icon=/home/jonathan/Classic-Pool-main/immagini/icon.png
 Terminal=false
