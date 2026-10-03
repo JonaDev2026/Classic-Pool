@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Classic Pool
+Comment=Gioco di biliardo in Python
+Exec=python3 /home/jonathan/Classic-Pool-main/golden_break.py
+Icon=/home/jonathan/Classic-Pool-main/immagini/icon.png
+Terminal=false
+Categories=Game;
+Path=/home/jonathan/Classic-Pool-main/
